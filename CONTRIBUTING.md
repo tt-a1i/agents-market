@@ -16,6 +16,8 @@ Before opening a pull request, run the full release gate:
 npm run release:check
 ```
 
+For vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks, do not open a public issue or pull request first. Follow [SECURITY.md](./SECURITY.md).
+
 ## Agent And Pack Contributions
 
 Read [docs/contributing-agents.md](./docs/contributing-agents.md) before adding or importing agents.
@@ -51,4 +53,3 @@ Do not merge registry content that:
 - Duplicates an existing agent without a clearer scope.
 - Has no recommendation signals.
 - Fails `registry lint --strict`.
-

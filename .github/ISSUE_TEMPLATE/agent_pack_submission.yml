@@ -1,0 +1,59 @@
+name: Agent or pack submission
+description: Propose a new marketplace agent, pack, or imported template source.
+title: "[Registry] "
+labels: ["registry", "submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing registry content. Please read `docs/contributing-agents.md` before submitting. Do not include private credentials, proprietary prompts, or security-sensitive vulnerability details in this public issue.
+  - type: input
+    id: use_case
+    attributes:
+      label: Use case
+      description: What workflow or project type should this agent or pack help with?
+      placeholder: Next.js apps with performance and frontend quality issues
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_content
+    attributes:
+      label: Proposed agents or packs
+      description: List agent IDs, pack IDs, or source templates you want included.
+      placeholder: |
+        agents:
+          - nextjs-cache-reviewer
+        packs:
+          - nextjs-quality-pack
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source or repository
+      description: Required for third-party or imported content.
+      placeholder: https://github.com/owner/repo/tree/main/agents
+  - type: input
+    id: license
+    attributes:
+      label: Source license
+      description: Required for third-party or imported content.
+      placeholder: MIT
+  - type: textarea
+    id: permissions
+    attributes:
+      label: Expected permissions and tools
+      description: State the minimum permission and tools this content needs.
+      placeholder: readonly with read access only; web access only for current documentation lookup
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation evidence
+      description: Include lint, audit, or preview output if you already have it.
+      placeholder: |
+        node dist/index.js registry lint --registry ./registry --strict --json
+        node dist/index.js audit <pack-id> --target all --json
+        node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
+

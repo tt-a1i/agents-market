@@ -271,6 +271,7 @@ function verifyTarball(packOutput) {
   const required = [
     "README.md",
     "CONTRIBUTING.md",
+    "SECURITY.md",
     "LICENSE",
     "dist/index.js",
     "dist/catalog.js",

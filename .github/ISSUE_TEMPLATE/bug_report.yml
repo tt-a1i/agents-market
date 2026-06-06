@@ -1,0 +1,43 @@
+name: Bug report
+description: Report a reproducible CLI, registry, catalog, or adapter issue.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Do not use this public issue form for vulnerabilities or policy bypasses; see `SECURITY.md`.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include commands and relevant files.
+      placeholder: |
+        1. Run `agents-market ...`
+        2. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: "@agents-market/cli 0.1.0, Node 24"
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, registry source, target tool, or project type.
+

@@ -148,6 +148,8 @@ CI runs `node dist/index.js registry lint --strict --json`, which treats warning
 
 Static linting is necessary but not sufficient for marketplace publication. New or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
 
+Security-sensitive findings, including policy bypasses, unsafe generated files, registry checksum issues, or dangerous third-party content, follow [../SECURITY.md](../SECURITY.md) and should not be filed as public issues.
+
 ## Import Pipeline
 
 `agents-market import markdown` normalizes third-party Claude Code and OpenCode Markdown agent templates into `registry/agents/*.json`.

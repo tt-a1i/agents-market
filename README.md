@@ -317,6 +317,8 @@ Agents Market is curated. Before adding or importing registry content, read [CON
 
 Registry pull requests should include provenance, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
 
+Do not open public issues for vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks. Use the private reporting path in [SECURITY.md](./SECURITY.md).
+
 ## Repository Layout
 
 ```text
