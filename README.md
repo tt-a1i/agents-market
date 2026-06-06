@@ -159,7 +159,7 @@ src/
   adapters/   Claude Code, Codex, and OpenCode generators
   index.ts    CLI entrypoint
 .github/
-  workflows/  CI and GitHub Pages catalog publishing
+  workflows/  CI, GitHub Pages catalog publishing, and npm release
 tests/        Adapter and registry tests
 ```
 
@@ -173,5 +173,21 @@ tests/        Adapter and registry tests
 - Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
 - Static catalog generation provides a first Web discovery surface without adding a heavy frontend stack.
 - Registry linting keeps marketplace content safe enough to publish and useful enough to recommend.
+
+## Release
+
+The package is prepared for npm publication as `@agents-market/cli`.
+
+Before release:
+
+```bash
+npm run lint
+npm run build
+node dist/index.js registry lint --strict
+npm test
+npm pack --dry-run
+```
+
+Publishing is handled by the Release GitHub Actions workflow on `v*` tags. See [docs/release.md](./docs/release.md).
 
 See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.

@@ -138,3 +138,13 @@ CI runs `node dist/index.js registry lint --strict`, which treats warnings as fa
 - Signature or checksum verification for third-party packs.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
+
+## Release Pipeline
+
+The repository includes three GitHub Actions workflows:
+
+- CI: typecheck, build, registry lint, and tests.
+- Pages: static catalog generation and GitHub Pages deployment.
+- Release: npm package verification and publish on `v*` tags.
+
+The release workflow uses npm provenance and requires `NPM_TOKEN` in repository secrets.

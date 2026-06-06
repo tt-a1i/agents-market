@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Agent-native marketplace and installer for specialized coding subagents.",
   "type": "module",
+  "packageManager": "npm@10.9.8",
   "bin": {
     "agents-market": "./dist/index.js"
   },
@@ -19,7 +20,8 @@
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build && node dist/index.js registry lint --strict"
   },
   "keywords": [
     "agents",
@@ -29,8 +31,19 @@
     "opencode",
     "cli"
   ],
-  "author": "",
+  "author": "Agents Market contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tt-a1i/agents-market.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tt-a1i/agents-market/issues"
+  },
+  "homepage": "https://tt-a1i.github.io/agents-market/",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "commander": "^14.0.2",
     "picocolors": "^1.1.1",
