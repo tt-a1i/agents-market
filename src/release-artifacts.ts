@@ -132,6 +132,8 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   assert(sbom.spdxVersion === "SPDX-2.3", `Expected SPDX-2.3 SBOM, found ${sbom.spdxVersion}.`);
   assert(sbom.name === `@agents-market/cli@${version}`, `SBOM name ${sbom.name} does not match release version ${version}.`);
   assert(Array.isArray(sbom.packages) && sbom.packages.length > 0, "SBOM has no package records.");
+  const installScript = await readText(join(root, "install.sh"), "install.sh");
+  verifyInstallScript(installScript, manifest);
 
   return {
     ok: true,
@@ -172,6 +174,30 @@ function verifyCatalogSourceMetadata(manifest: Record<string, unknown>, catalog:
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+}
+
+function verifyInstallScript(script: string, manifest: Record<string, unknown>): void {
+  assert(script.startsWith("#!/usr/bin/env sh"), "install.sh must be a POSIX shell script.");
+  assert(script.includes("set -eu"), "install.sh must enable strict shell error handling.");
+  assert(script.includes(`VERSION="\${AGENTS_MARKET_VERSION:-${manifest.version}}"`), "install.sh default version does not match release manifest.");
+  assert(script.includes(`TAG="\${AGENTS_MARKET_TAG:-${manifest.releaseTag}}"`), "install.sh default tag does not match release manifest.");
+  assert(script.includes('command -v curl'), "install.sh must check for curl before downloading assets.");
+  assert(script.includes('command -v npm'), "install.sh must check for npm before installing assets.");
+  assert(script.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "install.sh must support strict GitHub attestation mode.");
+  assert(script.includes('gh attestation verify "${TMP_DIR}/SHA256SUMS" --repo "${REPO}"'), "install.sh must verify SHA256SUMS attestation in strict mode.");
+  assert(script.includes('gh attestation verify "${TMP_DIR}/${TARBALL}" --repo "${REPO}"'), "install.sh must verify npm tarball attestation in strict mode.");
+  assert(script.includes('EXPECTED_SHA="$(awk -v file="npm/${TARBALL}"'), "install.sh must read the npm tarball checksum from SHA256SUMS.");
+  assert(script.includes("Checksum mismatch"), "install.sh must fail closed on checksum mismatch.");
+  assert(script.includes('npm install -g --ignore-scripts "${TMP_DIR}/${TARBALL}"'), "install.sh must install the npm tarball without running lifecycle scripts.");
+  assert(
+    script.indexOf('command -v curl') < script.indexOf('curl -fsSL "${BASE_URL}/SHA256SUMS"'),
+    "install.sh must check for curl before downloading assets."
+  );
+  assert(
+    script.indexOf('gh attestation verify "${TMP_DIR}/SHA256SUMS"') < script.indexOf('EXPECTED_SHA='),
+    "install.sh must verify attestations before trusting SHA256SUMS."
+  );
+  assert(script.indexOf('command -v npm') < script.indexOf("npm install -g"), "install.sh must check for npm before installing assets.");
 }
 
 async function resolveArtifactInput(value: string, archive?: boolean): Promise<{ root: string; cleanupDir?: string }> {

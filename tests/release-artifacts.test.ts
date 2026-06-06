@@ -56,6 +56,17 @@ describe("release artifact verification", () => {
     await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/catalog\/catalog\.json commit metadata does not match release manifest/);
   });
 
+  it("rejects release artifacts when the installer is weakened", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-"));
+    const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
+    const installPath = join(dir, "install.sh");
+    const installScript = await readFile(installPath, "utf8");
+    await writeFile(installPath, installScript.replace("npm install -g --ignore-scripts", "npm install -g"), "utf8");
+    await writeManifestAndChecksums(dir);
+
+    await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must install the npm tarball without running lifecycle scripts/);
+  });
+
   it("rejects complete archives with unsafe tar entry paths before extraction", async () => {
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-unsafe-"));
     const archive = join(cleanupPath, "unsafe.tgz");
@@ -135,11 +146,11 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
     "agents-market-claude-0.1.0.tgz",
     "agents-market-codex-0.1.0.tgz",
     "agents-market-opencode-0.1.0.tgz",
-    "npm/agents-market-cli-0.1.0.tgz",
-    "install.sh"
+    "npm/agents-market-cli-0.1.0.tgz"
   ]) {
     await writeFile(join(dir, file), `placeholder ${file}\n`, "utf8");
   }
+  await writeFile(join(dir, "install.sh"), testInstallScript(), "utf8");
   await writeFile(join(dir, "sbom.spdx.json"), `${JSON.stringify({
     spdxVersion: "SPDX-2.3",
     name: "@agents-market/cli@0.1.0",
@@ -151,6 +162,45 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   const result = spawnSync("tar", ["-czf", archive, "-C", dir, "."], { encoding: "utf8" });
   if (result.status !== 0) throw new Error(result.stderr || result.stdout || "tar failed");
   return { dir, archive };
+}
+
+function testInstallScript(): string {
+  return `#!/usr/bin/env sh
+set -eu
+
+VERSION="\${AGENTS_MARKET_VERSION:-0.1.0}"
+TAG="\${AGENTS_MARKET_TAG:-preview-0.1.0}"
+REPO="\${AGENTS_MARKET_REPO:-example/agents-market}"
+BASE_URL="https://github.com/\${REPO}/releases/download/\${TAG}"
+TARBALL="agents-market-cli-\${VERSION}.tgz"
+TMP_DIR="\${TMPDIR:-/tmp}/agents-market-install-\$\$"
+
+if ! command -v curl >/dev/null 2>&1; then
+  echo "Install requires curl." >&2
+  exit 1
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "Install requires npm." >&2
+  exit 1
+fi
+
+curl -fsSL "\${BASE_URL}/SHA256SUMS" -o "\${TMP_DIR}/SHA256SUMS"
+curl -fsSL "\${BASE_URL}/\${TARBALL}" -o "\${TMP_DIR}/\${TARBALL}"
+
+if [ "\${AGENTS_MARKET_REQUIRE_ATTESTATION:-0}" = "1" ]; then
+  gh attestation verify "\${TMP_DIR}/SHA256SUMS" --repo "\${REPO}"
+  gh attestation verify "\${TMP_DIR}/\${TARBALL}" --repo "\${REPO}"
+fi
+
+EXPECTED_SHA="$(awk -v file="npm/\${TARBALL}" '$2 == file { print $1 }' "\${TMP_DIR}/SHA256SUMS")"
+ACTUAL_SHA="$(shasum -a 256 "\${TMP_DIR}/\${TARBALL}" | awk '{ print $1 }')"
+if [ "\${EXPECTED_SHA}" != "\${ACTUAL_SHA}" ]; then
+  echo "Checksum mismatch for \${TARBALL}" >&2
+  exit 1
+fi
+
+npm install -g --ignore-scripts "\${TMP_DIR}/\${TARBALL}"
+`;
 }
 
 async function writeManifestAndChecksums(dir: string): Promise<void> {
