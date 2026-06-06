@@ -413,6 +413,7 @@ async function runReleaseArtifactsSmoke() {
       "Release artifact build"
     );
     const manifest = JSON.parse(await readFile(join(dir, "release-artifacts.json"), "utf8"));
+    assert(manifest.packageSpec === "github:tt-a1i/agents-market", `Expected release artifact packageSpec github:tt-a1i/agents-market, found ${manifest.packageSpec}.`);
     const artifactPaths = new Set(manifest.artifacts?.map((artifact) => artifact.path));
     for (const required of [
       "registry.bundle.json",
@@ -429,6 +430,13 @@ async function runReleaseArtifactsSmoke() {
     }
     const checksums = await readFile(join(dir, "SHA256SUMS"), "utf8");
     assert(checksums.includes("registry.bundle.json"), "Release artifact checksums do not include registry.bundle.json.");
+    const catalog = JSON.parse(await readFile(join(dir, "catalog", "catalog.json"), "utf8"));
+    const starterPack = catalog.packs?.find((pack) => pack.id === "starter-dev-pack");
+    assert(catalog.packageSpec === "github:tt-a1i/agents-market", `Expected release catalog packageSpec github:tt-a1i/agents-market, found ${catalog.packageSpec}.`);
+    assert(
+      starterPack?.previewCommand?.startsWith("npx github:tt-a1i/agents-market apply starter-dev-pack"),
+      `Expected release catalog preview command to use GitHub npx package spec, found ${starterPack?.previewCommand}.`
+    );
     const installScript = await readFile(join(dir, "install.sh"), "utf8");
     assert(installScript.includes("Checksum mismatch"), "Release install script should verify checksums before installing.");
     assert(installScript.includes("npm install -g"), "Release install script should install the npm tarball.");

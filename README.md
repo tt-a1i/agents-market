@@ -119,7 +119,7 @@ agents-market integrations package --target all --out ./integration-packages
 agents-market ci diff
 agents-market ci init --provider github --yes
 agents-market catalog build --out ./site
-agents-market catalog build --out ./site --base-url https://example.com/agents-market
+agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market
 agents-market catalog verify --dir ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
 agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
@@ -338,9 +338,11 @@ Build a static marketplace catalog:
 
 ```bash
 agents-market catalog build --out ./site
-agents-market catalog build --out ./site --base-url https://example.com/agents-market
+agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market
 agents-market catalog verify --dir ./site
 ```
+
+Use `--package github:tt-a1i/agents-market` for preview catalogs before npm publication. Use `--package @agents-market/cli` for production catalogs after the npm package is published.
 
 The catalog generator writes:
 

@@ -6,12 +6,14 @@ import { spawnSync } from "node:child_process";
 const args = parseArgs(process.argv.slice(2));
 const outDir = args.out ?? "release-artifacts";
 const catalogBaseUrl = args.catalogBaseUrl ?? "https://tt-a1i.github.io/agents-market";
+const packageSpec = args.packageSpec ?? "github:tt-a1i/agents-market";
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const version = packageJson.version;
 const defaultReleaseTag = args.releaseTag ?? `v${version}`;
 const artifactManifest = {
   version,
   catalogBaseUrl,
+  packageSpec,
   releaseTag: defaultReleaseTag,
   generatedAt: new Date().toISOString(),
   artifacts: []
@@ -24,7 +26,19 @@ run("node", ["dist/index.js", "registry", "export", "--out", join(outDir, "regis
 run("node", ["dist/index.js", "registry", "verify", "--registry", join(outDir, "registry.bundle.json"), "--json"], "Verify registry bundle");
 run(
   "node",
-  ["dist/index.js", "catalog", "build", "--out", join(outDir, "catalog"), "--title", "Agents Market", "--base-url", catalogBaseUrl],
+  [
+    "dist/index.js",
+    "catalog",
+    "build",
+    "--out",
+    join(outDir, "catalog"),
+    "--title",
+    "Agents Market",
+    "--base-url",
+    catalogBaseUrl,
+    "--package",
+    packageSpec
+  ],
   "Build catalog"
 );
 run("node", ["dist/index.js", "catalog", "verify", "--dir", join(outDir, "catalog"), "--json"], "Verify catalog");
@@ -91,6 +105,8 @@ function parseArgs(values) {
       parsed.catalogBaseUrl = values[++index];
     } else if (value === "--release-tag") {
       parsed.releaseTag = values[++index];
+    } else if (value === "--package") {
+      parsed.packageSpec = values[++index];
     } else {
       throw new Error(`Unknown argument: ${value}`);
     }

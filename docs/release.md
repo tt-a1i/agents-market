@@ -17,7 +17,11 @@ npm run release:check
 
 `release:check` runs typecheck, build, registry strict lint with JSON assertions, registry changelog assertions, a signed registry export/verify smoke test, the registry submission gate, tests, catalog build, a full CLI lifecycle smoke test, npm package dry run, and required tarball content checks.
 
-`release:artifacts` builds production release artifacts into `./release-artifacts`:
+`release:artifacts` builds production release artifacts into `./release-artifacts`. Use `--package github:tt-a1i/agents-market` for preview catalogs and `--package @agents-market/cli` for official npm-backed releases:
+
+```bash
+npm run release:artifacts -- --out ./release-artifacts --catalog-base-url https://tt-a1i.github.io/agents-market --release-tag preview-0.1.0 --package github:tt-a1i/agents-market
+```
 
 - `registry.bundle.json`
 - `catalog/` with `index.html`, `catalog.json`, and `registry.bundle.json`

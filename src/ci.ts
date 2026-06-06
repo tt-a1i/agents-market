@@ -1,4 +1,5 @@
 import type { GeneratedFile } from "./types.js";
+import { assertSafePackageSpec } from "./catalog.js";
 
 export type CiProvider = "github";
 
@@ -32,12 +33,6 @@ export function generateCiWorkflow(options: Partial<CiWorkflowOptions> = {}): Ge
     path: ".github/workflows/agents-market.yml",
     content: renderGitHubWorkflow(resolved)
   };
-}
-
-function assertSafePackageSpec(packageSpec: string): void {
-  if (!/^[A-Za-z0-9@._:/#-]+$/.test(packageSpec)) {
-    throw new Error(`Unsafe package spec for generated CI workflow: ${packageSpec}`);
-  }
 }
 
 function renderGitHubWorkflow(options: CiWorkflowOptions): string {

@@ -1935,14 +1935,16 @@ catalogCommand
   .option("--version <version>", "catalog registry bundle version", BUNDLED_REGISTRY_VERSION)
   .option("--title <title>", "catalog site title", "Agents Market")
   .option("--base-url <url>", "public base URL used in copyable registry commands")
+  .option("--package <spec>", "package spec used by catalog npx commands", "github:tt-a1i/agents-market")
   .description("Build a static Web catalog for packs and agents")
-  .action(async (options: { out: string; registry?: string; version: string; title: string; baseUrl?: string }) => {
+  .action(async (options: { out: string; registry?: string; version: string; title: string; baseUrl?: string; package: string }) => {
     const { registry } = await loadRegistryWithInfo(options.registry);
     const files = await buildCatalog(registry, {
       outDir: resolve(options.out),
       version: options.version,
       title: options.title,
-      baseUrl: options.baseUrl
+      baseUrl: options.baseUrl,
+      packageSpec: options.package
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });

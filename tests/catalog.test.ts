@@ -46,13 +46,13 @@ describe("catalog", () => {
     expect(html).toContain("requires Agents Market &gt;=0.1.0");
     expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
     expect(html).toContain(
-      "npx @agents-market/cli apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
+      "npx github:tt-a1i/agents-market apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
     );
     expect(html).toContain(
-      "npx @agents-market/cli apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --yes"
+      "npx github:tt-a1i/agents-market apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --yes"
     );
     expect(html).toContain(
-      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
+      "npx github:tt-a1i/agents-market audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
     );
     expect(html).toContain("data-copy=");
     expect(html).toContain("navigator.clipboard.writeText");
@@ -60,6 +60,7 @@ describe("catalog", () => {
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
       agentCount: number;
+      packageSpec: string;
       registryBundleUrl: string;
       promptQuality: { averageScore: number; minScore: number };
       provenance: { withProvenance: number; withChecksum: number };
@@ -99,19 +100,20 @@ describe("catalog", () => {
     expect(catalog.changelog[0]?.summary).toContain("Initial public registry");
     expect(catalog.promptQuality.averageScore).toBeGreaterThanOrEqual(90);
     expect(catalog.promptQuality.minScore).toBeGreaterThanOrEqual(80);
+    expect(catalog.packageSpec).toBe("github:tt-a1i/agents-market");
     expect(catalog.provenance.withProvenance).toBe(0);
     expect(catalog.importWorkflows.map((workflow) => workflow.label)).toContain("Import GitHub Repository");
     expect(catalog.importWorkflows.map((workflow) => workflow.command).join("\n")).toContain("import repo owner/community-agents");
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     expect(starterPack?.previewCommand).toContain(
-      "npx @agents-market/cli apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
+      "npx github:tt-a1i/agents-market apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
     );
     expect(starterPack?.installCommand).toContain(
-      "npx @agents-market/cli apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --yes"
+      "npx github:tt-a1i/agents-market apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --yes"
     );
     expect(starterPack?.auditCommand).toContain(
-      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
+      "npx github:tt-a1i/agents-market audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
     );
     expect(starterPack?.diffCommand).toContain("--json");
     expect(starterPack?.workflowCommands.map((command) => command.label)).toEqual(["Preview", "Audit", "Diff", "Install"]);
@@ -147,11 +149,33 @@ describe("catalog", () => {
     };
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     if (!starterPack) throw new Error("starter-dev-pack missing from test catalog");
-    starterPack.previewCommand = "npx @agents-market/cli apply wrong-pack";
+    starterPack.previewCommand = "npx github:tt-a1i/agents-market apply wrong-pack";
     await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
 
     const report = await verifyCatalog(cleanupPath);
     expect(report.ok).toBe(false);
     expect(report.findings.map((finding) => finding.code)).toContain("preview-command-mismatch");
+  });
+
+  it("supports npm package command generation for production catalogs", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
+    await buildCatalog(registry, {
+      outDir: cleanupPath,
+      version: "0.1.0",
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market",
+      packageSpec: "@agents-market/cli"
+    });
+
+    const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
+      packageSpec: string;
+      packs: Array<{ id: string; previewCommand: string }>;
+    };
+    const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
+    expect(catalog.packageSpec).toBe("@agents-market/cli");
+    expect(starterPack?.previewCommand).toContain("npx @agents-market/cli apply starter-dev-pack");
+    const report = await verifyCatalog(cleanupPath);
+    expect(report.ok).toBe(true);
   });
 });

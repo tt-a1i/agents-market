@@ -11,6 +11,7 @@ export interface CatalogOptions {
   version: string;
   title?: string;
   baseUrl?: string;
+  packageSpec?: string;
 }
 
 export interface CatalogVerificationFinding {
@@ -34,13 +35,16 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
 
   const bundle = createRegistryBundle(registry, options.version, "agents-market");
   const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
+  const packageSpec = options.packageSpec ?? "github:tt-a1i/agents-market";
+  assertSafePackageSpec(packageSpec);
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
-  const importWorkflows = importWorkflowCommands();
+  const importWorkflows = importWorkflowCommands(packageSpec);
   const catalog = {
     title,
     generatedAt: new Date().toISOString(),
     baseUrl: options.baseUrl,
+    packageSpec,
     registryBundleUrl: bundleUrl,
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
@@ -48,7 +52,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     provenance,
     importWorkflows,
     changelog: registry.changelog ?? [],
-    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl)),
+    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl, packageSpec)),
     agents: registry.agents.map(agentCatalogSummary)
   };
 
@@ -63,7 +67,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     },
     {
       name: "index.html",
-      content: renderHtml(title, registry, bundleUrl)
+      content: renderHtml(title, registry, bundleUrl, packageSpec)
     }
   ];
 
@@ -193,7 +197,8 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
       });
       continue;
     }
-    const expected = packCatalogSummary(registry, pack.id, bundleUrl);
+    const packageSpec = stringValue(catalog.packageSpec) ?? "github:tt-a1i/agents-market";
+    const expected = packCatalogSummary(registry, pack.id, bundleUrl, packageSpec);
     if (catalogPack.previewCommand !== expected.previewCommand) {
       findings.push({
         severity: "error",
@@ -313,13 +318,19 @@ function assetUrl(path: string, baseUrl?: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
-function renderHtml(title: string, registry: Registry, bundlePath: string): string {
+export function assertSafePackageSpec(packageSpec: string): void {
+  if (!/^[A-Za-z0-9@._:/#-]+$/.test(packageSpec)) {
+    throw new Error(`Unsafe package spec for generated commands: ${packageSpec}`);
+  }
+}
+
+function renderHtml(title: string, registry: Registry, bundlePath: string, packageSpec: string): string {
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
-  const importWorkflows = importWorkflowCommands();
+  const importWorkflows = importWorkflowCommands(packageSpec);
   const packs = registry.packs
     .map((pack) => {
-      const summary = packCatalogSummary(registry, pack.id, bundlePath);
+      const summary = packCatalogSummary(registry, pack.id, bundlePath, packageSpec);
       const agents = summary.agents
         .map((agent) => `<li><code>${escapeHtml(agent.id)}</code> ${escapeHtml(agent.description)}</li>`)
         .join("");
@@ -457,6 +468,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     <div class="hero">
       <h1>${escapeHtml(title)}</h1>
       <p>Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode. Preview, lock, install, update, and uninstall with one CLI.</p>
+      <p class="muted">Copyable commands use <code>npx ${escapeHtml(packageSpec)}</code>.</p>
       <div class="stats">
         <div class="stat"><strong>${registry.packs.length}</strong><span>packs</span></div>
         <div class="stat"><strong>${registry.agents.length}</strong><span>agents</span></div>
@@ -554,16 +566,17 @@ function renderProvenance(
   return `${escapeHtml(label)}${checksum}`;
 }
 
-function packCatalogSummary(registry: Registry, packId: string, bundlePath: string) {
+function packCatalogSummary(registry: Registry, packId: string, bundlePath: string, packageSpec: string) {
   const pack = registry.packs.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error(`Unknown pack: ${packId}`);
   const agents = pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined);
   const quality = summarizeQuality(agents);
   const audit = auditPack(registry, pack.id, "all");
-  const previewCommand = `npx @agents-market/cli apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --json`;
-  const auditCommand = `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath} --json`;
-  const diffCommand = `npx @agents-market/cli diff ${pack.id} --target all --registry ${bundlePath} --json`;
-  const installCommand = `npx @agents-market/cli apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --yes`;
+  const npx = `npx ${packageSpec}`;
+  const previewCommand = `${npx} apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --json`;
+  const auditCommand = `${npx} audit ${pack.id} --target all --registry ${bundlePath} --json`;
+  const diffCommand = `${npx} diff ${pack.id} --target all --registry ${bundlePath} --json`;
+  const installCommand = `${npx} apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --yes`;
   return {
     ...pack,
     previewCommand,
@@ -646,25 +659,24 @@ function summarizeProvenance(agents: AgentDefinition[]) {
   };
 }
 
-function importWorkflowCommands() {
+function importWorkflowCommands(packageSpec = "github:tt-a1i/agents-market") {
+  const npx = `npx ${packageSpec}`;
   return [
     {
       label: "Import Markdown Agent",
-      command: "npx @agents-market/cli import markdown ./agent.md --target claude --out ./registry/agents"
+      command: `${npx} import markdown ./agent.md --target claude --out ./registry/agents`
     },
     {
       label: "Import Directory Pack",
-      command:
-        "npx @agents-market/cli import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs"
+      command: `${npx} import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs`
     },
     {
       label: "Import GitHub Repository",
-      command:
-        "npx @agents-market/cli import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs"
+      command: `${npx} import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs`
     },
     {
       label: "Review Imported Registry",
-      command: "npx @agents-market/cli registry lint --registry ./registry --strict --json"
+      command: `${npx} registry lint --registry ./registry --strict --json`
     }
   ];
 }

@@ -124,7 +124,7 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 
 ## Static Catalog
 
-`agents-market catalog build` generates a static discovery site from any registry source.
+`agents-market catalog build` generates a static discovery site from any registry source. `--package` controls the package spec used in copyable `npx` commands, which lets preview catalogs use `github:tt-a1i/agents-market` before npm publication and production catalogs use `@agents-market/cli` after npm publication.
 
 Outputs:
 
