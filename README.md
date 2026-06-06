@@ -58,6 +58,7 @@ agents-market audit starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all --json
 agents-market install starter-dev-pack --target claude
+agents-market pack create frontend-lite --agent code-reviewer accessibility-auditor --out ./registry/packs
 agents-market status
 agents-market doctor
 agents-market update
@@ -157,6 +158,19 @@ agents-market search review --json
 ```
 
 Search supports bundled, local, bundle-file, and URL registries through `--registry`, the same as install commands.
+
+Create a small project-specific pack from individual search results:
+
+```bash
+agents-market pack create frontend-lite \
+  --agent code-reviewer accessibility-auditor \
+  --tag custom frontend \
+  --framework react \
+  --language typescript \
+  --out ./registry/packs
+```
+
+After creating the pack, run `agents-market registry lint --registry ./registry`, then install it with `agents-market install frontend-lite --registry ./registry`.
 
 ## Agent-Native Integrations
 

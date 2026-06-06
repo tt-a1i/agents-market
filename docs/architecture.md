@@ -114,6 +114,10 @@ Outputs:
 
 The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
 
+## Custom Packs
+
+`agents-market pack create` lets users and agent-native wrappers compose a small pack from individual search results. This keeps installation lifecycle operations pack-based while still allowing precise selection of specialized agents.
+
 ## Registry Quality Gate
 
 `agents-market registry lint` checks registry content before publication.

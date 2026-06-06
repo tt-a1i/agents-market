@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import pc from "picocolors";
 import { dirname, resolve, sep } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRegistryBundle, loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
 import { buildCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
@@ -14,6 +14,7 @@ import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
+import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
@@ -50,6 +51,10 @@ function parseConcreteTarget(value: string): Target {
 function parseSearchKind(value: string): SearchKind {
   if (value === "all" || value === "agents" || value === "packs") return value;
   throw new Error(`Invalid search type: ${value}. Use all, agents, or packs.`);
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 async function loadProjectRegistry(root: string, registryOption?: string) {
@@ -621,6 +626,74 @@ program
     await writeGeneratedFiles(resolve(options.out), files);
     console.log(pc.green(`Exported ${files.length} files to ${resolve(options.out)}`));
   });
+
+const packCommand = program.command("pack").description("Compose and inspect custom packs");
+
+packCommand
+  .command("create")
+  .argument("<id>", "new pack id")
+  .requiredOption("--agent <id...>", "agent ids to include in the pack")
+  .requiredOption("-o, --out <dir>", "registry/packs output directory")
+  .option("--registry <source>", "registry source containing selectable agents", "bundled")
+  .option("--name <name>", "pack display name")
+  .option("--description <description>", "pack description")
+  .option("--tag <tag...>", "pack tags")
+  .option("--framework <framework...>", "recommended framework signals")
+  .option("--language <language...>", "recommended language signals")
+  .option("--file <file...>", "recommended file signals")
+  .option("--version <version>", "pack version", "0.1.0")
+  .option("--overwrite", "overwrite an existing pack JSON file")
+  .option("--json", "print machine-readable JSON")
+  .description("Create a custom pack from selected registry agents")
+  .action(
+    async (
+      id: string,
+      options: {
+        agent: string[];
+        out: string;
+        registry: string;
+        name?: string;
+        description?: string;
+        tag?: string[];
+        framework?: string[];
+        language?: string[];
+        file?: string[];
+        version: string;
+        overwrite?: boolean;
+        json?: boolean;
+      }
+    ) => {
+      const { registry } = await loadRegistryWithInfo(options.registry);
+      const pack = composePack(registry, {
+        id,
+        agents: options.agent,
+        name: options.name,
+        description: options.description,
+        version: options.version,
+        tags: options.tag,
+        frameworks: options.framework,
+        languages: options.language,
+        files: options.file
+      });
+      const outPath = resolve(options.out, `${pack.id}.json`);
+      if (!options.overwrite) {
+        try {
+          await readFile(outPath, "utf8");
+          throw new Error(`Pack already exists: ${outPath}. Use --overwrite to replace it.`);
+        } catch (error) {
+          if (error instanceof Error && error.message.startsWith("Pack already exists:")) throw error;
+          if (!isNotFoundError(error)) throw error;
+        }
+      }
+      await mkdir(dirname(outPath), { recursive: true });
+      await writeFile(outPath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
+      if (options.json) {
+        console.log(JSON.stringify({ pack, path: outPath }, null, 2));
+      } else {
+        console.log(pc.green(`Wrote custom pack ${pack.id} with ${pack.agents.length} agents to ${outPath}`));
+      }
+    }
+  );
 
 const registryCommand = program.command("registry").description("Registry utilities");
 

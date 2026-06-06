@@ -9,6 +9,7 @@ import { runDoctor } from "../src/doctor.js";
 import { createInstallPlan, generatePackFiles } from "../src/install.js";
 import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
 import { saveManifest, upsertInstall } from "../src/manifest.js";
+import { composePack } from "../src/pack.js";
 import { searchRegistry } from "../src/search.js";
 import { writeGeneratedFiles } from "../src/files.js";
 
@@ -49,6 +50,26 @@ describe("registry", () => {
     expect(plan.agentCount).toBe(4);
     expect(plan.fileCount).toBe(12);
     expect(plan.files[0]).toHaveProperty("agentId");
+  });
+
+  it("composes custom packs from selected agents", async () => {
+    const registry = await loadRegistry();
+    const pack = composePack(registry, {
+      id: "frontend-lite",
+      agents: ["code-reviewer", "accessibility-auditor", "code-reviewer"],
+      tags: ["custom", "frontend"],
+      frameworks: ["react"],
+      languages: ["typescript"]
+    });
+    expect(pack.id).toBe("frontend-lite");
+    expect(pack.agents).toEqual(["code-reviewer", "accessibility-auditor"]);
+    expect(pack.recommendedFor.frameworks).toEqual(["react"]);
+    expect(pack.recommendedFor.languages).toEqual(["typescript"]);
+  });
+
+  it("rejects custom packs with unknown agents", async () => {
+    const registry = await loadRegistry();
+    expect(() => composePack(registry, { id: "bad-pack", agents: ["missing-agent"] })).toThrow(/Unknown agents/);
   });
 
   it("audits pack permissions and provenance", async () => {

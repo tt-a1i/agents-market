@@ -39,6 +39,7 @@ agents-market doctor --json
 Use the JSON output for parsing, and translate it into concise human-facing summaries before asking for confirmation.
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
+Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `doctor --json` after installation or updates to verify manifest health, registry lock status, generated-file drift, and target directories.

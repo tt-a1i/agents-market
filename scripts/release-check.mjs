@@ -52,6 +52,7 @@ function verifyTarball(packOutput) {
     "dist/catalog.js",
     "dist/audit.js",
     "dist/doctor.js",
+    "dist/pack.js",
     "registry/agents/code-reviewer.json",
     "registry/packs/starter-dev-pack.json",
     "docs/agent-native.md",
