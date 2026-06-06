@@ -112,6 +112,14 @@ async function main() {
           catalogInitPreview.nextCommands?.some((command) => command.includes(`--registry ${baseUrl}/registry.bundle.json`)),
           "Catalog init dry-run next commands should include the hosted registry URL before a lock is written."
         );
+        assert(
+          catalogInitPreview.nextCommands?.some((command) => command.includes("catalog init") && command.includes("--yes")),
+          "Catalog init dry-run next commands should tell users how to confirm writing the catalog connection."
+        );
+        assert(
+          !catalogInitPreview.nextCommands?.includes("agents-market registry verify-lock --json"),
+          "Catalog init dry-run should not suggest registry verify-lock before a lock is written."
+        );
         const catalogInitInstall = runJson(
           "node",
           ["dist/index.js", "catalog", "init", "--url", `${baseUrl}/agents-market.json`, "--cwd", catalogProjectDir, "--target", "all", "--ci", "--yes", "--json"],
@@ -119,6 +127,10 @@ async function main() {
         );
         assert(catalogInitInstall.lockWritten === true, "Catalog init --yes should write the registry lock.");
         assert(catalogInitInstall.changes?.some((change) => change.path === ".github/workflows/agents-market.yml"), "Catalog init --ci should include the CI workflow.");
+        assert(
+          catalogInitInstall.nextCommands?.includes("agents-market registry verify-lock --json"),
+          "Catalog init --yes next commands should verify the written registry lock."
+        );
         assert(
           catalogInitInstall.nextCommands?.some((command) => command.includes("apply starter-dev-pack --target all --policy-preset balanced --yes")),
           "Catalog init --yes next commands should use the written registry lock instead of repeating --registry."
@@ -151,6 +163,10 @@ async function main() {
           assert(
             catalogPackPreview.nextCommands?.some((command) => command.includes("apply security-pack --target codex")),
             "Catalog init --pack next commands should install the requested pack."
+          );
+          assert(
+            catalogPackPreview.nextCommands?.some((command) => command.includes("--pack security-pack") && command.includes("--yes")),
+            "Catalog init --pack dry-run next commands should preserve the requested pack when confirming."
           );
         } finally {
           await rm(catalogPackProjectDir, { recursive: true, force: true });

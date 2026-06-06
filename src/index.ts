@@ -2397,6 +2397,16 @@ catalogCommand
       await writeGeneratedFiles(root, ciWorkflow ? [...integrationFiles, ciWorkflow] : integrationFiles);
     }
     const registryArg = options.yes ? "" : ` --registry ${loaded.source.value}`;
+    const catalogInitConfirmCommand = [
+      "agents-market catalog init",
+      `--url ${options.url}`,
+      `--target ${target}`,
+      options.pack ? `--pack ${options.pack}` : undefined,
+      options.ci ? "--ci" : undefined,
+      "--yes"
+    ]
+      .filter(Boolean)
+      .join(" ");
     const result = {
       root,
       source: manifestReport.source,
@@ -2420,7 +2430,7 @@ catalogCommand
       written: options.yes ? changes.length : 0,
       changes,
       nextCommands: [
-        "agents-market registry verify-lock --json",
+        ...(options.yes ? ["agents-market registry verify-lock --json"] : [catalogInitConfirmCommand]),
         `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --json`,
         `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --yes`,
         ...(options.ci ? ["agents-market status --diff --json", "agents-market doctor --strict --json"] : ["agents-market ci init --provider github --yes"])
