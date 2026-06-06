@@ -27,6 +27,7 @@ The artifact builder stamps `registry.bundle.json`, `catalog/catalog.json`, and 
 
 - `registry.bundle.json`
 - `catalog/` with `index.html`, `catalog.json`, and `registry.bundle.json`
+- `agents-market-catalog-<version>.tgz`
 - `agents-market-claude-<version>.tgz`
 - `agents-market-codex-<version>.tgz`
 - `agents-market-opencode-<version>.tgz`

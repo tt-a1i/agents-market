@@ -430,6 +430,7 @@ async function runReleaseArtifactsSmoke() {
       "catalog/index.html",
       "catalog/catalog.json",
       "catalog/registry.bundle.json",
+      `agents-market-catalog-${packageVersion}.tgz`,
       "install.sh",
       `agents-market-claude-${packageVersion}.tgz`,
       `agents-market-codex-${packageVersion}.tgz`,

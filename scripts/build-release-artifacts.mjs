@@ -80,6 +80,11 @@ run(
   "Build catalog"
 );
 run("node", ["dist/index.js", "catalog", "verify", "--dir", join(outDir, "catalog"), "--json"], "Verify catalog");
+run(
+  "tar",
+  ["-czf", join(outDir, `agents-market-catalog-${version}.tgz`), "-C", outDir, "catalog"],
+  "Archive catalog"
+);
 run("node", ["dist/index.js", "integrations", "package", "--target", "all", "--out", join(outDir, "integration-packages")], "Build integrations");
 
 for (const packageDir of ["agents-market-claude", "agents-market-codex", "agents-market-opencode"]) {
