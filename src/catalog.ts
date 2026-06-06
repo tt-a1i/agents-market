@@ -67,6 +67,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   const provenance = summarizeProvenance(registry.agents);
   const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl, publicKeyUrl, options.signingKeyId);
   const importWorkflows = importWorkflowCommands(packageSpec);
+  const siteManifest = agentsMarketManifest(registry, title, bundleUrl, publicKeyUrl, packageSpec, metadata, registryWorkflows, importWorkflows);
   const catalog = {
     title,
     generatedAt: new Date().toISOString(),
@@ -103,6 +104,10 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
       content: `${JSON.stringify(catalog, null, 2)}\n`
     },
     {
+      name: "agents-market.json",
+      content: `${JSON.stringify(siteManifest, null, 2)}\n`
+    },
+    {
       name: "index.html",
       content: renderHtml(title, registry, bundleUrl, packageSpec, metadata)
     },
@@ -131,6 +136,7 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   const findings: CatalogVerificationFinding[] = [];
   const signatures: CatalogVerificationReport["signatures"] = {};
   const catalog = await readJson(join(dir, "catalog.json"), findings, "catalog.json");
+  const siteManifest = await readJson(join(dir, "agents-market.json"), findings, "agents-market.json");
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
   const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
   const html = await readText(join(dir, "index.html"), findings, "index.html");
@@ -168,6 +174,10 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
 
   if (catalog && registryBundle) {
     verifyCatalogAgainstBundle(catalog, registryBundle, findings);
+  }
+
+  if (catalog && siteManifest && registryBundle) {
+    verifyAgentsMarketManifest(catalog, siteManifest, registryBundle, findings);
   }
 
   if (catalog && html) {
@@ -258,6 +268,7 @@ export async function verifyCatalogUrl(url: string): Promise<CatalogVerification
     await Promise.all([
       writeFile(join(dir, "registry.bundle.json"), bundleText, "utf8"),
       fetchCatalogAsset(baseUrl, "catalog.json").then((content) => writeFile(join(dir, "catalog.json"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "agents-market.json").then((content) => writeFile(join(dir, "agents-market.json"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "index.html").then((content) => writeFile(join(dir, "index.html"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "robots.txt").then((content) => writeFile(join(dir, "robots.txt"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "favicon.svg").then((content) => writeFile(join(dir, "favicon.svg"), content, "utf8")),
@@ -441,6 +452,103 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
   }
 }
 
+function verifyAgentsMarketManifest(
+  catalog: Record<string, unknown>,
+  siteManifest: Record<string, unknown>,
+  bundle: RegistryBundle,
+  findings: CatalogVerificationFinding[]
+): void {
+  if (siteManifest.schemaVersion !== 1) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-schema-mismatch",
+      message: "agents-market.json schemaVersion must be 1."
+    });
+  }
+  if (siteManifest.title !== catalog.title) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-title-mismatch",
+      message: "agents-market.json title does not match catalog.json."
+    });
+  }
+  if (siteManifest.packageSpec !== catalog.packageSpec) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-package-mismatch",
+      message: "agents-market.json packageSpec does not match catalog.json."
+    });
+  }
+  if (siteManifest.registryBundleUrl !== catalog.registryBundleUrl) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-registry-url-mismatch",
+      message: "agents-market.json registryBundleUrl does not match catalog.json."
+    });
+  }
+  const publicKeyUrl = stringValue(siteManifest.publicKeyUrl);
+  if ((bundle.signatures?.length ?? 0) > 0 && publicKeyUrl !== publicKeyUrlForBundle(stringValue(catalog.registryBundleUrl) ?? "registry.bundle.json")) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-public-key-mismatch",
+      message: "agents-market.json publicKeyUrl does not match the signed registry bundle."
+    });
+  }
+  const commands = isRecord(siteManifest.commands) ? siteManifest.commands : undefined;
+  if (!commands) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-commands-missing",
+      message: "agents-market.json does not include agent-readable commands."
+    });
+  } else {
+    const trust = Array.isArray(commands.trust) ? commands.trust : [];
+    const install = Array.isArray(commands.install) ? commands.install : [];
+    const automation = Array.isArray(commands.automation) ? commands.automation : [];
+    if (JSON.stringify(trust) !== JSON.stringify(catalog.registryWorkflows)) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-trust-commands-mismatch",
+        message: "agents-market.json trust commands do not match catalog.json registry workflows."
+      });
+    }
+    if (!install.some((command) => isRecord(command) && String(command.command ?? "").includes("integrations install --target all"))) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-install-commands-missing",
+        message: "agents-market.json does not include the agent-native integration install command."
+      });
+    }
+    if (!automation.some((command) => isRecord(command) && String(command.command ?? "").includes("ci init --provider github"))) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-automation-commands-missing",
+        message: "agents-market.json does not include the CI setup command."
+      });
+    }
+  }
+  const packs = Array.isArray(siteManifest.packs) ? siteManifest.packs : [];
+  if (packs.length !== bundle.packs.length) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-pack-count-mismatch",
+      message: "agents-market.json pack count does not match registry.bundle.json.",
+      detail: `${packs.length} !== ${bundle.packs.length}`
+    });
+  }
+  for (const pack of bundle.packs) {
+    const manifestPack = packs.find((candidate) => isRecord(candidate) && candidate.id === pack.id);
+    if (!isRecord(manifestPack)) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-pack-missing",
+        message: "agents-market.json is missing a pack from registry.bundle.json.",
+        detail: pack.id
+      });
+    }
+  }
+}
+
 async function readJson(path: string, findings: CatalogVerificationFinding[], label: string): Promise<Record<string, unknown> | undefined> {
   try {
     return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
@@ -475,6 +583,73 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+function agentsMarketManifest(
+  registry: Registry,
+  title: string,
+  bundleUrl: string,
+  publicKeyUrl: string | undefined,
+  packageSpec: string,
+  metadata: RegistryMetadata | undefined,
+  registryWorkflows: Array<{ label: string; command: string }>,
+  importWorkflows: Array<{ label: string; command: string }>
+) {
+  const npx = `npx ${packageSpec}`;
+  return {
+    schemaVersion: 1,
+    title,
+    generatedAt: new Date().toISOString(),
+    packageSpec,
+    metadata,
+    registryBundleUrl: bundleUrl,
+    publicKeyUrl,
+    commands: {
+      trust: registryWorkflows,
+      install: [
+        {
+          label: "Install Agent-Native Integrations",
+          command: `${npx} integrations install --target all`
+        },
+        {
+          label: "Preview Recommended Pack",
+          command: `${npx} apply --target all --registry ${bundleUrl} --policy-preset balanced --json`
+        },
+        {
+          label: "Install Recommended Pack",
+          command: `${npx} apply --target all --registry ${bundleUrl} --policy-preset balanced --yes`
+        }
+      ],
+      automation: [
+        {
+          label: "Install GitHub Maintenance Workflow",
+          command: `${npx} ci init --provider github --package ${packageSpec} --yes`
+        },
+        {
+          label: "Verify Project Health",
+          command: `${npx} doctor --strict --json`
+        }
+      ],
+      import: importWorkflows
+    },
+    packs: registry.packs.map((pack) => {
+      const agents = pack.agents.flatMap((id) => {
+        const agent = registry.agents.find((candidate) => candidate.id === id);
+        return agent ? [agent] : [];
+      });
+      return {
+        id: pack.id,
+        name: pack.name,
+        version: pack.version,
+        description: pack.description,
+        tags: pack.tags,
+        agents: pack.agents,
+        targets: targetCoverage(agents),
+        previewCommand: `${npx} apply ${pack.id} --target all --registry ${bundleUrl} --policy-preset balanced --json`,
+        installCommand: `${npx} apply ${pack.id} --target all --registry ${bundleUrl} --policy-preset balanced --yes`
+      };
+    })
+  };
 }
 
 function assetUrl(path: string, baseUrl?: string): string {

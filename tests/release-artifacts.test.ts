@@ -74,11 +74,24 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   await writeFile(join(dir, "catalog", "index.html"), '<html><head><link rel="manifest" href="site.webmanifest"><link rel="icon" href="favicon.svg"></head></html>\n', "utf8");
   await writeFile(join(dir, "catalog", "catalog.json"), `${JSON.stringify({
     title: "Agents Market Test",
+    packageSpec: "github:tt-a1i/agents-market",
     registryBundleUrl: "https://example.com/registry.bundle.json",
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
     packs: registry.packs.map((pack) => ({ id: pack.id })),
     metadata: { packageSpec: "github:tt-a1i/agents-market" }
+  }, null, 2)}\n`, "utf8");
+  await writeFile(join(dir, "catalog", "agents-market.json"), `${JSON.stringify({
+    schemaVersion: 1,
+    title: "Agents Market Test",
+    packageSpec: "github:tt-a1i/agents-market",
+    registryBundleUrl: "https://example.com/registry.bundle.json",
+    commands: {
+      trust: [],
+      install: [{ label: "Install Agent-Native Integrations", command: "npx github:tt-a1i/agents-market integrations install --target all" }],
+      automation: [{ label: "Install GitHub Maintenance Workflow", command: "npx github:tt-a1i/agents-market ci init --provider github --yes" }]
+    },
+    packs: registry.packs.map((pack) => ({ id: pack.id }))
   }, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "catalog", "favicon.svg"), "<svg />\n", "utf8");
   await writeFile(join(dir, "catalog", "robots.txt"), "User-agent: *\nAllow: /\n", "utf8");
@@ -116,6 +129,7 @@ async function writeManifestAndChecksums(dir: string): Promise<void> {
     "agents-market-claude-0.1.0.tgz",
     "agents-market-codex-0.1.0.tgz",
     "agents-market-opencode-0.1.0.tgz",
+    "catalog/agents-market.json",
     "catalog/catalog.json",
     "catalog/favicon.svg",
     "catalog/index.html",

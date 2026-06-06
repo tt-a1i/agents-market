@@ -751,6 +751,7 @@ async function runReleaseArtifactsSmoke() {
     assert(!artifactPaths.has(completeArchiveName), "Complete release artifact archive should not be listed inside its own manifest.");
     for (const required of [
       "registry.bundle.json",
+      "catalog/agents-market.json",
       "catalog/index.html",
       "catalog/catalog.json",
       "catalog/favicon.svg",
@@ -774,6 +775,7 @@ async function runReleaseArtifactsSmoke() {
     for (const required of [
       "release-artifacts.json",
       "SHA256SUMS",
+      "catalog/agents-market.json",
       "catalog/index.html",
       "catalog/site.webmanifest",
       `npm/agents-market-cli-${packageVersion}.tgz`
@@ -794,6 +796,7 @@ async function runReleaseArtifactsSmoke() {
     assert(cliArchiveVerification.ok === true, "CLI complete release artifact archive verifier failed.");
     assert(cliArchiveVerification.version === packageVersion, "CLI release artifact verifier should report the package version.");
     const catalog = JSON.parse(await readFile(join(dir, "catalog", "catalog.json"), "utf8"));
+    const siteManifest = JSON.parse(await readFile(join(dir, "catalog", "agents-market.json"), "utf8"));
     const bundle = JSON.parse(await readFile(join(dir, "registry.bundle.json"), "utf8"));
     const starterPack = catalog.packs?.find((pack) => pack.id === "starter-dev-pack");
     assert(
@@ -801,6 +804,16 @@ async function runReleaseArtifactsSmoke() {
       `Expected release catalog packageSpec github:tt-a1i/agents-market#preview-0.1.0, found ${catalog.packageSpec}.`
     );
     assert(catalog.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release catalog repository metadata, found ${catalog.metadata?.repository}.`);
+    assert(siteManifest.schemaVersion === 1, "Expected release catalog agents-market.json schemaVersion 1.");
+    assert(siteManifest.registryBundleUrl === catalog.registryBundleUrl, "Expected release catalog agents-market.json to point at catalog registry bundle URL.");
+    assert(
+      siteManifest.commands?.install?.some((command) => command.command?.includes("integrations install --target all")),
+      "Expected release catalog agents-market.json to include agent-native integration install command."
+    );
+    assert(
+      siteManifest.commands?.automation?.some((command) => command.command?.includes("ci init --provider github")),
+      "Expected release catalog agents-market.json to include CI setup command."
+    );
     assert(bundle.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release bundle repository metadata, found ${bundle.metadata?.repository}.`);
     assert(bundle.metadata?.packageSpec === "github:tt-a1i/agents-market#preview-0.1.0", `Expected release bundle packageSpec metadata, found ${bundle.metadata?.packageSpec}.`);
     assert(
@@ -886,6 +899,7 @@ async function runReleaseArtifactsSmoke() {
     assert(signedBundle.signatures?.some((signature) => signature.keyId === "release-artifact-test"), "Signed release bundle is missing the expected key id.");
     const signedCatalogBundle = JSON.parse(await readFile(join(signedDir, "catalog", "registry.bundle.json"), "utf8"));
     const signedCatalog = JSON.parse(await readFile(join(signedDir, "catalog", "catalog.json"), "utf8"));
+    const signedSiteManifest = JSON.parse(await readFile(join(signedDir, "catalog", "agents-market.json"), "utf8"));
     assert(
       signedCatalogBundle.signatures?.some((signature) => signature.keyId === "release-artifact-test"),
       "Signed release catalog bundle is missing the expected key id."
@@ -901,6 +915,10 @@ async function runReleaseArtifactsSmoke() {
         workflow.command?.includes("registry lock --registry https://example.com/agents-market/registry.bundle.json --public-key https://example.com/agents-market/registry-public.pem --key-id release-artifact-test")
       ),
       "Signed release catalog should include a signature-aware registry lock command."
+    );
+    assert(
+      signedSiteManifest.publicKeyUrl === "https://example.com/agents-market/registry-public.pem",
+      `Expected signed agents-market.json publicKeyUrl to point at the hosted registry public key, found ${signedSiteManifest.publicKeyUrl}.`
     );
     const signedVerification = runJson(
       "node",

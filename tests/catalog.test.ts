@@ -33,6 +33,7 @@ describe("catalog", () => {
     });
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
+      "agents-market.json",
       "catalog.json",
       "favicon.svg",
       "index.html",
@@ -194,6 +195,28 @@ describe("catalog", () => {
     expect(starterPack?.targetCoverage).toEqual(["claude", "codex", "opencode"]);
     expect(starterPack?.provenance.withChecksum).toBe(0);
     expect(catalog.agents.find((agent) => agent.id === "code-reviewer")?.quality.grade).toBe("excellent");
+    const siteManifest = JSON.parse(await readFile(join(cleanupPath, "agents-market.json"), "utf8")) as {
+      schemaVersion: number;
+      title: string;
+      packageSpec: string;
+      registryBundleUrl: string;
+      commands: {
+        trust: Array<{ label: string; command: string }>;
+        install: Array<{ label: string; command: string }>;
+        automation: Array<{ label: string; command: string }>;
+      };
+      packs: Array<{ id: string; targets: string[]; previewCommand: string; installCommand: string }>;
+    };
+    expect(siteManifest.schemaVersion).toBe(1);
+    expect(siteManifest.title).toBe("Agents Market Test");
+    expect(siteManifest.packageSpec).toBe("github:tt-a1i/agents-market");
+    expect(siteManifest.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
+    expect(siteManifest.commands.trust.map((command) => command.label)).toEqual(catalog.registryWorkflows.map((workflow) => workflow.label));
+    expect(siteManifest.commands.install.map((command) => command.command).join("\n")).toContain("integrations install --target all");
+    expect(siteManifest.commands.install.map((command) => command.command).join("\n")).toContain("apply --target all --registry");
+    expect(siteManifest.commands.automation.map((command) => command.command).join("\n")).toContain("ci init --provider github");
+    expect(siteManifest.packs.find((pack) => pack.id === "starter-dev-pack")?.targets).toEqual(["claude", "codex", "opencode"]);
+    expect(siteManifest.packs.find((pack) => pack.id === "starter-dev-pack")?.previewCommand).toContain("--json");
 
     const validReport = await verifyCatalog(cleanupPath);
     expect(validReport.ok).toBe(true);
@@ -252,6 +275,7 @@ describe("catalog", () => {
     });
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
+      "agents-market.json",
       "catalog.json",
       "favicon.svg",
       "index.html",

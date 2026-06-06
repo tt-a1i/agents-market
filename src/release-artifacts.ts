@@ -62,6 +62,7 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   const version = manifest.version;
   for (const required of [
     "registry.bundle.json",
+    "catalog/agents-market.json",
     "catalog/index.html",
     "catalog/catalog.json",
     "catalog/favicon.svg",
@@ -89,11 +90,16 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   }
 
   const catalog = await readJson(join(root, "catalog", "catalog.json"), "catalog/catalog.json");
+  const catalogManifest = await readJson(join(root, "catalog", "agents-market.json"), "catalog/agents-market.json");
   assert(catalog.registryBundleUrl, "Catalog is missing registryBundleUrl.");
   assert(catalog.packCount === registry.packs.length, "Catalog packCount does not match registry bundle.");
   assert(catalog.agentCount === registry.agents.length, "Catalog agentCount does not match registry bundle.");
   assert(Array.isArray(catalog.packs) && catalog.packs.length === registry.packs.length, "Catalog packs do not match registry bundle.");
   assert(catalog.metadata?.packageSpec === manifest.packageSpec, "Catalog packageSpec metadata does not match release manifest.");
+  assert(catalogManifest.schemaVersion === 1, "Catalog agents-market.json schemaVersion must be 1.");
+  assert(catalogManifest.packageSpec === catalog.packageSpec, "Catalog agents-market.json packageSpec does not match catalog.json.");
+  assert(catalogManifest.registryBundleUrl === catalog.registryBundleUrl, "Catalog agents-market.json registryBundleUrl does not match catalog.json.");
+  assert(Array.isArray(catalogManifest.packs) && catalogManifest.packs.length === registry.packs.length, "Catalog agents-market.json packs do not match registry bundle.");
 
   const catalogHtml = await readText(join(root, "catalog", "index.html"), "catalog/index.html");
   assert(catalogHtml.includes('rel="manifest"') && catalogHtml.includes('href="site.webmanifest"'), "Catalog HTML does not reference site.webmanifest.");
