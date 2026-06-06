@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
       - run: npm run release:check
-      - run: npm run release:artifacts -- --out ./release-artifacts --catalog-base-url "https://tt-a1i.github.io/agents-market"
+      - run: npm run release:artifacts -- --out ./release-artifacts --catalog-base-url "https://tt-a1i.github.io/agents-market" --release-tag "${GITHUB_REF_NAME}"
       - uses: actions/upload-artifact@v4
         with:
           name: agents-market-release-artifacts
@@ -51,4 +51,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes "Agents Market ${GITHUB_REF_NAME}"
-          gh release upload "${GITHUB_REF_NAME}" release-artifacts/*.tgz release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json --clobber
+          gh release upload "${GITHUB_REF_NAME}" release-artifacts/*.tgz release-artifacts/install.sh release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json --clobber

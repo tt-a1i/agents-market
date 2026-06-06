@@ -367,6 +367,7 @@ async function runReleaseArtifactsSmoke() {
       "catalog/index.html",
       "catalog/catalog.json",
       "catalog/registry.bundle.json",
+      "install.sh",
       `agents-market-claude-${packageVersion}.tgz`,
       `agents-market-codex-${packageVersion}.tgz`,
       `agents-market-opencode-${packageVersion}.tgz`,
@@ -376,6 +377,10 @@ async function runReleaseArtifactsSmoke() {
     }
     const checksums = await readFile(join(dir, "SHA256SUMS"), "utf8");
     assert(checksums.includes("registry.bundle.json"), "Release artifact checksums do not include registry.bundle.json.");
+    const installScript = await readFile(join(dir, "install.sh"), "utf8");
+    assert(installScript.includes("Checksum mismatch"), "Release install script should verify checksums before installing.");
+    assert(installScript.includes("npm install -g"), "Release install script should install the npm tarball.");
+    run("sh", ["-n", join(dir, "install.sh")], "Release install script syntax");
     checks.push("Release artifact contents");
   } finally {
     await rm(dir, { recursive: true, force: true });

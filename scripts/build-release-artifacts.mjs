@@ -8,9 +8,11 @@ const outDir = args.out ?? "release-artifacts";
 const catalogBaseUrl = args.catalogBaseUrl ?? "https://tt-a1i.github.io/agents-market";
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const version = packageJson.version;
+const defaultReleaseTag = args.releaseTag ?? `v${version}`;
 const artifactManifest = {
   version,
   catalogBaseUrl,
+  releaseTag: defaultReleaseTag,
   generatedAt: new Date().toISOString(),
   artifacts: []
 };
@@ -38,6 +40,7 @@ for (const packageDir of ["agents-market-claude", "agents-market-codex", "agents
 
 await mkdir(join(outDir, "npm"), { recursive: true });
 run("npm", ["pack", "--pack-destination", join(outDir, "npm"), "--json"], "Pack npm tarball");
+await writeFile(join(outDir, "install.sh"), installScript(version, defaultReleaseTag), { encoding: "utf8", mode: 0o755 });
 
 const files = await listFiles(outDir);
 for (const file of files.filter((file) => !file.endsWith("SHA256SUMS") && !file.endsWith("release-artifacts.json")).sort()) {
@@ -86,9 +89,55 @@ function parseArgs(values) {
       parsed.out = values[++index];
     } else if (value === "--catalog-base-url") {
       parsed.catalogBaseUrl = values[++index];
+    } else if (value === "--release-tag") {
+      parsed.releaseTag = values[++index];
     } else {
       throw new Error(`Unknown argument: ${value}`);
     }
   }
   return parsed;
+}
+
+function installScript(version, releaseTag) {
+  return `#!/usr/bin/env sh
+set -eu
+
+VERSION="\${AGENTS_MARKET_VERSION:-${version}}"
+TAG="\${AGENTS_MARKET_TAG:-${releaseTag}}"
+REPO="\${AGENTS_MARKET_REPO:-tt-a1i/agents-market}"
+BASE_URL="https://github.com/\${REPO}/releases/download/\${TAG}"
+TARBALL="agents-market-cli-\${VERSION}.tgz"
+TMP_DIR="\${TMPDIR:-/tmp}/agents-market-install-\$\$"
+
+cleanup() {
+  rm -rf "\${TMP_DIR}"
+}
+trap cleanup EXIT INT TERM
+
+mkdir -p "\${TMP_DIR}"
+curl -fsSL "\${BASE_URL}/SHA256SUMS" -o "\${TMP_DIR}/SHA256SUMS"
+curl -fsSL "\${BASE_URL}/\${TARBALL}" -o "\${TMP_DIR}/\${TARBALL}"
+
+EXPECTED_SHA="$(awk -v file="npm/\${TARBALL}" '$2 == file { print $1 }' "\${TMP_DIR}/SHA256SUMS")"
+if [ -z "\${EXPECTED_SHA}" ]; then
+  echo "Could not find checksum for npm/\${TARBALL}" >&2
+  exit 1
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL_SHA="$(sha256sum "\${TMP_DIR}/\${TARBALL}" | awk '{ print $1 }')"
+else
+  ACTUAL_SHA="$(shasum -a 256 "\${TMP_DIR}/\${TARBALL}" | awk '{ print $1 }')"
+fi
+
+if [ "\${EXPECTED_SHA}" != "\${ACTUAL_SHA}" ]; then
+  echo "Checksum mismatch for \${TARBALL}" >&2
+  echo "expected: \${EXPECTED_SHA}" >&2
+  echo "actual:   \${ACTUAL_SHA}" >&2
+  exit 1
+fi
+
+npm install -g "\${TMP_DIR}/\${TARBALL}"
+agents-market --version
+`;
 }

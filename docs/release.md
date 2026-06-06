@@ -25,6 +25,7 @@ npm run release:check
 - `agents-market-codex-<version>.tgz`
 - `agents-market-opencode-<version>.tgz`
 - `npm/agents-market-cli-<version>.tgz`
+- `install.sh`
 - `SHA256SUMS` and `release-artifacts.json`
 
 GitHub Actions workflows run on Node.js 24 and set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` so hosted actions use the current JavaScript runtime. The Pages workflow also runs `agents-market catalog verify --dir ./site` before uploading the static catalog artifact.
@@ -51,9 +52,14 @@ When npm credentials are not configured yet, publish a non-`v*` prerelease tag s
 - the registry bundle
 - Claude Code, Codex, and OpenCode installer archives
 - the npm tarball for manual inspection
+- `install.sh` for checksum-verified installation from the release tarball
 - `SHA256SUMS` and `release-artifacts.json`
 
 The current preview release is [preview-0.1.0](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0). The production npm release is still gated on the `NPM_TOKEN` secret.
+
+```bash
+curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
+```
 
 ## Manual Dispatch
 
