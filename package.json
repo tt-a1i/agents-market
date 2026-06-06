@@ -26,6 +26,7 @@
     "registry:check": "npm run build && node scripts/registry-submission-check.mjs",
     "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "release:check": "node scripts/release-check.mjs",
+    "prepare": "npm run build",
     "prepack": "npm run build && node dist/index.js registry lint --strict"
   },
   "keywords": [

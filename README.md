@@ -16,6 +16,17 @@ Agents Market currently generates:
 
 ## Quick Start
 
+Try the CLI directly from GitHub:
+
+```bash
+npx github:tt-a1i/agents-market init --target all
+npx github:tt-a1i/agents-market recommend
+npx github:tt-a1i/agents-market apply --target all
+npx github:tt-a1i/agents-market apply frontend-pack --target all --yes
+```
+
+For local development:
+
 ```bash
 npm install
 npm run build
@@ -26,7 +37,7 @@ npm run dev -- install starter-dev-pack --target all --dry-run
 npm run dev -- status
 ```
 
-After publishing, the intended user flow is:
+After npm publication, use the package name:
 
 ```bash
 npx @agents-market/cli init --target all
