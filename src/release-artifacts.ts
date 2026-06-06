@@ -188,7 +188,12 @@ function verifyInstallScript(script: string, manifest: Record<string, unknown>):
   assert(script.includes('command -v npm'), "install.sh must check for npm before installing assets.");
   assert(script.includes('command -v mktemp'), "install.sh must check for mktemp before creating temporary directories.");
   assert(script.includes('TMP_DIR="$(mktemp -d "${TMP_PARENT}/agents-market-install.XXXXXX")"'), "install.sh must create a random temporary directory with mktemp.");
-  assert(script.includes("trap cleanup EXIT INT TERM"), "install.sh must clean its temporary directory on exit.");
+  assert(script.includes("trap cleanup EXIT"), "install.sh must clean its temporary directory on exit.");
+  assert(script.includes("trap on_interrupt INT"), "install.sh must exit explicitly after cleaning up on interrupt.");
+  assert(script.includes("trap on_terminate TERM"), "install.sh must exit explicitly after cleaning up on termination.");
+  assert(script.includes("exit 130"), "install.sh must exit 130 after interrupt cleanup.");
+  assert(script.includes("exit 143"), "install.sh must exit 143 after termination cleanup.");
+  assert(!script.includes("trap cleanup EXIT INT TERM"), "install.sh must not use a combined cleanup-only signal trap.");
   assert(script.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "install.sh must support strict GitHub attestation mode.");
   assert(script.includes('gh attestation verify "${TMP_DIR}/SHA256SUMS" --repo "${REPO}"'), "install.sh must verify SHA256SUMS attestation in strict mode.");
   assert(script.includes('gh attestation verify "${TMP_DIR}/${TARBALL}" --repo "${REPO}"'), "install.sh must verify npm tarball attestation in strict mode.");

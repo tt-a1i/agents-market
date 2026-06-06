@@ -265,7 +265,17 @@ cleanup() {
     rm -rf "\${TMP_DIR}"
   fi
 }
-trap cleanup EXIT INT TERM
+on_interrupt() {
+  cleanup
+  exit 130
+}
+on_terminate() {
+  cleanup
+  exit 143
+}
+trap cleanup EXIT
+trap on_interrupt INT
+trap on_terminate TERM
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "Install requires curl." >&2

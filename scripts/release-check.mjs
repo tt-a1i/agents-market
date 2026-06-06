@@ -967,7 +967,12 @@ async function runReleaseArtifactsSmoke() {
       installScript.includes('TMP_DIR="$(mktemp -d "${TMP_PARENT}/agents-market-install.XXXXXX")"'),
       "Release install script should create a random temporary directory with mktemp."
     );
-    assert(installScript.includes("trap cleanup EXIT INT TERM"), "Release install script should clean its temporary directory on exit.");
+    assert(installScript.includes("trap cleanup EXIT"), "Release install script should clean its temporary directory on exit.");
+    assert(installScript.includes("trap on_interrupt INT"), "Release install script should exit explicitly after cleaning up on interrupt.");
+    assert(installScript.includes("trap on_terminate TERM"), "Release install script should exit explicitly after cleaning up on termination.");
+    assert(installScript.includes("exit 130"), "Release install script should exit 130 after interrupt cleanup.");
+    assert(installScript.includes("exit 143"), "Release install script should exit 143 after termination cleanup.");
+    assert(!installScript.includes("trap cleanup EXIT INT TERM"), "Release install script should not use a cleanup-only signal trap.");
     assert(installScript.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "Release install script should support required GitHub attestation verification.");
     assert(installScript.includes("gh attestation verify \"${TMP_DIR}/SHA256SUMS\" --repo \"${REPO}\""), "Release install script should verify SHA256SUMS attestations.");
     assert(installScript.includes("gh attestation verify \"${TMP_DIR}/${TARBALL}\" --repo \"${REPO}\""), "Release install script should verify npm tarball attestations.");

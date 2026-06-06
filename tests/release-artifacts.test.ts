@@ -78,6 +78,21 @@ describe("release artifact verification", () => {
     await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must create a random temporary directory with mktemp/);
   });
 
+  it("rejects release artifacts when the installer does not exit after signal cleanup", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-signal-"));
+    const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
+    const installPath = join(dir, "install.sh");
+    const installScript = await readFile(installPath, "utf8");
+    await writeFile(
+      installPath,
+      installScript.replace(/on_interrupt\(\) \{\n  cleanup\n  exit 130\n\}\non_terminate\(\) \{\n  cleanup\n  exit 143\n\}\ntrap cleanup EXIT\ntrap on_interrupt INT\ntrap on_terminate TERM/, "trap cleanup EXIT INT TERM"),
+      "utf8"
+    );
+    await writeManifestAndChecksums(dir);
+
+    await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must exit explicitly after cleaning up on interrupt/);
+  });
+
   it("rejects release artifacts when the installer is not executable", async () => {
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-mode-"));
     const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
@@ -201,7 +216,17 @@ cleanup() {
     rm -rf "\${TMP_DIR}"
   fi
 }
-trap cleanup EXIT INT TERM
+on_interrupt() {
+  cleanup
+  exit 130
+}
+on_terminate() {
+  cleanup
+  exit 143
+}
+trap cleanup EXIT
+trap on_interrupt INT
+trap on_terminate TERM
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "Install requires curl." >&2
