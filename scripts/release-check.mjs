@@ -962,12 +962,23 @@ async function runReleaseArtifactsSmoke() {
       installScript.includes("Install requires sha256sum or shasum."),
       "Release install script should check for a SHA-256 checksum command."
     );
+    assert(installScript.includes("Install requires mktemp."), "Release install script should check for mktemp before creating temporary directories.");
+    assert(
+      installScript.includes('TMP_DIR="$(mktemp -d "${TMP_PARENT}/agents-market-install.XXXXXX")"'),
+      "Release install script should create a random temporary directory with mktemp."
+    );
+    assert(installScript.includes("trap cleanup EXIT INT TERM"), "Release install script should clean its temporary directory on exit.");
     assert(installScript.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "Release install script should support required GitHub attestation verification.");
     assert(installScript.includes("gh attestation verify \"${TMP_DIR}/SHA256SUMS\" --repo \"${REPO}\""), "Release install script should verify SHA256SUMS attestations.");
     assert(installScript.includes("gh attestation verify \"${TMP_DIR}/${TARBALL}\" --repo \"${REPO}\""), "Release install script should verify npm tarball attestations.");
     assert(
       installScript.indexOf("Install requires curl.") < installScript.indexOf("curl -fsSL"),
       "Release install script should check for curl before the first download."
+    );
+    assert(
+      installScript.indexOf("Install requires mktemp.") < installScript.indexOf('TMP_DIR="$(mktemp -d') &&
+        installScript.indexOf('TMP_DIR="$(mktemp -d') < installScript.indexOf("curl -fsSL"),
+      "Release install script should create a random temporary directory before the first download."
     );
     assert(
       installScript.indexOf("gh attestation verify") < installScript.indexOf("EXPECTED_SHA="),

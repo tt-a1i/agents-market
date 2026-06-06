@@ -257,10 +257,13 @@ TAG="\${AGENTS_MARKET_TAG:-${releaseTag}}"
 REPO="\${AGENTS_MARKET_REPO:-tt-a1i/agents-market}"
 BASE_URL="https://github.com/\${REPO}/releases/download/\${TAG}"
 TARBALL="agents-market-cli-\${VERSION}.tgz"
-TMP_DIR="\${TMPDIR:-/tmp}/agents-market-install-\$\$"
+TMP_PARENT="\${TMPDIR:-/tmp}"
+TMP_DIR=""
 
 cleanup() {
-  rm -rf "\${TMP_DIR}"
+  if [ -n "\${TMP_DIR}" ]; then
+    rm -rf "\${TMP_DIR}"
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -272,8 +275,12 @@ if ! command -v npm >/dev/null 2>&1; then
   echo "Install requires npm." >&2
   exit 1
 fi
+if ! command -v mktemp >/dev/null 2>&1; then
+  echo "Install requires mktemp." >&2
+  exit 1
+fi
 
-mkdir -p "\${TMP_DIR}"
+TMP_DIR="$(mktemp -d "\${TMP_PARENT}/agents-market-install.XXXXXX")"
 curl -fsSL "\${BASE_URL}/SHA256SUMS" -o "\${TMP_DIR}/SHA256SUMS"
 curl -fsSL "\${BASE_URL}/\${TARBALL}" -o "\${TMP_DIR}/\${TARBALL}"
 

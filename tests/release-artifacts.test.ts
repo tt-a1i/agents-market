@@ -67,6 +67,17 @@ describe("release artifact verification", () => {
     await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must install the npm tarball without running lifecycle scripts/);
   });
 
+  it("rejects release artifacts when the installer uses a predictable temporary directory", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-temp-"));
+    const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
+    const installPath = join(dir, "install.sh");
+    const installScript = await readFile(installPath, "utf8");
+    await writeFile(installPath, installScript.replace('TMP_DIR="$(mktemp -d "${TMP_PARENT}/agents-market-install.XXXXXX")"', 'TMP_DIR="${TMP_PARENT}/agents-market-install-$$"'), "utf8");
+    await writeManifestAndChecksums(dir);
+
+    await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must create a random temporary directory with mktemp/);
+  });
+
   it("rejects release artifacts when the installer is not executable", async () => {
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-mode-"));
     const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
@@ -182,7 +193,15 @@ TAG="\${AGENTS_MARKET_TAG:-preview-0.1.0}"
 REPO="\${AGENTS_MARKET_REPO:-example/agents-market}"
 BASE_URL="https://github.com/\${REPO}/releases/download/\${TAG}"
 TARBALL="agents-market-cli-\${VERSION}.tgz"
-TMP_DIR="\${TMPDIR:-/tmp}/agents-market-install-\$\$"
+TMP_PARENT="\${TMPDIR:-/tmp}"
+TMP_DIR=""
+
+cleanup() {
+  if [ -n "\${TMP_DIR}" ]; then
+    rm -rf "\${TMP_DIR}"
+  fi
+}
+trap cleanup EXIT INT TERM
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "Install requires curl." >&2
@@ -192,7 +211,12 @@ if ! command -v npm >/dev/null 2>&1; then
   echo "Install requires npm." >&2
   exit 1
 fi
+if ! command -v mktemp >/dev/null 2>&1; then
+  echo "Install requires mktemp." >&2
+  exit 1
+fi
 
+TMP_DIR="$(mktemp -d "\${TMP_PARENT}/agents-market-install.XXXXXX")"
 curl -fsSL "\${BASE_URL}/SHA256SUMS" -o "\${TMP_DIR}/SHA256SUMS"
 curl -fsSL "\${BASE_URL}/\${TARBALL}" -o "\${TMP_DIR}/\${TARBALL}"
 

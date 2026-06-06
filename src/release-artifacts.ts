@@ -186,6 +186,9 @@ function verifyInstallScript(script: string, manifest: Record<string, unknown>):
   assert(script.includes(`TAG="\${AGENTS_MARKET_TAG:-${manifest.releaseTag}}"`), "install.sh default tag does not match release manifest.");
   assert(script.includes('command -v curl'), "install.sh must check for curl before downloading assets.");
   assert(script.includes('command -v npm'), "install.sh must check for npm before installing assets.");
+  assert(script.includes('command -v mktemp'), "install.sh must check for mktemp before creating temporary directories.");
+  assert(script.includes('TMP_DIR="$(mktemp -d "${TMP_PARENT}/agents-market-install.XXXXXX")"'), "install.sh must create a random temporary directory with mktemp.");
+  assert(script.includes("trap cleanup EXIT INT TERM"), "install.sh must clean its temporary directory on exit.");
   assert(script.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "install.sh must support strict GitHub attestation mode.");
   assert(script.includes('gh attestation verify "${TMP_DIR}/SHA256SUMS" --repo "${REPO}"'), "install.sh must verify SHA256SUMS attestation in strict mode.");
   assert(script.includes('gh attestation verify "${TMP_DIR}/${TARBALL}" --repo "${REPO}"'), "install.sh must verify npm tarball attestation in strict mode.");
@@ -195,6 +198,11 @@ function verifyInstallScript(script: string, manifest: Record<string, unknown>):
   assert(
     script.indexOf('command -v curl') < script.indexOf('curl -fsSL "${BASE_URL}/SHA256SUMS"'),
     "install.sh must check for curl before downloading assets."
+  );
+  assert(
+    script.indexOf('command -v mktemp') < script.indexOf('TMP_DIR="$(mktemp -d') &&
+      script.indexOf('TMP_DIR="$(mktemp -d') < script.indexOf('curl -fsSL "${BASE_URL}/SHA256SUMS"'),
+    "install.sh must create a random temporary directory before downloading assets."
   );
   assert(
     script.indexOf('gh attestation verify "${TMP_DIR}/SHA256SUMS"') < script.indexOf('EXPECTED_SHA='),
