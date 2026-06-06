@@ -24,6 +24,16 @@ Shall I install it?
 8. Run `agents-market status` and summarize the installed files.
 9. Tell the user how to invoke the installed agents.
 
+For agent-native integrations, prefer structured output where available:
+
+```bash
+agents-market recommend --json
+agents-market plan <pack> --target <target>
+agents-market diff <pack> --target <target> --json
+```
+
+Use the JSON output for parsing, and translate it into concise human-facing summaries before asking for confirmation.
+
 ## Integration Strategy
 
 The CLI remains the stable execution layer. Agent-native integrations should be thin wrappers:

@@ -13,7 +13,7 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 2. Run:
 
    ```bash
-   agents-market recommend
+   agents-market recommend --json
    ```
 
 3. Pick the most relevant pack, or ask the user to choose if the recommendation is ambiguous.
@@ -26,7 +26,7 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 5. Preview changes before writing:
 
    ```bash
-   agents-market diff <pack-id> --target all
+   agents-market diff <pack-id> --target all --json
    ```
 
 6. Explain the target files and permission implications.

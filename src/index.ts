@@ -7,8 +7,8 @@ import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
 import { buildCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
-import { recommendPacks } from "./recommend.js";
-import { generatePackFiles } from "./install.js";
+import { recommendPackDetails, recommendPacks } from "./recommend.js";
+import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
@@ -72,11 +72,34 @@ program
   .description("Recommend packs for the current project")
   .option("--cwd <path>", "project root to scan")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
-  .action(async (options: { cwd?: string; registry?: string }) => {
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { cwd?: string; registry?: string; json?: boolean }) => {
     const root = cwd(options.cwd);
     const { registry } = await loadProjectRegistry(root, options.registry);
     const signals = await detectProject(root);
-    const packs = recommendPacks(registry, signals);
+    const recommendations = recommendPackDetails(registry, signals);
+    const packs = recommendations.map((recommendation) => recommendation.pack);
+
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            signals,
+            recommendations: recommendations.map((recommendation) => ({
+              packId: recommendation.pack.id,
+              name: recommendation.pack.name,
+              description: recommendation.pack.description,
+              score: recommendation.score,
+              reasons: recommendation.reasons,
+              agents: recommendation.pack.agents
+            }))
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
 
     console.log(pc.bold("Detected"));
     console.log(`- root: ${signals.root}`);
@@ -100,11 +123,26 @@ program
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
   .option("--cwd <path>", "project root to inspect")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON")
   .description("Preview files that would be written")
-  .action(async (packId: string, options: { target: string; cwd?: string; registry?: string }) => {
+  .action(async (packId: string, options: { target: string; cwd?: string; registry?: string; json?: boolean }) => {
     const root = cwd(options.cwd);
     const { registry } = await loadProjectRegistry(root, options.registry);
     const files = generatePackFiles(registry, packId, parseTarget(options.target));
+    if (options.json) {
+      const changes = [];
+      for (const file of files) {
+        const existing = await readExisting(root, file);
+        changes.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agent.id,
+          state: summarizeFileChange(existing, file.content)
+        });
+      }
+      console.log(JSON.stringify({ packId, target: parseTarget(options.target), changes }, null, 2));
+      return;
+    }
 
     for (const file of files) {
       const existing = await readExisting(root, file);
@@ -121,8 +159,9 @@ program
   .option("--cwd <path>", "project root to install into")
   .option("--dry-run", "preview without writing")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON for dry-run output")
   .description("Install a pack into the current project")
-  .action(async (packId: string, options: { target: string; cwd?: string; dryRun?: boolean; registry?: string }) => {
+  .action(async (packId: string, options: { target: string; cwd?: string; dryRun?: boolean; registry?: string; json?: boolean }) => {
     const root = cwd(options.cwd);
     const loaded = await loadProjectRegistry(root, options.registry);
     const registry = loaded.registry;
@@ -130,6 +169,20 @@ program
     const files = generatePackFiles(registry, packId, target);
 
     if (options.dryRun) {
+      if (options.json) {
+        const changes = [];
+        for (const file of files) {
+          const existing = await readExisting(root, file);
+          changes.push({
+            path: file.path,
+            target: file.target,
+            agentId: file.agent.id,
+            state: summarizeFileChange(existing, file.content)
+          });
+        }
+        console.log(JSON.stringify({ packId, target, dryRun: true, changes }, null, 2));
+        return;
+      }
       for (const file of files) {
         const existing = await readExisting(root, file);
         console.log(`${summarizeFileChange(existing, file.content)} ${file.path}`);
@@ -148,6 +201,27 @@ program
       })
     );
     console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
+  });
+
+program
+  .command("plan")
+  .argument("<pack>", "pack id to plan")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--no-json", "print human-readable output")
+  .description("Create an install plan for a pack")
+  .action(async (packId: string, options: { target: string; registry?: string; json?: boolean }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
+    const target = parseTarget(options.target);
+    const plan = createInstallPlan(registry, packId, target);
+    if (options.json) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    console.log(`${plan.packId} -> ${plan.fileCount} files for ${plan.agentCount} agents`);
+    for (const file of plan.files) {
+      console.log(`${file.path} (${file.target}, ${file.agentId})`);
+    }
   });
 
 program

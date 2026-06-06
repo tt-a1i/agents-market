@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createRegistryBundle, loadRegistry } from "../src/registry.js";
-import { recommendPacks } from "../src/recommend.js";
+import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
+import { createInstallPlan } from "../src/install.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -18,6 +19,27 @@ describe("registry", () => {
       files: ["package.json", "next.config.mjs"]
     });
     expect(packs[0]?.id).toBe("nextjs-pack");
+  });
+
+  it("returns recommendation scores and reasons", async () => {
+    const registry = await loadRegistry();
+    const recommendations = recommendPackDetails(registry, {
+      root: "/tmp/project",
+      languages: ["typescript"],
+      frameworks: ["nextjs", "react"],
+      files: ["package.json", "next.config.mjs"]
+    });
+    expect(recommendations[0]?.pack.id).toBe("nextjs-pack");
+    expect(recommendations[0]?.score).toBeGreaterThan(0);
+    expect(recommendations[0]?.reasons).toContain("framework:nextjs");
+  });
+
+  it("creates install plans", async () => {
+    const registry = await loadRegistry();
+    const plan = createInstallPlan(registry, "starter-dev-pack", "all");
+    expect(plan.agentCount).toBe(4);
+    expect(plan.fileCount).toBe(12);
+    expect(plan.files[0]).toHaveProperty("agentId");
   });
 
   it("creates and parses portable registry bundles", async () => {

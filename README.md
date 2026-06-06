@@ -46,7 +46,10 @@ The final product has three layers:
 agents-market list
 agents-market list --agents
 agents-market recommend
+agents-market recommend --json
+agents-market plan starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all
+agents-market diff starter-dev-pack --target all --json
 agents-market install starter-dev-pack --target claude
 agents-market status
 agents-market update
@@ -130,6 +133,14 @@ This writes:
 | OpenCode | `.opencode/commands/agents-market.md` |
 
 Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `diff`, asks for confirmation, installs with the CLI, and verifies with `status`.
+
+Agent-native wrappers can use structured output:
+
+```bash
+agents-market recommend --json
+agents-market plan nextjs-pack --target all
+agents-market diff nextjs-pack --target all --json
+```
 
 ## Web Catalog
 
