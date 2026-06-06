@@ -84,6 +84,10 @@ async function main() {
       catalogHtml.includes('const itemTargets = item.dataset.targets || "";'),
       "Catalog target filter should tolerate searchable entries without target metadata."
     );
+    assert(
+      catalogHtml.includes('document.execCommand("copy")') && catalogHtml.includes("Copy failed"),
+      "Catalog copy controls should include a clipboard fallback for non-secure contexts or denied permissions."
+    );
   } finally {
     await rm(siteDir, { recursive: true, force: true });
   }

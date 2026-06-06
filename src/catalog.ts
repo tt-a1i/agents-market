@@ -650,6 +650,7 @@ function renderHtml(
     pre { overflow-x: auto; margin: 0; padding: 12px; border-radius: 6px; background: var(--fill); border: 1px solid var(--line); font-size: 13px; }
     button { height: 40px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); padding: 0 12px; font: inherit; cursor: pointer; }
     button.copied { border-color: var(--accent); color: var(--accent); }
+    button.copy-failed { border-color: var(--warn); color: var(--warn); }
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
     .warnings { border-left: 3px solid var(--warn); padding-left: 16px; }
@@ -736,15 +737,41 @@ function renderHtml(
     }
     input.addEventListener("input", applyFilters);
     target.addEventListener("change", applyFilters);
+    async function copyCommand(command) {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(command);
+          return true;
+        } catch {
+          // Fall through to the textarea fallback for non-secure contexts or denied clipboard permissions.
+        }
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = command;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } finally {
+        document.body.removeChild(textarea);
+      }
+      return copied;
+    }
     document.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-copy]");
       if (!button) return;
-      await navigator.clipboard.writeText(button.dataset.copy);
-      button.textContent = "Copied";
-      button.classList.add("copied");
+      const copied = await copyCommand(button.dataset.copy);
+      button.textContent = copied ? "Copied" : "Copy failed";
+      button.classList.toggle("copied", copied);
+      button.classList.toggle("copy-failed", !copied);
       setTimeout(() => {
         button.textContent = "Copy";
         button.classList.remove("copied");
+        button.classList.remove("copy-failed");
       }, 1400);
     });
   </script>

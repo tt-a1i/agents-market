@@ -75,6 +75,8 @@ describe("catalog", () => {
     );
     expect(html).toContain("data-copy=");
     expect(html).toContain("navigator.clipboard.writeText");
+    expect(html).toContain("document.execCommand(\"copy\")");
+    expect(html).toContain("Copy failed");
     expect(html).toContain('rel="manifest" href="site.webmanifest"');
     expect(html).toContain('rel="icon" href="favicon.svg"');
     expect(html).toContain('rel="canonical" href="https://example.com/agents-market"');
