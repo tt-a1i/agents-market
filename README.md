@@ -70,6 +70,8 @@ agents-market pack create frontend-lite --agent code-reviewer accessibility-audi
 agents-market status
 agents-market status --json
 agents-market status --diff --json
+agents-market resolve starter-dev-pack --target claude --strategy keep-local --yes
+agents-market resolve starter-dev-pack --target claude --strategy accept-registry --file .claude/agents/code-reviewer.md --json
 agents-market doctor
 agents-market doctor --strict --json
 agents-market outdated
@@ -107,12 +109,13 @@ Installs write `.agents-market/manifest.json`. The manifest records installed pa
 This enables drift-aware operations:
 
 - `status` reports clean, modified, and missing generated files; use `status --json` for automation and `status --diff --json` when you need line-level drift summaries for modified or missing generated files.
+- `resolve` reconciles manifest drift after review. Use `--strategy accept-registry` to restore generated content from the registry, `--strategy keep-local` to record intentional local edits as the new tracked hash, or `--strategy forget` to stop tracking selected files.
 - `doctor` runs manifest, registry lock, policy, drift, and target directory health checks; use `doctor --strict --json` in CI.
 - `outdated` compares installed pack versions with the current registry; use `outdated --json` before update automation.
 - `update` refreshes installed packs from the current registry.
 - `uninstall` removes generated files while skipping and continuing to track user-modified files by default.
 
-Use `outdated --json`, `update --dry-run --json`, and `uninstall --dry-run --json` before changing installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+Use `status --diff --json`, `resolve --json`, `outdated --json`, `update --dry-run --json`, and `uninstall --dry-run --json` before changing installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
 
 ## Initialize A Project
 

@@ -11,7 +11,8 @@
     ],
     "changed": [
       "Registry content is validated by strict linting, pack audit, apply preview, and catalog verification gates",
-      "Published packs declare Agents Market CLI compatibility constraints before installation"
+      "Published packs declare Agents Market CLI compatibility constraints before installation",
+      "Manifest drift can be reconciled with resolve strategies for registry content, local edits, or forgotten tracked files"
     ]
   }
 ]

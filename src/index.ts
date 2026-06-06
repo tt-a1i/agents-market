@@ -30,6 +30,7 @@ import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } fr
 import { summarizeTextDrift } from "./drift.js";
 import { versionStatus } from "./version.js";
 import { checkPackCompatibility, type PackCompatibilityReport } from "./compatibility.js";
+import { planManifestResolution, type ResolveStrategy } from "./resolve.js";
 import { BUNDLED_REGISTRY_VERSION, CLI_VERSION } from "./constants.js";
 import {
   loadManifest,
@@ -70,6 +71,15 @@ function parseSearchKind(value: string): SearchKind {
 function parsePolicyPreset(value: string): PolicyPreset {
   if (value === "open" || value === "balanced" || value === "strict") return value;
   throw new Error(`Invalid policy preset: ${value}. Use open, balanced, or strict.`);
+}
+
+function parseResolveStrategy(value: string): ResolveStrategy {
+  if (value === "accept-registry" || value === "keep-local" || value === "forget") return value;
+  throw new Error(`Invalid resolve strategy: ${value}. Use accept-registry, keep-local, or forget.`);
+}
+
+function collectOption(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
 }
 
 function isNotFoundError(error: unknown): boolean {
@@ -888,6 +898,87 @@ program
       }
     }
   });
+
+program
+  .command("resolve")
+  .argument("[pack]", "optional pack id to resolve; resolves all installed packs when omitted")
+  .description("Resolve manifest drift by accepting registry content, keeping local edits, or forgetting tracked files")
+  .option("--cwd <path>", "project root to resolve")
+  .option("-t, --target <target>", "claude, codex, opencode, or all")
+  .option("--registry <source>", "registry source used by accept-registry")
+  .option("--strategy <strategy>", "accept-registry, keep-local, or forget", "accept-registry")
+  .option("--file <path>", "resolve one tracked file path; repeat to resolve multiple files", collectOption, [])
+  .option("--yes", "write files and manifest updates; default is preview only")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (
+      packId: string | undefined,
+      options: { cwd?: string; target?: string; registry?: string; strategy: string; file: string[]; yes?: boolean; json?: boolean }
+    ) => {
+      const root = cwd(options.cwd);
+      const manifest = await loadManifest(root);
+      const target = options.target ? parseTarget(options.target) : undefined;
+      const strategy = parseResolveStrategy(options.strategy);
+      const result = await planManifestResolution({
+        manifest,
+        expectedFilesForInstall:
+          strategy === "accept-registry" || options.registry
+            ? async (install) => {
+                const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
+                return generatePackFiles(loaded.registry, install.packId, install.target);
+              }
+            : undefined,
+        strategy,
+        dryRun: !options.yes,
+        packId,
+        target,
+        paths: options.file,
+        readCurrent: async (path) => readExisting(root, { path, content: "" })
+      });
+
+      if (options.yes) {
+        if (result.filesToWrite.length > 0) await writeGeneratedFiles(root, result.filesToWrite);
+        await saveManifest(root, result.manifest);
+      }
+
+      const summary = {
+        root,
+        strategy,
+        dryRun: !options.yes,
+        written: result.written,
+        recorded: result.recorded,
+        forgotten: result.forgotten,
+        skipped: result.skipped,
+        installs: result.installs
+      };
+
+      if (options.json) {
+        console.log(JSON.stringify(summary, null, 2));
+        return;
+      }
+
+      if (result.installs.length === 0) {
+        console.log(packId ? pc.yellow(`No matching drift found for ${packId}.`) : pc.yellow("No manifest drift found."));
+        return;
+      }
+
+      console.log(`${pc.bold(options.yes ? "Resolved" : "Resolve preview")} ${strategy}`);
+      console.log(`- written: ${result.written}`);
+      console.log(`- recorded: ${result.recorded}`);
+      console.log(`- forgotten: ${result.forgotten}`);
+      console.log(`- skipped: ${result.skipped}`);
+      for (const install of result.installs) {
+        console.log(`${pc.bold(install.packId)} (${install.target})`);
+        for (const change of install.changes) {
+          const label =
+            change.action === "write-registry" || change.action === "record-local" || change.action === "forget"
+              ? pc.green(change.action)
+              : pc.yellow(change.action);
+          console.log(`  ${label} ${change.path}`);
+        }
+      }
+    }
+  );
 
 program
   .command("outdated")

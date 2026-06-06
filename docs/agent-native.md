@@ -41,6 +41,8 @@ agents-market update --dry-run --json
 agents-market uninstall <pack> --target <target> --dry-run --json
 agents-market status --json
 agents-market status --diff --json
+agents-market resolve <pack> --target <target> --strategy keep-local --json
+agents-market resolve <pack> --target <target> --strategy accept-registry --yes
 agents-market doctor --json
 agents-market doctor --strict --json
 ```
@@ -58,6 +60,7 @@ Use `policy check --json` after `audit` when `.agents-market/policy.json` exists
 Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.
 Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, policy compliance, and target directories.
 Use `status --diff --json` when generated files are modified or missing and the user needs a concise summary of what drifted.
+Use `resolve --json` after reviewing drift when the user wants to restore registry-generated content, record intentional local edits, or forget selected tracked files. Add `--yes` only after confirmation.
 Use `outdated --json` before update workflows to tell the user which installed packs are current, outdated, newer than the registry, unknown, or missing from the registry.
 Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
@@ -94,6 +97,7 @@ After installation, users can ask the active coding agent to recommend and insta
 - Always preview before installing.
 - Run `policy check` when the project has `.agents-market/policy.json`.
 - Run `status` after install/update.
+- Run `status --diff` and preview `resolve` before reconciling modified or missing generated files.
 - Use `registry lock` for organization or hosted marketplace registries before installing.
 - Prefer curated packs over installing many individual agents.
 - Explain permissions for command-capable agents like `test-runner` and `frontend-verifier`.

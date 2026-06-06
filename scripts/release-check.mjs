@@ -180,6 +180,58 @@ async function runLifecycleSmoke() {
     assert(driftFile?.state === "modified", `Expected code-reviewer drift state to be modified, found ${driftFile?.state}.`);
     assert(driftFile?.drift?.addedLines > 0, "Expected drift status to report added lines for the local edit.");
 
+    const keepLocalResolve = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "resolve",
+        "starter-dev-pack",
+        "--target",
+        "claude",
+        "--cwd",
+        projectDir,
+        "--strategy",
+        "keep-local",
+        "--yes",
+        "--json"
+      ],
+      "Lifecycle resolve keep local"
+    );
+    assert(keepLocalResolve.recorded === 1, `Expected keep-local resolve to record one file, found ${keepLocalResolve.recorded}.`);
+    assert(hasAction(keepLocalResolve.installs, "record-local"), "Expected keep-local resolve to report record-local.");
+
+    const afterKeepLocalStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle status after keep local");
+    const keptFile = afterKeepLocalStatus.installs?.[0]?.files?.find((file) => file.path === ".claude/agents/code-reviewer.md");
+    assert(keptFile?.state === "clean", `Expected keep-local status to be clean, found ${keptFile?.state}.`);
+
+    await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- second local edit from release smoke -->\n", "utf8");
+
+    const acceptRegistryResolve = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "resolve",
+        "starter-dev-pack",
+        "--target",
+        "claude",
+        "--cwd",
+        projectDir,
+        "--strategy",
+        "accept-registry",
+        "--yes",
+        "--json"
+      ],
+      "Lifecycle resolve accept registry"
+    );
+    assert(acceptRegistryResolve.written === 1, `Expected accept-registry resolve to write one file, found ${acceptRegistryResolve.written}.`);
+    assert(hasAction(acceptRegistryResolve.installs, "write-registry"), "Expected accept-registry resolve to report write-registry.");
+
+    const afterAcceptStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle status after accept registry");
+    const acceptedFile = afterAcceptStatus.installs?.[0]?.files?.find((file) => file.path === ".claude/agents/code-reviewer.md");
+    assert(acceptedFile?.state === "clean", `Expected accept-registry status to be clean, found ${acceptedFile?.state}.`);
+
+    await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- third local edit from release smoke -->\n", "utf8");
+
     const updateDryRun = runJson(
       "node",
       ["dist/index.js", "update", "starter-dev-pack", "--cwd", projectDir, "--dry-run", "--json"],
@@ -352,6 +404,7 @@ function verifyTarball(packOutput) {
     "dist/audit.js",
     "dist/doctor.js",
     "dist/drift.js",
+    "dist/resolve.js",
     "dist/policy.js",
     "dist/pack.js",
     "dist/version.js",

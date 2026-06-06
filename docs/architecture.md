@@ -80,6 +80,7 @@ This gives the installer a lifecycle:
 - `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
 - `apply`, `install`, and `update` check pack compatibility requirements such as `requires.agentsMarket` before writing files.
 - `status` compares current files with stored hashes. With `--diff`, it reloads expected generated content from the registry and returns line-level drift summaries for modified or missing files.
+- `resolve` reconciles manifest drift after review. It can restore registry-generated content, record intentional local edits as the new tracked hash, or forget tracked files while preserving user content.
 - `outdated` compares installed pack versions with the current registry source and reports current, outdated, newer, unknown, or missing state.
 - `update` regenerates installed packs and skips user-modified files unless `--force` is set.
 - `uninstall` removes generated files and skips user-modified files unless `--force` is set. Skipped files remain in the manifest so later `status`, `doctor`, or forced uninstall can still find them.
@@ -185,7 +186,6 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 
 ## Future Production Requirements
 
-- Manifest conflict resolution.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.
 - Review automation for third-party registry submissions.
