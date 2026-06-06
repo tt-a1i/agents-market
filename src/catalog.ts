@@ -187,6 +187,20 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         message: "index.html does not include copy controls for workflow commands."
       });
     }
+    if (!html.includes('const itemTargets = item.dataset.targets || "";')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-target-filter-fallback",
+        message: "index.html target filter does not tolerate searchable entries without target metadata."
+      });
+    }
+    if (!html.includes('document.execCommand("copy")') || !html.includes("Copy failed")) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-copy-fallback",
+        message: "index.html copy controls do not include a fallback for restricted Clipboard API contexts."
+      });
+    }
     if (!html.includes('rel="manifest"') || !html.includes('href="site.webmanifest"')) {
       findings.push({
         severity: "error",

@@ -319,6 +319,34 @@ describe("catalog", () => {
     expect(report.findings.map((finding) => finding.code)).toContain("preview-command-mismatch");
   });
 
+  it("fails verification when catalog runtime fallbacks are missing", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
+    await buildCatalog(registry, {
+      outDir: cleanupPath,
+      version: "0.1.0",
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market"
+    });
+
+    const htmlPath = join(cleanupPath, "index.html");
+    const html = await readFile(htmlPath, "utf8");
+    await writeFile(
+      htmlPath,
+      html
+        .replace('const itemTargets = item.dataset.targets || "";', 'const itemTargets = item.dataset.targets;')
+        .replace('copied = document.execCommand("copy");', "copied = false;")
+        .replace('button.textContent = copied ? "Copied" : "Copy failed";', 'button.textContent = "Copied";'),
+      "utf8"
+    );
+
+    const report = await verifyCatalog(cleanupPath);
+    expect(report.ok).toBe(false);
+    expect(report.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["html-missing-target-filter-fallback", "html-missing-copy-fallback"])
+    );
+  });
+
   it("supports npm package command generation for production catalogs", async () => {
     const registry = await loadRegistry();
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
