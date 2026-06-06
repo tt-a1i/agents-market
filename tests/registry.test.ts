@@ -3,6 +3,7 @@ import { createRegistryBundle, loadRegistry } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { createInstallPlan } from "../src/install.js";
 import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
+import { searchRegistry } from "../src/search.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -41,6 +42,22 @@ describe("registry", () => {
     expect(plan.agentCount).toBe(4);
     expect(plan.fileCount).toBe(12);
     expect(plan.files[0]).toHaveProperty("agentId");
+  });
+
+  it("searches marketplace packs and agents", async () => {
+    const registry = await loadRegistry();
+    const results = searchRegistry(registry, { query: "accessibility", target: "claude" });
+    expect(results.some((result) => result.id === "accessibility-auditor")).toBe(true);
+    expect(results.some((result) => result.kind === "pack" && result.id === "frontend-pack")).toBe(true);
+    expect(results.every((result) => result.reasons.length > 0)).toBe(true);
+  });
+
+  it("filters marketplace search by kind and category", async () => {
+    const registry = await loadRegistry();
+    const results = searchRegistry(registry, { kind: "agents", category: "frontend" });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every((result) => result.kind === "agent")).toBe(true);
+    expect(results.every((result) => result.kind === "agent" && result.agent.category === "frontend")).toBe(true);
   });
 
   it("parses GitHub repositories for import", () => {

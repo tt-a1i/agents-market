@@ -12,6 +12,7 @@ import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
+import { searchRegistry, type SearchKind } from "./search.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -36,6 +37,17 @@ function parseTarget(value: string): Target | "all" {
     return value;
   }
   throw new Error(`Invalid target: ${value}. Use claude, codex, opencode, or all.`);
+}
+
+function parseConcreteTarget(value: string): Target {
+  const target = parseTarget(value);
+  if (target === "all") throw new Error("Target must be one of claude, codex, or opencode.");
+  return target;
+}
+
+function parseSearchKind(value: string): SearchKind {
+  if (value === "all" || value === "agents" || value === "packs") return value;
+  throw new Error(`Invalid search type: ${value}. Use all, agents, or packs.`);
 }
 
 async function loadProjectRegistry(root: string, registryOption?: string) {
@@ -67,6 +79,86 @@ program
       }
     }
   });
+
+program
+  .command("search")
+  .argument("[query]", "keywords to search for")
+  .description("Search marketplace packs and agents")
+  .option("--type <type>", "all, agents, or packs", "all")
+  .option("--target <target>", "filter agents or packs by claude, codex, or opencode")
+  .option("--tag <tag>", "filter by tag")
+  .option("--category <category>", "filter agents or packs by agent category")
+  .option("--limit <number>", "maximum results to return", "20")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (
+      query: string | undefined,
+      options: {
+        type: string;
+        target?: string;
+        tag?: string;
+        category?: string;
+        limit: string;
+        registry?: string;
+        json?: boolean;
+      }
+    ) => {
+      const { registry } = await loadRegistryWithInfo(options.registry);
+      const results = searchRegistry(registry, {
+        query,
+        kind: parseSearchKind(options.type),
+        target: options.target ? parseConcreteTarget(options.target) : undefined,
+        tag: options.tag,
+        category: options.category,
+        limit: Number.parseInt(options.limit, 10)
+      });
+
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              query: query ?? "",
+              filters: {
+                type: parseSearchKind(options.type),
+                target: options.target,
+                tag: options.tag,
+                category: options.category
+              },
+              results: results.map((result) => ({
+                kind: result.kind,
+                id: result.id,
+                name: result.name,
+                description: result.description,
+                score: result.score,
+                reasons: result.reasons,
+                agents: result.kind === "pack" ? result.pack.agents : undefined,
+                tags: result.kind === "pack" ? result.pack.tags : result.agent.tags,
+                category: result.kind === "agent" ? result.agent.category : undefined,
+                recommendedTargets: result.kind === "agent" ? result.agent.recommendedTargets : undefined
+              }))
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
+
+      if (results.length === 0) {
+        console.log(pc.yellow("No matching packs or agents found."));
+        return;
+      }
+
+      for (const result of results) {
+        const label = result.kind === "pack" ? pc.cyan("pack") : pc.green("agent");
+        console.log(`${label} ${pc.bold(result.id)} - ${result.description}`);
+        if (result.reasons.length > 0) {
+          console.log(`  ${pc.dim(result.reasons.join(", "))}`);
+        }
+      }
+    }
+  );
 
 program
   .command("recommend")

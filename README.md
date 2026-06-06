@@ -45,6 +45,8 @@ The final product has three layers:
 ```bash
 agents-market list
 agents-market list --agents
+agents-market search accessibility --target claude
+agents-market search --type agents --category frontend --json
 agents-market recommend
 agents-market recommend --json
 agents-market plan starter-dev-pack --target all
@@ -116,6 +118,19 @@ The linter checks references, duplicate IDs, routing metadata, permission/tool c
 - `starter-dev-pack`: review, debugging, tests, and documentation research.
 - `frontend-pack`: visual verification, accessibility, review, tests, and debugging.
 - `nextjs-pack`: Next.js performance, frontend verification, accessibility, tests, and review.
+
+## Discover Agents
+
+Search packs and individual agents before installing:
+
+```bash
+agents-market search accessibility
+agents-market search "next performance" --type packs
+agents-market search --type agents --target claude --category frontend
+agents-market search review --json
+```
+
+Search supports bundled, local, bundle-file, and URL registries through `--registry`, the same as install commands.
 
 ## Agent-Native Integrations
 
