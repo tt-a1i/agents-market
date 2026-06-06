@@ -14,9 +14,11 @@ describe("agent-native integrations", () => {
   it("instructs integrations to preview before installing", () => {
     const files = generateIntegrations("all");
     for (const file of files) {
-      expect(file.content).toContain("agents-market diff");
+      expect(file.content).toContain("agents-market recommend --json");
+      expect(file.content).toContain("agents-market audit");
+      expect(file.content).toContain("agents-market diff <pack-id> --target all --json");
       expect(file.content).toContain("agents-market install");
-      expect(file.content).toContain("agents-market status");
+      expect(file.content).toContain("agents-market doctor --json");
     }
   });
 });

@@ -64,6 +64,114 @@ program
   .version("0.1.0");
 
 program
+  .command("init")
+  .description("Initialize Agents Market in a project")
+  .option("--cwd <path>", "project root to initialize")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--registry <source>", "registry source to lock and use", "bundled")
+  .option("--no-lock", "skip writing .agents-market/registry-lock.json")
+  .option("--dry-run", "preview without writing files")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (options: { cwd?: string; target: string; registry: string; lock?: boolean; dryRun?: boolean; json?: boolean }) => {
+      const root = cwd(options.cwd);
+      const target = parseTarget(options.target);
+      const loaded = await loadRegistryWithInfo(options.registry);
+      const signals = await detectProject(root);
+      const recommendations = recommendPackDetails(loaded.registry, signals);
+      const selectedPack = recommendations[0]?.pack ?? loaded.registry.packs.find((pack) => pack.id === "starter-dev-pack") ?? loaded.registry.packs[0];
+      if (!selectedPack) throw new Error("Registry does not contain any packs.");
+
+      const integrationFiles = generateIntegrations(target);
+      const integrationChanges = [];
+      for (const file of integrationFiles) {
+        const existing = await readExisting(root, file);
+        integrationChanges.push({
+          path: file.path,
+          state: summarizeFileChange(existing, file.content)
+        });
+      }
+
+      const plan = createInstallPlan(loaded.registry, selectedPack.id, target);
+      const audit = auditPack(loaded.registry, selectedPack.id, target);
+      const packFiles = generatePackFiles(loaded.registry, selectedPack.id, target);
+      const diff = [];
+      for (const file of packFiles) {
+        const existing = await readExisting(root, file);
+        diff.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agent.id,
+          state: summarizeFileChange(existing, file.content)
+        });
+      }
+
+      if (!options.dryRun) {
+        if (options.lock !== false) {
+          await saveRegistryLock(root, {
+            schemaVersion: 1,
+            source: loaded.source.value,
+            version: loaded.source.version,
+            sha256: loaded.source.sha256,
+            lockedAt: new Date().toISOString()
+          });
+        }
+        await writeGeneratedFiles(root, integrationFiles);
+      }
+
+      const result = {
+        root,
+        dryRun: Boolean(options.dryRun),
+        registry: loaded.source,
+        lockWritten: !options.dryRun && options.lock !== false,
+        target,
+        signals,
+        integrations: integrationChanges,
+        recommendation: {
+          packId: selectedPack.id,
+          name: selectedPack.name,
+          description: selectedPack.description,
+          score: recommendations[0]?.score ?? 0,
+          reasons: recommendations[0]?.reasons ?? ["baseline"]
+        },
+        plan,
+        audit,
+        diff,
+        nextCommands: [
+          `agents-market audit ${selectedPack.id} --target ${target} --json`,
+          `agents-market diff ${selectedPack.id} --target ${target}`,
+          `agents-market install ${selectedPack.id} --target ${target}`,
+          "agents-market doctor"
+        ]
+      };
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      console.log(`${pc.bold("Initialized Agents Market")} ${options.dryRun ? pc.yellow("(dry run)") : pc.green("(written)")}`);
+      console.log(`- root: ${root}`);
+      console.log(`- registry: ${loaded.source.value}`);
+      console.log(`- target: ${target}`);
+      console.log(`- integrations: ${integrationChanges.map((change) => `${change.state} ${change.path}`).join(", ")}`);
+      console.log(`- recommended pack: ${pc.cyan(selectedPack.id)} - ${selectedPack.description}`);
+      console.log(`- audit risk: ${audit.risk}`);
+      console.log(`- planned files: ${plan.fileCount}`);
+      if (audit.warnings.length > 0) {
+        console.log(`\n${pc.bold("Warnings")}`);
+        for (const warning of audit.warnings) {
+          console.log(`- ${pc.yellow(warning)}`);
+        }
+      }
+      console.log(`\n${pc.bold("Next")}`);
+      for (const command of result.nextCommands) {
+        console.log(`- ${command}`);
+      }
+    }
+  );
+
+program
   .command("list")
   .description("List available agent packs and agents")
   .option("--agents", "show individual agents")

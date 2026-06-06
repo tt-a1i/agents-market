@@ -5,17 +5,19 @@ const INSTALLER_WORKFLOW = `You help users install specialized coding subagent p
 
 Workflow:
 1. Inspect the repository briefly to understand project type.
-2. Run \`agents-market recommend\`.
+2. Run \`agents-market recommend --json\`.
 3. Choose the most relevant pack, or ask the user when ambiguous.
 4. If the user provides a registry URL or bundle path, run \`agents-market registry lock --registry <source>\`.
-5. Run \`agents-market diff <pack-id> --target all\` before writing files.
-6. Explain target files and permission implications.
-7. After user confirmation, run \`agents-market install <pack-id> --target all\`.
-8. Run \`agents-market status\`.
-9. Summarize installed files and how to invoke the new agents.
+5. Create a structured install plan with \`agents-market plan <pack-id> --target all\`.
+6. Audit permissions and provenance with \`agents-market audit <pack-id> --target all --json\`.
+7. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
+8. Explain target files, permission implications, warnings, and source/license status.
+9. After user confirmation, run \`agents-market install <pack-id> --target all\`.
+10. Run \`agents-market status\` and \`agents-market doctor --json\`.
+11. Summarize installed files, health warnings, and how to invoke the new agents.
 
 Safety:
-- Always preview with \`diff\` before \`install\`.
+- Always audit and preview with \`audit\` and \`diff\` before \`install\`.
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
 - Use \`--target claude\`, \`--target codex\`, or \`--target opencode\` when the user wants one tool only.

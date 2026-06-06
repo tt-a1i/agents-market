@@ -19,6 +19,7 @@ Agents Market currently generates:
 ```bash
 npm install
 npm run build
+npm run dev -- init --target all
 npm run dev -- list --agents
 npm run dev -- recommend
 npm run dev -- install starter-dev-pack --target all --dry-run
@@ -28,8 +29,9 @@ npm run dev -- status
 After publishing, the intended user flow is:
 
 ```bash
-npx agents-market recommend
-npx agents-market install frontend-pack --target all
+npx @agents-market/cli init --target all
+npx @agents-market/cli recommend
+npx @agents-market/cli install frontend-pack --target all
 ```
 
 ## Product Shape
@@ -45,6 +47,8 @@ The final product has three layers:
 ```bash
 agents-market list
 agents-market list --agents
+agents-market init --target all
+agents-market init --target all --dry-run --json
 agents-market search accessibility --target claude
 agents-market search --type agents --category frontend --json
 agents-market recommend
@@ -82,6 +86,17 @@ This enables drift-aware operations:
 - `uninstall` removes generated files while skipping user-modified files by default.
 
 Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+
+## Initialize A Project
+
+Use `init` as the first-run setup:
+
+```bash
+agents-market init --target all
+agents-market init --target claude --dry-run --json
+```
+
+`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `audit`, `diff`, `install`, and `doctor` commands. It does not install the recommended pack automatically; pack installation still requires an explicit `install`.
 
 ## Registry Sources
 
