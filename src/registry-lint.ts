@@ -136,6 +136,15 @@ function lintAgents(agents: AgentDefinition[], findings: LintFinding[]): void {
         message: "Agent provenance does not include a source license."
       });
     }
+
+    if (agent.provenance && !agent.provenance.sourceSha256) {
+      findings.push({
+        severity: "warning",
+        code: "missing-source-checksum",
+        subject: `agent:${agent.id}`,
+        message: "Agent provenance does not include sourceSha256 for the imported source content."
+      });
+    }
   }
 }
 

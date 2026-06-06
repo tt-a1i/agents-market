@@ -29,6 +29,7 @@ export interface AgentDefinition {
     repository?: string;
     license?: string;
     author?: string;
+    sourceSha256?: string;
     importedAt?: string;
   };
 }

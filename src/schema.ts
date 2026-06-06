@@ -36,6 +36,7 @@ export const agentSchema = z.object({
       repository: z.string().optional(),
       license: z.string().optional(),
       author: z.string().optional(),
+      sourceSha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
       importedAt: z.string().optional()
     })
     .optional()

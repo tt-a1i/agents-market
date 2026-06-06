@@ -342,13 +342,15 @@ agents-market import repo owner/repo \
   --source-license MIT
 ```
 
+When provenance is present, import commands record `provenance.sourceSha256` for the original Markdown source. Registry lint, audit output, the Web catalog, and registry review summaries surface checksum coverage for imported content.
+
 See [docs/import.md](./docs/import.md).
 
 ## Contributing Marketplace Content
 
 Agents Market is curated. Before adding or importing registry content, read [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/contributing-agents.md](./docs/contributing-agents.md).
 
-Registry pull requests should include provenance, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
+Registry pull requests should include provenance, source checksums, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
 
 Registry-related pull requests also run the `Registry Review` GitHub Actions workflow. It uploads `registry-submission-summary.json` and writes a pack-by-pack summary with lint, prompt quality, catalog verification, audit, and apply-preview results.
 

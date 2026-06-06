@@ -724,7 +724,9 @@ program
     console.log(
       `- tools: read ${audit.tools.read}, edit ${audit.tools.edit}, write ${audit.tools.write}, bash-safe ${audit.tools.bashSafe}, bash-full ${audit.tools.bashFull}, web ${audit.tools.web}`
     );
-    console.log(`- provenance: bundled ${audit.provenance.bundled}, imported ${audit.provenance.imported}, licensed ${audit.provenance.withLicense}`);
+    console.log(
+      `- provenance: bundled ${audit.provenance.bundled}, imported ${audit.provenance.imported}, licensed ${audit.provenance.withLicense}, checksummed ${audit.provenance.withChecksum}`
+    );
     if (audit.provenance.repositories.length > 0) {
       console.log(`- repositories: ${audit.provenance.repositories.join(", ")}`);
     }

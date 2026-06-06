@@ -45,11 +45,13 @@ jobs:
             `- Inventory: ${summary.inventory.packCount} packs, ${summary.inventory.agentCount} agents`,
             `- Catalog verify: ${summary.catalog.ok ? "pass" : "fail"}`,
             "",
-            "| Pack | Version | Risk | Agents | Files | Policy | Preview changes |",
-            "| --- | --- | --- | ---: | ---: | --- | ---: |",
+            "| Pack | Version | Risk | Agents | Files | Imported | Checksummed | Policy | Preview changes |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |",
             ...summary.packs.map(
               (pack) =>
                 `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${
+                  pack.provenance.imported
+                } | ${pack.provenance.withChecksum} | ${
                   pack.policyOk ? "pass" : "fail"
                 } | ${pack.previewChanges} |`
             ),

@@ -311,6 +311,10 @@ async function runRegistrySubmissionGateSmoke() {
     assert(summary.ok === true, "Expected registry submission summary to be ok.");
     assert(summary.lint?.score === 100, `Expected registry submission summary lint score 100, found ${summary.lint?.score}.`);
     assert(summary.packs?.length >= 3, `Expected registry submission summary to include at least three packs, found ${summary.packs?.length}.`);
+    assert(
+      summary.packs?.every((pack) => typeof pack.provenance?.withChecksum === "number"),
+      "Expected registry submission summary packs to include checksum provenance coverage."
+    );
     assert(summary.catalog?.ok === true, "Expected registry submission summary catalog verification to pass.");
     checks.push("Registry submission summary");
   } finally {

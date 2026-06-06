@@ -183,13 +183,13 @@ Imported agents can include provenance:
 - source repository
 - source license
 - source author
+- source SHA-256 checksum
 - import timestamp
 
-The catalog surfaces provenance, and `registry lint` warns when imported agents are missing provenance or source license data.
+The catalog surfaces provenance and short source checksums, and `registry lint` warns when imported agents are missing provenance, source license data, or source checksums.
 
 ## Future Production Requirements
 
-- Signature or checksum verification for third-party packs.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
 

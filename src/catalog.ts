@@ -439,13 +439,16 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function renderProvenance(provenance: { source?: string; repository?: string; license?: string; author?: string } | undefined): string {
+function renderProvenance(
+  provenance: { source?: string; repository?: string; license?: string; author?: string; sourceSha256?: string } | undefined
+): string {
   if (!provenance) return "Bundled";
   const label = provenance.repository ?? provenance.author ?? provenance.license ?? provenance.source ?? "Imported";
+  const checksum = provenance.sourceSha256 ? ` <span title="source SHA-256">sha256:${escapeHtml(provenance.sourceSha256.slice(0, 12))}</span>` : "";
   if (provenance.source?.startsWith("http://") || provenance.source?.startsWith("https://")) {
-    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>`;
+    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>${checksum}`;
   }
-  return escapeHtml(label);
+  return `${escapeHtml(label)}${checksum}`;
 }
 
 function packCatalogSummary(registry: Registry, packId: string, bundlePath: string) {

@@ -85,6 +85,7 @@ Repository imports automatically set provenance:
 - `repository` from the GitHub owner/name.
 - `source` from the GitHub tree URL, unless you override it with `--source-url`.
 - `license` and `author` from the explicit flags, when provided.
+- `sourceSha256` from the original Markdown content read during import.
 
 ## Generate A Pack During Import
 
@@ -126,4 +127,4 @@ Use provenance flags whenever the source came from a third-party collection:
 --source-author "Original Author"
 ```
 
-Agents Market stores this under `agent.provenance`. The Web catalog displays source information, and `registry lint` warns when imported agents do not include provenance or a source license.
+Agents Market stores this under `agent.provenance`. The importer automatically records `sourceSha256` when provenance is present, so reviewers can compare the registry entry against the original source content. The Web catalog displays source information, and `registry lint` warns when imported agents do not include provenance, a source license, or a source checksum.

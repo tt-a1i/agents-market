@@ -22,7 +22,9 @@ export interface PackAudit {
     bundled: number;
     imported: number;
     withLicense: number;
+    withChecksum: number;
     missingLicense: string[];
+    missingChecksum: string[];
     repositories: string[];
   };
   agents: Array<{
@@ -53,6 +55,7 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
     web: 0
   };
   const missingLicense: string[] = [];
+  const missingChecksum: string[] = [];
   const repositories = new Set<string>();
   let imported = 0;
 
@@ -71,6 +74,7 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
       imported += 1;
       if (agent.provenance.repository) repositories.add(agent.provenance.repository);
       if (!agent.provenance.license) missingLicense.push(agent.id);
+      if (!agent.provenance.sourceSha256) missingChecksum.push(agent.id);
     }
   }
 
@@ -83,11 +87,12 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
   if (tools.write > 0) warnings.push(`${tools.write} agents can write files.`);
   if (permissions.command > 0) warnings.push(`${permissions.command} agents use command-level permission.`);
   if (missingLicense.length > 0) warnings.push(`Imported agents missing source license: ${missingLicense.join(", ")}`);
+  if (missingChecksum.length > 0) warnings.push(`Imported agents missing source checksum: ${missingChecksum.join(", ")}`);
 
   return {
     packId: pack.id,
     target,
-    risk: riskLevel(permissions, tools, missingLicense),
+    risk: riskLevel(permissions, tools, missingLicense, missingChecksum),
     agentCount: agents.length,
     fileCount: agents.length * targets.length,
     permissions,
@@ -97,7 +102,9 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
       bundled: agents.length - imported,
       imported,
       withLicense: imported - missingLicense.length,
+      withChecksum: imported - missingChecksum.length,
       missingLicense,
+      missingChecksum,
       repositories: [...repositories].sort()
     },
     agents: agents.map((agent) => ({
@@ -115,9 +122,10 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
 function riskLevel(
   permissions: Record<PermissionMode, number>,
   tools: PackAudit["tools"],
-  missingLicense: string[]
+  missingLicense: string[],
+  missingChecksum: string[]
 ): PackAudit["risk"] {
-  if (permissions.command > 0 || tools.bashFull > 0 || tools.write > 0 || missingLicense.length > 0) return "high";
+  if (permissions.command > 0 || tools.bashFull > 0 || tools.write > 0 || missingLicense.length > 0 || missingChecksum.length > 0) return "high";
   if (permissions["safe-write"] > 0 || tools.edit > 0 || tools.bashSafe > 0 || tools.web > 0) return "medium";
   return "low";
 }

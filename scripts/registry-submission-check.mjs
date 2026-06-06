@@ -98,6 +98,7 @@ async function main() {
         agentCount: audit.agentCount,
         fileCount: audit.fileCount,
         auditWarnings: audit.warnings?.length ?? 0,
+        provenance: audit.provenance,
         policyOk: preview.policy?.ok === true,
         previewChanges: preview.changes?.length ?? 0
       });

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
 import { importMarkdownAgent, importMarkdownDirectory, parseMarkdownAgent } from "../src/importer.js";
+import { sha256 } from "../src/hash.js";
 
 let cleanupPath: string | undefined;
 
@@ -32,9 +33,7 @@ You are a reviewer.
   it("imports Claude markdown agents", async () => {
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-import-"));
     const source = join(cleanupPath, "reviewer.md");
-    await writeFile(
-      source,
-      `---
+    const sourceContent = `---
 name: code-reviewer
 description: Reviews code carefully for test gaps, security issues, regressions, and maintainability.
 tools: Read, Grep, Bash
@@ -42,9 +41,8 @@ model: inherit
 ---
 
 You are a senior code reviewer. Return concise findings with file paths and suggested fixes.
-`,
-      "utf8"
-    );
+`;
+    await writeFile(source, sourceContent, "utf8");
 
     const agent = await importMarkdownAgent({
       sourcePath: source,
@@ -60,6 +58,7 @@ You are a senior code reviewer. Return concise findings with file paths and sugg
     expect(agent.model?.claude).toBe("inherit");
     expect(agent.recommendedTargets).toEqual(["claude"]);
     expect(agent.provenance?.repository).toBe("example/agents");
+    expect(agent.provenance?.sourceSha256).toBe(sha256(sourceContent));
   });
 
   it("imports OpenCode permission objects and writes JSON", async () => {
@@ -131,6 +130,7 @@ You are a debugging specialist. Find the smallest credible root cause and explai
     });
 
     expect(result.imported.map((agent) => agent.id).sort()).toEqual(["code-reviewer", "debugger"]);
+    expect(result.imported.every((agent) => agent.provenance?.sourceSha256?.length === 64)).toBe(true);
     expect(result.pack?.agents.sort()).toEqual(["code-reviewer", "debugger"]);
     const pack = JSON.parse(await readFile(join(packsDir, "imported-pack.json"), "utf8")) as { agents: string[]; requires?: { agentsMarket?: string } };
     expect(pack.agents).toHaveLength(2);

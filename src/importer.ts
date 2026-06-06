@@ -2,6 +2,7 @@ import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, parse } from "node:path";
 import { agentSchema, packSchema } from "./schema.js";
 import { CLI_VERSION } from "./constants.js";
+import { sha256 } from "./hash.js";
 import type { AgentDefinition, PackDefinition, PermissionMode, Target } from "./types.js";
 
 type FrontmatterValue = string | string[] | Record<string, string>;
@@ -68,6 +69,7 @@ export async function importMarkdownAgent(options: ImportMarkdownOptions): Promi
     provenance: options.provenance
       ? {
           ...options.provenance,
+          sourceSha256: options.provenance.sourceSha256 ?? sha256(raw),
           importedAt: options.provenance.importedAt ?? new Date().toISOString()
         }
       : undefined

@@ -96,6 +96,23 @@ describe("registry lint", () => {
     expect(report.findings.some((finding) => finding.code === "missing-provenance")).toBe(true);
   });
 
+  it("warns for imported provenance without source checksums", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          provenance: {
+            source: "https://example.com/reviewer.md",
+            repository: "example/agents",
+            license: "MIT"
+          }
+        }
+      ]
+    });
+    expect(report.findings.some((finding) => finding.code === "missing-source-checksum")).toBe(true);
+  });
+
   it("flags low-quality prompts with suggestions", () => {
     const report = lintRegistry({
       ...baseRegistry,
