@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
+import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
 import { createRegistryBundle, validateRegistry } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
-import type { Registry, RegistryBundle } from "./types.js";
+import type { AgentDefinition, Registry, RegistryBundle, Target } from "./types.js";
 
 export interface CatalogOptions {
   outDir: string;
@@ -33,6 +34,9 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
 
   const bundle = createRegistryBundle(registry, options.version, "agents-market");
   const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
+  const promptQuality = scoreRegistryPrompts(registry.agents);
+  const provenance = summarizeProvenance(registry.agents);
+  const importWorkflows = importWorkflowCommands();
   const catalog = {
     title,
     generatedAt: new Date().toISOString(),
@@ -40,9 +44,12 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     registryBundleUrl: bundleUrl,
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
+    promptQuality,
+    provenance,
+    importWorkflows,
     changelog: registry.changelog ?? [],
     packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl)),
-    agents: registry.agents
+    agents: registry.agents.map(agentCatalogSummary)
   };
 
   const files = [
@@ -220,6 +227,48 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
         detail: pack.id
       });
     }
+    const catalogQuality = isRecord(catalogPack.quality) ? catalogPack.quality : undefined;
+    if (!catalogQuality || catalogQuality.averageScore !== expected.quality.averageScore || catalogQuality.grade !== expected.quality.grade) {
+      findings.push({
+        severity: "error",
+        code: "quality-mismatch",
+        message: "Catalog quality summary does not match the registry bundle.",
+        detail: pack.id
+      });
+    }
+  }
+
+  const catalogQuality = isRecord(catalog.promptQuality) ? catalog.promptQuality : undefined;
+  const expectedQuality = scoreRegistryPrompts(bundle.agents);
+  if (!catalogQuality || catalogQuality.averageScore !== expectedQuality.averageScore || catalogQuality.minScore !== expectedQuality.minScore) {
+    findings.push({
+      severity: "error",
+      code: "prompt-quality-mismatch",
+      message: "catalog.json prompt quality summary does not match registry.bundle.json."
+    });
+  }
+
+  const catalogProvenance = isRecord(catalog.provenance) ? catalog.provenance : undefined;
+  const expectedProvenance = summarizeProvenance(bundle.agents);
+  if (
+    !catalogProvenance ||
+    catalogProvenance.withProvenance !== expectedProvenance.withProvenance ||
+    catalogProvenance.withChecksum !== expectedProvenance.withChecksum
+  ) {
+    findings.push({
+      severity: "error",
+      code: "provenance-summary-mismatch",
+      message: "catalog.json provenance summary does not match registry.bundle.json."
+    });
+  }
+
+  const workflows = Array.isArray(catalog.importWorkflows) ? catalog.importWorkflows : [];
+  if (workflows.length < 3) {
+    findings.push({
+      severity: "error",
+      code: "import-workflows-missing",
+      message: "catalog.json does not include the expected import workflow commands."
+    });
   }
 }
 
@@ -265,6 +314,9 @@ function assetUrl(path: string, baseUrl?: string): string {
 }
 
 function renderHtml(title: string, registry: Registry, bundlePath: string): string {
+  const promptQuality = scoreRegistryPrompts(registry.agents);
+  const provenance = summarizeProvenance(registry.agents);
+  const importWorkflows = importWorkflowCommands();
   const packs = registry.packs
     .map((pack) => {
       const summary = packCatalogSummary(registry, pack.id, bundlePath);
@@ -284,16 +336,23 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
           </div>`
         )
         .join("");
-      return `<article class="card" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.audit.risk}`)}">
+      return `<article class="card" data-targets="${escapeHtml(summary.targetCoverage.join(" "))}" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.audit.risk} ${summary.quality.grade} ${summary.targetCoverage.join(" ")}`)}">
         <div class="eyebrow">${escapeHtml(pack.tags.join(" / ") || "pack")}</div>
         <h2>${escapeHtml(pack.name)}</h2>
         <p>${escapeHtml(pack.description)}</p>
+        <div class="rating">
+          <strong>${summary.rating.score.toFixed(1)}/${summary.rating.max}</strong>
+          <span>${escapeHtml(summary.rating.label)}</span>
+        </div>
         <div class="meta">
+          <span>quality: <strong>${summary.quality.averageScore}/100</strong></span>
           <span>risk: <strong>${escapeHtml(summary.audit.risk)}</strong></span>
           <span>${summary.audit.agentCount} agents</span>
           <span>${summary.audit.fileCount} files</span>
+          <span>${summary.provenance.withChecksum}/${summary.audit.agentCount} checksums</span>
           ${pack.requires?.agentsMarket ? `<span>requires Agents Market ${escapeHtml(pack.requires.agentsMarket)}</span>` : ""}
         </div>
+        <div class="targets">${summary.targetCoverage.map((target) => `<span>${escapeHtml(target)}</span>`).join("")}</div>
         <div class="commands">${commands}</div>
         ${warnings}
         <ul>${agents}</ul>
@@ -302,11 +361,13 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     .join("\n");
 
   const agents = registry.agents
+    .map((agent) => agentCatalogSummary(agent))
     .map(
-      (agent) => `<tr data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")} ${agent.provenance?.repository ?? ""} ${agent.provenance?.license ?? ""}`)}">
+      (agent) => `<tr data-targets="${escapeHtml(agent.recommendedTargets.join(" "))}" data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")} ${agent.provenance?.repository ?? ""} ${agent.provenance?.license ?? ""} ${agent.quality.grade} ${agent.recommendedTargets.join(" ")}`)}">
         <td><code>${escapeHtml(agent.id)}</code></td>
         <td>${escapeHtml(agent.category)}</td>
         <td>${escapeHtml(agent.permission)}</td>
+        <td><strong>${agent.quality.score}/100</strong><br><span class="muted">${escapeHtml(agent.quality.grade)}</span></td>
         <td>${renderProvenance(agent.provenance)}</td>
         <td>${escapeHtml(agent.description)}</td>
       </tr>`
@@ -329,6 +390,16 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     })
     .join("\n");
 
+  const importCommands = importWorkflows
+    .map(
+      (workflow) => `<div class="command">
+        <div class="command-label">${escapeHtml(workflow.label)}</div>
+        <pre>${escapeHtml(workflow.command)}</pre>
+        <button type="button" data-copy="${escapeHtml(workflow.command)}">Copy</button>
+      </div>`
+    )
+    .join("");
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -336,7 +407,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <style>
-    :root { color-scheme: light; --ink: #172026; --muted: #5f6b76; --line: #d7dde3; --fill: #f6f8fa; --accent: #0f766e; }
+    :root { color-scheme: light; --ink: #172026; --muted: #5f6b76; --line: #d7dde3; --fill: #f6f8fa; --accent: #0f766e; --good: #166534; --warn: #b45309; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #fff; }
     header { padding: 48px 24px 28px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, #f8fbfb 0%, #fff 100%); }
@@ -345,14 +416,22 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     h1 { margin: 0 0 12px; font-size: 40px; line-height: 1.05; letter-spacing: 0; }
     h2 { margin: 8px 0 10px; font-size: 22px; }
     p { color: var(--muted); line-height: 1.6; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 22px; }
+    .stat { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fff; }
+    .stat strong { display: block; font-size: 24px; }
+    .stat span { color: var(--muted); font-size: 13px; }
     .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 24px 0; }
-    input { min-width: min(100%, 360px); height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; font: inherit; }
+    input, select { min-width: min(100%, 240px); height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; font: inherit; background: #fff; }
     a.button { display: inline-flex; align-items: center; height: 40px; border-radius: 6px; background: var(--ink); color: white; text-decoration: none; padding: 0 14px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     .card { border: 1px solid var(--line); border-radius: 8px; padding: 18px; background: #fff; }
     .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; }
     .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; margin: 12px 0; }
     .meta span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; background: var(--fill); }
+    .rating { display: flex; align-items: baseline; gap: 8px; margin: 10px 0; color: var(--good); }
+    .rating strong { font-size: 24px; }
+    .targets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+    .targets span { border: 1px solid #b8d8d4; border-radius: 6px; padding: 3px 7px; color: var(--accent); background: #eef8f6; font-size: 12px; font-weight: 700; }
     .commands { display: grid; gap: 10px; margin: 14px 0; }
     .command { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
     .command-label { grid-column: 1 / -1; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
@@ -361,7 +440,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     button.copied { border-color: var(--accent); color: var(--accent); }
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
-    .warnings { border-left: 3px solid #b45309; padding-left: 16px; }
+    .warnings { border-left: 3px solid var(--warn); padding-left: 16px; }
     .changelog { display: grid; gap: 12px; }
     .changelog-entry { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
@@ -369,6 +448,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     th { color: var(--muted); font-size: 13px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
     .section { margin-top: 36px; }
+    .muted { color: var(--muted); font-size: 12px; }
     @media (max-width: 640px) { h1 { font-size: 32px; } header { padding-top: 32px; } }
   </style>
 </head>
@@ -377,8 +457,20 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     <div class="hero">
       <h1>${escapeHtml(title)}</h1>
       <p>Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode. Preview, lock, install, update, and uninstall with one CLI.</p>
+      <div class="stats">
+        <div class="stat"><strong>${registry.packs.length}</strong><span>packs</span></div>
+        <div class="stat"><strong>${registry.agents.length}</strong><span>agents</span></div>
+        <div class="stat"><strong>${promptQuality.averageScore}/100</strong><span>average prompt quality</span></div>
+        <div class="stat"><strong>${provenance.withChecksum}/${registry.agents.length}</strong><span>source checksums</span></div>
+      </div>
       <div class="toolbar">
         <input id="search" type="search" placeholder="Search packs and agents" aria-label="Search packs and agents">
+        <select id="target" aria-label="Filter by target">
+          <option value="all">All targets</option>
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex</option>
+          <option value="opencode">OpenCode</option>
+        </select>
         <a class="button" href="${escapeHtml(bundlePath)}">Download registry bundle</a>
       </div>
     </div>
@@ -397,22 +489,33 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
         : ""
     }
     <section class="section">
+      <h2>Import Workflows</h2>
+      <p>Bring existing community agents into a reviewable registry, then lint, audit, and publish them through the same catalog pipeline.</p>
+      <div class="commands">${importCommands}</div>
+    </section>
+    <section class="section">
       <h2>Agents</h2>
       <table>
-        <thead><tr><th>ID</th><th>Category</th><th>Permission</th><th>Source</th><th>Description</th></tr></thead>
+        <thead><tr><th>ID</th><th>Category</th><th>Permission</th><th>Quality</th><th>Source</th><th>Description</th></tr></thead>
         <tbody>${agents}</tbody>
       </table>
     </section>
   </main>
   <script>
     const input = document.querySelector("#search");
+    const target = document.querySelector("#target");
     const searchable = [...document.querySelectorAll("[data-search]")];
-    input.addEventListener("input", () => {
+    function applyFilters() {
       const query = input.value.trim().toLowerCase();
+      const selectedTarget = target.value;
       for (const item of searchable) {
-        item.style.display = !query || item.dataset.search.toLowerCase().includes(query) ? "" : "none";
+        const textMatches = !query || item.dataset.search.toLowerCase().includes(query);
+        const targetMatches = selectedTarget === "all" || item.dataset.targets.split(" ").includes(selectedTarget);
+        item.style.display = textMatches && targetMatches ? "" : "none";
       }
-    });
+    }
+    input.addEventListener("input", applyFilters);
+    target.addEventListener("change", applyFilters);
     document.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-copy]");
       if (!button) return;
@@ -454,6 +557,8 @@ function renderProvenance(
 function packCatalogSummary(registry: Registry, packId: string, bundlePath: string) {
   const pack = registry.packs.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error(`Unknown pack: ${packId}`);
+  const agents = pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined);
+  const quality = summarizeQuality(agents);
   const audit = auditPack(registry, pack.id, "all");
   const previewCommand = `npx @agents-market/cli apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --json`;
   const auditCommand = `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath} --json`;
@@ -472,6 +577,94 @@ function packCatalogSummary(registry: Registry, packId: string, bundlePath: stri
       { label: "Install", command: installCommand }
     ],
     audit,
-    agents: pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined)
+    quality,
+    rating: qualityRating(quality.averageScore),
+    targetCoverage: targetCoverage(agents),
+    provenance: summarizeProvenance(agents),
+    agents
   };
+}
+
+function agentCatalogSummary(agent: AgentDefinition) {
+  const quality = scorePromptQuality(agent);
+  return {
+    ...agent,
+    quality: {
+      score: quality.score,
+      maxScore: quality.maxScore,
+      grade: quality.grade,
+      suggestions: quality.suggestions
+    },
+    rating: qualityRating(quality.score)
+  };
+}
+
+function summarizeQuality(agents: AgentDefinition[]) {
+  const scores = agents.map((agent) => scorePromptQuality(agent));
+  const total = scores.reduce((sum, score) => sum + score.score, 0);
+  const averageScore = scores.length === 0 ? 100 : Math.round(total / scores.length);
+  const minScore = scores.length === 0 ? 100 : Math.min(...scores.map((score) => score.score));
+  return {
+    averageScore,
+    minScore,
+    maxScore: 100,
+    grade: qualityGrade(averageScore)
+  };
+}
+
+function qualityRating(score: number) {
+  const value = Math.round((score / 20) * 10) / 10;
+  return {
+    score: value,
+    max: 5,
+    label: score >= 90 ? "Excellent" : score >= 75 ? "Good" : score >= 60 ? "Needs work" : "Poor"
+  };
+}
+
+function qualityGrade(score: number): "excellent" | "good" | "needs-work" | "poor" {
+  if (score >= 90) return "excellent";
+  if (score >= 75) return "good";
+  if (score >= 60) return "needs-work";
+  return "poor";
+}
+
+function targetCoverage(agents: AgentDefinition[]): Target[] {
+  const order: Target[] = ["claude", "codex", "opencode"];
+  const targets = new Set<Target>();
+  for (const agent of agents) for (const target of agent.recommendedTargets) targets.add(target);
+  return order.filter((target) => targets.has(target));
+}
+
+function summarizeProvenance(agents: AgentDefinition[]) {
+  const licenses = new Set<string>();
+  for (const agent of agents) if (agent.provenance?.license) licenses.add(agent.provenance.license);
+  return {
+    agentCount: agents.length,
+    withProvenance: agents.filter((agent) => agent.provenance !== undefined).length,
+    withChecksum: agents.filter((agent) => agent.provenance?.sourceSha256 !== undefined).length,
+    licenses: [...licenses].sort()
+  };
+}
+
+function importWorkflowCommands() {
+  return [
+    {
+      label: "Import Markdown Agent",
+      command: "npx @agents-market/cli import markdown ./agent.md --target claude --out ./registry/agents"
+    },
+    {
+      label: "Import Directory Pack",
+      command:
+        "npx @agents-market/cli import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs"
+    },
+    {
+      label: "Import GitHub Repository",
+      command:
+        "npx @agents-market/cli import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs"
+    },
+    {
+      label: "Review Imported Registry",
+      command: "npx @agents-market/cli registry lint --registry ./registry --strict --json"
+    }
+  ];
 }

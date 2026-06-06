@@ -38,6 +38,11 @@ describe("catalog", () => {
     expect(html).toContain("Initial public registry");
     expect(html).toContain("Source");
     expect(html).toContain("risk:");
+    expect(html).toContain("quality:");
+    expect(html).toContain("average prompt quality");
+    expect(html).toContain("Import Workflows");
+    expect(html).toContain("Import GitHub Repository");
+    expect(html).toContain("Filter by target");
     expect(html).toContain("requires Agents Market &gt;=0.1.0");
     expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
     expect(html).toContain(
@@ -56,6 +61,9 @@ describe("catalog", () => {
       packCount: number;
       agentCount: number;
       registryBundleUrl: string;
+      promptQuality: { averageScore: number; minScore: number };
+      provenance: { withProvenance: number; withChecksum: number };
+      importWorkflows: Array<{ label: string; command: string }>;
       changelog: Array<{ version: string; summary: string }>;
       packs: Array<{
         id: string;
@@ -69,12 +77,31 @@ describe("catalog", () => {
           risk: string;
           fileCount: number;
         };
+        quality: {
+          averageScore: number;
+          grade: string;
+        };
+        rating: {
+          score: number;
+          max: number;
+          label: string;
+        };
+        targetCoverage: string[];
+        provenance: {
+          withChecksum: number;
+        };
       }>;
+      agents: Array<{ id: string; quality: { score: number; grade: string }; rating: { score: number } }>;
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
     expect(catalog.changelog[0]?.version).toBe("0.1.0");
     expect(catalog.changelog[0]?.summary).toContain("Initial public registry");
+    expect(catalog.promptQuality.averageScore).toBeGreaterThanOrEqual(90);
+    expect(catalog.promptQuality.minScore).toBeGreaterThanOrEqual(80);
+    expect(catalog.provenance.withProvenance).toBe(0);
+    expect(catalog.importWorkflows.map((workflow) => workflow.label)).toContain("Import GitHub Repository");
+    expect(catalog.importWorkflows.map((workflow) => workflow.command).join("\n")).toContain("import repo owner/community-agents");
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     expect(starterPack?.previewCommand).toContain(
@@ -91,6 +118,13 @@ describe("catalog", () => {
     expect(starterPack?.requires?.agentsMarket).toBe(">=0.1.0");
     expect(starterPack?.audit.risk).toBe("high");
     expect(starterPack?.audit.fileCount).toBe(12);
+    expect(starterPack?.quality.averageScore).toBeGreaterThanOrEqual(90);
+    expect(starterPack?.quality.grade).toBe("excellent");
+    expect(starterPack?.rating.score).toBeGreaterThanOrEqual(4.5);
+    expect(starterPack?.rating.max).toBe(5);
+    expect(starterPack?.targetCoverage).toEqual(["claude", "codex", "opencode"]);
+    expect(starterPack?.provenance.withChecksum).toBe(0);
+    expect(catalog.agents.find((agent) => agent.id === "code-reviewer")?.quality.grade).toBe("excellent");
 
     const validReport = await verifyCatalog(cleanupPath);
     expect(validReport.ok).toBe(true);

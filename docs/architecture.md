@@ -125,11 +125,11 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 
 Outputs:
 
-- `index.html`: searchable catalog for humans
-- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, compatibility requirements, changelog entries, and agent metadata
+- `index.html`: searchable catalog for humans with target filters, quality ratings, provenance summaries, and import workflow commands
+- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, compatibility requirements, changelog entries, import workflow commands, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
-The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
+The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. The import workflow section gives maintainers copyable commands for normalizing Markdown, local directories, and GitHub repositories into a reviewable registry. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, quality scores, provenance summaries, import workflow commands, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
 
 ## Custom Packs
 
@@ -198,10 +198,6 @@ The catalog surfaces provenance and short source checksums, and `registry lint` 
 - `agents-market-opencode/` contains the OpenCode command under `.opencode/commands/`.
 
 These packages reuse the same generated instructions as `integrations install`, but target release artifacts, team templates, or marketplace ingestion instead of writing directly into the current project.
-
-## Future Production Requirements
-
-- Richer Web catalog with ratings, provenance, and import flows.
 
 ## Release Pipeline
 
