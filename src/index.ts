@@ -400,6 +400,10 @@ importCommand
   .option("--category <category>", "override inferred category")
   .option("--tag <tag...>", "additional tags")
   .option("--version <version>", "agent version", "0.1.0")
+  .option("--source-url <url>", "original template URL")
+  .option("--source-repo <repo>", "original repository, for example owner/name")
+  .option("--source-license <license>", "source template license")
+  .option("--source-author <author>", "source template author")
   .description("Normalize a Markdown agent into registry/agents JSON")
   .action(
     async (
@@ -410,6 +414,10 @@ importCommand
         category?: string;
         tag?: string[];
         version: string;
+        sourceUrl?: string;
+        sourceRepo?: string;
+        sourceLicense?: string;
+        sourceAuthor?: string;
       }
     ) => {
       const target = parseTarget(options.target);
@@ -420,7 +428,8 @@ importCommand
         outDir: options.out ? resolve(options.out) : undefined,
         category: options.category,
         tags: options.tag,
-        version: options.version
+        version: options.version,
+        provenance: provenanceFromOptions(options)
       });
       if (options.out) {
         console.log(pc.green(`Imported ${agent.id} into ${resolve(options.out)}`));
@@ -440,6 +449,10 @@ importCommand
   .option("--category <category>", "override inferred category for all imported agents")
   .option("--tag <tag...>", "additional tags for all imported agents")
   .option("--version <version>", "agent version", "0.1.0")
+  .option("--source-url <url>", "original template collection URL")
+  .option("--source-repo <repo>", "original repository, for example owner/name")
+  .option("--source-license <license>", "source template license")
+  .option("--source-author <author>", "source template author")
   .option("--pack <id>", "also write a pack containing imported agents")
   .option("--pack-out <dir>", "registry/packs output directory for --pack")
   .option("--pack-name <name>", "pack display name")
@@ -456,6 +469,10 @@ importCommand
         category?: string;
         tag?: string[];
         version: string;
+        sourceUrl?: string;
+        sourceRepo?: string;
+        sourceLicense?: string;
+        sourceAuthor?: string;
         pack?: string;
         packOut?: string;
         packName?: string;
@@ -474,6 +491,7 @@ importCommand
         category: options.category,
         tags: options.tag,
         version: options.version,
+        provenance: provenanceFromOptions(options),
         pack: options.pack
           ? {
               id: options.pack,
@@ -492,6 +510,21 @@ importCommand
       }
     }
   );
+
+function provenanceFromOptions(options: {
+  sourceUrl?: string;
+  sourceRepo?: string;
+  sourceLicense?: string;
+  sourceAuthor?: string;
+}) {
+  if (!options.sourceUrl && !options.sourceRepo && !options.sourceLicense && !options.sourceAuthor) return undefined;
+  return {
+    source: options.sourceUrl,
+    repository: options.sourceRepo,
+    license: options.sourceLicense,
+    author: options.sourceAuthor
+  };
+}
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

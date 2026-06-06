@@ -33,6 +33,7 @@ describe("catalog", () => {
     const html = await readFile(join(cleanupPath, "index.html"), "utf8");
     expect(html).toContain("Agents Market Test");
     expect(html).toContain("starter-dev-pack");
+    expect(html).toContain("Source");
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;

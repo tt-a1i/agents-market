@@ -65,4 +65,17 @@ describe("registry lint", () => {
     expect(report.findings.some((finding) => finding.code === "no-recommendation-signals")).toBe(true);
     expect(report.warningCount).toBe(1);
   });
+
+  it("warns for imported agents without provenance", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          tags: ["imported"]
+        }
+      ]
+    });
+    expect(report.findings.some((finding) => finding.code === "missing-provenance")).toBe(true);
+  });
 });

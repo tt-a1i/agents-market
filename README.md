@@ -157,6 +157,17 @@ agents-market import directory ./community-agents --target claude --out ./regist
 agents-market registry lint --registry ./registry
 ```
 
+Preserve provenance when importing community templates:
+
+```bash
+agents-market import directory ./community-agents \
+  --target claude \
+  --out ./registry/agents \
+  --source-repo owner/repo \
+  --source-license MIT \
+  --source-url https://github.com/owner/repo
+```
+
 See [docs/import.md](./docs/import.md).
 
 ## Repository Layout

@@ -123,6 +123,8 @@ Current checks include:
 - weak routing metadata
 - short descriptions
 - missing prompt role framing
+- imported agents without provenance
+- provenance without source license
 - readonly agents requesting write tools
 - unsafe full bash on readonly or safe-write agents
 - command agents without command capability
@@ -145,6 +147,16 @@ The importer is intentionally conservative:
 Imported agents should always go through `registry lint` before being included in a published pack.
 
 `agents-market import directory` applies the same normalization to a folder of Markdown templates and can write a provisional pack. This is the first step toward ingesting large GitHub template collections, but it deliberately keeps human review in the loop.
+
+Imported agents can include provenance:
+
+- source URL
+- source repository
+- source license
+- source author
+- import timestamp
+
+The catalog surfaces provenance, and `registry lint` warns when imported agents are missing provenance or source license data.
 
 ## Future Production Requirements
 

@@ -42,6 +42,8 @@ agents-market import markdown ./security-reviewer.md \
   --target claude \
   --category review \
   --tag security review \
+  --source-repo owner/repo \
+  --source-license MIT \
   --out ./registry/agents
 ```
 
@@ -52,7 +54,9 @@ Batch import Markdown agents from a third-party template collection:
 ```bash
 agents-market import directory ./community-agents \
   --target claude \
-  --out ./registry/agents
+  --out ./registry/agents \
+  --source-repo owner/repo \
+  --source-license MIT
 ```
 
 By default, directory imports scan recursively. Use `--no-recursive` to scan only the top-level directory.
@@ -69,6 +73,8 @@ agents-market import directory ./community-agents \
   --out ./registry/agents \
   --pack community-pack \
   --pack-out ./registry/packs \
+  --source-repo owner/repo \
+  --source-license MIT \
   --tag imported community
 ```
 
@@ -85,3 +91,16 @@ agents-market registry lint --registry ./registry
 Imported single-target agents may produce `partial-target-support` warnings. That is expected until you review and declare support for other targets.
 
 Generated packs may produce `no-recommendation-signals` warnings. Add `recommendedFor.frameworks`, `recommendedFor.languages`, or `recommendedFor.files` before publishing a curated pack.
+
+## Provenance
+
+Use provenance flags whenever the source came from a third-party collection:
+
+```bash
+--source-url https://github.com/owner/repo/path/to/agent.md
+--source-repo owner/repo
+--source-license MIT
+--source-author "Original Author"
+```
+
+Agents Market stores this under `agent.provenance`. The Web catalog displays source information, and `registry lint` warns when imported agents do not include provenance or a source license.

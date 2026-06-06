@@ -29,6 +29,15 @@ export const agentSchema = z.object({
       bash: z.enum(["none", "safe", "full"]).optional(),
       web: z.boolean().optional()
     })
+    .optional(),
+  provenance: z
+    .object({
+      source: z.string().optional(),
+      repository: z.string().optional(),
+      license: z.string().optional(),
+      author: z.string().optional(),
+      importedAt: z.string().optional()
+    })
     .optional()
 });
 

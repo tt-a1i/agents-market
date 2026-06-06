@@ -17,6 +17,7 @@ export interface ImportMarkdownOptions {
   category?: string;
   tags?: string[];
   version?: string;
+  provenance?: AgentDefinition["provenance"];
 }
 
 export interface ImportDirectoryOptions {
@@ -26,6 +27,7 @@ export interface ImportDirectoryOptions {
   category?: string;
   tags?: string[];
   version?: string;
+  provenance?: AgentDefinition["provenance"];
   recursive?: boolean;
   overwrite?: boolean;
   pack?: {
@@ -61,7 +63,13 @@ export async function importMarkdownAgent(options: ImportMarkdownOptions): Promi
     recommendedTargets: [options.target],
     prompt: parsed.body.trim(),
     model: modelValue ? { [options.target]: modelValue } : undefined,
-    tools
+    tools,
+    provenance: options.provenance
+      ? {
+          ...options.provenance,
+          importedAt: options.provenance.importedAt ?? new Date().toISOString()
+        }
+      : undefined
   });
 
   if (options.outDir) {
@@ -85,7 +93,8 @@ export async function importMarkdownDirectory(options: ImportDirectoryOptions): 
       target: options.target,
       category: options.category,
       tags: options.tags,
-      version: options.version
+      version: options.version,
+      provenance: inferFileProvenance(options.provenance, file)
     });
     const outPath = join(options.outDir, `${agent.id}.json`);
     if (seen.has(agent.id)) {
@@ -119,6 +128,18 @@ export async function importMarkdownDirectory(options: ImportDirectoryOptions): 
   }
 
   return { imported, skipped, pack };
+}
+
+function inferFileProvenance(
+  provenance: AgentDefinition["provenance"] | undefined,
+  file: string
+): AgentDefinition["provenance"] | undefined {
+  if (!provenance) return undefined;
+  return {
+    ...provenance,
+    source: provenance.source ?? file,
+    importedAt: provenance.importedAt ?? new Date().toISOString()
+  };
 }
 
 export function parseMarkdownAgent(raw: string): ParsedMarkdownAgent {

@@ -46,11 +46,20 @@ You are a senior code reviewer. Return concise findings with file paths and sugg
       "utf8"
     );
 
-    const agent = await importMarkdownAgent({ sourcePath: source, target: "claude" });
+    const agent = await importMarkdownAgent({
+      sourcePath: source,
+      target: "claude",
+      provenance: {
+        source: "https://example.com/code-reviewer.md",
+        repository: "example/agents",
+        license: "MIT"
+      }
+    });
     expect(agent.id).toBe("code-reviewer");
     expect(agent.permission).toBe("command");
     expect(agent.model?.claude).toBe("inherit");
     expect(agent.recommendedTargets).toEqual(["claude"]);
+    expect(agent.provenance?.repository).toBe("example/agents");
   });
 
   it("imports OpenCode permission objects and writes JSON", async () => {
@@ -111,6 +120,10 @@ You are a debugging specialist. Find the smallest credible root cause and explai
       sourceDir,
       target: "claude",
       outDir: agentsDir,
+      provenance: {
+        repository: "example/community-agents",
+        license: "MIT"
+      },
       pack: {
         id: "imported-pack",
         outDir: packsDir

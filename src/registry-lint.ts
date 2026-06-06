@@ -112,6 +112,24 @@ function lintAgents(agents: AgentDefinition[], findings: LintFinding[]): void {
         message: "Agent does not declare support for all first-class targets."
       });
     }
+
+    if (agent.tags.includes("imported") && !agent.provenance) {
+      findings.push({
+        severity: "warning",
+        code: "missing-provenance",
+        subject: `agent:${agent.id}`,
+        message: "Imported agents should include provenance with source, repository, license, or author."
+      });
+    }
+
+    if (agent.provenance && !agent.provenance.license) {
+      findings.push({
+        severity: "warning",
+        code: "missing-source-license",
+        subject: `agent:${agent.id}`,
+        message: "Agent provenance does not include a source license."
+      });
+    }
   }
 }
 

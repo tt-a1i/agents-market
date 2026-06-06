@@ -24,6 +24,13 @@ export interface AgentDefinition {
     bash?: "none" | "safe" | "full";
     web?: boolean;
   };
+  provenance?: {
+    source?: string;
+    repository?: string;
+    license?: string;
+    author?: string;
+    importedAt?: string;
+  };
 }
 
 export interface PackDefinition {

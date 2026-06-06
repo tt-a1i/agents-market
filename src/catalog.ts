@@ -68,10 +68,11 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
 
   const agents = registry.agents
     .map(
-      (agent) => `<tr data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")}`)}">
+      (agent) => `<tr data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")} ${agent.provenance?.repository ?? ""} ${agent.provenance?.license ?? ""}`)}">
         <td><code>${escapeHtml(agent.id)}</code></td>
         <td>${escapeHtml(agent.category)}</td>
         <td>${escapeHtml(agent.permission)}</td>
+        <td>${renderProvenance(agent.provenance)}</td>
         <td>${escapeHtml(agent.description)}</td>
       </tr>`
     )
@@ -129,7 +130,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     <section class="section">
       <h2>Agents</h2>
       <table>
-        <thead><tr><th>ID</th><th>Category</th><th>Permission</th><th>Description</th></tr></thead>
+        <thead><tr><th>ID</th><th>Category</th><th>Permission</th><th>Source</th><th>Description</th></tr></thead>
         <tbody>${agents}</tbody>
       </table>
     </section>
@@ -156,4 +157,13 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function renderProvenance(provenance: { source?: string; repository?: string; license?: string; author?: string } | undefined): string {
+  if (!provenance) return "Bundled";
+  const label = provenance.repository ?? provenance.author ?? provenance.license ?? provenance.source ?? "Imported";
+  if (provenance.source?.startsWith("http://") || provenance.source?.startsWith("https://")) {
+    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>`;
+  }
+  return escapeHtml(label);
 }
