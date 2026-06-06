@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createHash, createPublicKey, verify as cryptoVerify } from "node:crypto";
 import { join, normalize, relative } from "node:path";
 import { tmpdir } from "node:os";
@@ -132,7 +132,10 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   assert(sbom.spdxVersion === "SPDX-2.3", `Expected SPDX-2.3 SBOM, found ${sbom.spdxVersion}.`);
   assert(sbom.name === `@agents-market/cli@${version}`, `SBOM name ${sbom.name} does not match release version ${version}.`);
   assert(Array.isArray(sbom.packages) && sbom.packages.length > 0, "SBOM has no package records.");
-  const installScript = await readText(join(root, "install.sh"), "install.sh");
+  const installScriptPath = join(root, "install.sh");
+  const installScriptStats = await stat(installScriptPath);
+  assert((installScriptStats.mode & 0o100) !== 0, "install.sh must be executable by the file owner.");
+  const installScript = await readText(installScriptPath, "install.sh");
   verifyInstallScript(installScript, manifest);
 
   return {

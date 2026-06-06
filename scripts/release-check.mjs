@@ -1,4 +1,4 @@
-import { appendFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -978,6 +978,8 @@ async function runReleaseArtifactsSmoke() {
       "Release install script should check for npm before installing the tarball."
     );
     assert(installScript.includes("npm install -g --ignore-scripts"), "Release install script should install the npm tarball without running npm lifecycle scripts.");
+    const installScriptMode = (await stat(join(dir, "install.sh"))).mode;
+    assert((installScriptMode & 0o100) !== 0, "Release install script should be executable by the file owner.");
     const sbom = JSON.parse(await readFile(join(dir, "sbom.spdx.json"), "utf8"));
     assert(sbom.spdxVersion === "SPDX-2.3", `Expected SPDX 2.3 SBOM, found ${sbom.spdxVersion}.`);
     assert(sbom.name === `@agents-market/cli@${packageVersion}`, `Expected SBOM package name @agents-market/cli@${packageVersion}, found ${sbom.name}.`);

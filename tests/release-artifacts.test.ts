@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import { createHash, generateKeyPairSync } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
@@ -65,6 +65,15 @@ describe("release artifact verification", () => {
     await writeManifestAndChecksums(dir);
 
     await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must install the npm tarball without running lifecycle scripts/);
+  });
+
+  it("rejects release artifacts when the installer is not executable", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-installer-mode-"));
+    const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
+    await chmod(join(dir, "install.sh"), 0o644);
+    await writeManifestAndChecksums(dir);
+
+    await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/install\.sh must be executable by the file owner/);
   });
 
   it("rejects complete archives with unsafe tar entry paths before extraction", async () => {
@@ -150,7 +159,7 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   ]) {
     await writeFile(join(dir, file), `placeholder ${file}\n`, "utf8");
   }
-  await writeFile(join(dir, "install.sh"), testInstallScript(), "utf8");
+  await writeFile(join(dir, "install.sh"), testInstallScript(), { encoding: "utf8", mode: 0o755 });
   await writeFile(join(dir, "sbom.spdx.json"), `${JSON.stringify({
     spdxVersion: "SPDX-2.3",
     name: "@agents-market/cli@0.1.0",
