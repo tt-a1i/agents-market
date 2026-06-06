@@ -38,11 +38,16 @@ describe("catalog", () => {
     expect(html).toContain("risk:");
     expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
     expect(html).toContain(
-      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced"
     );
     expect(html).toContain(
-      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
     );
+    expect(html).toContain(
+      "npx @agents-market/cli policy check starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --preset balanced --json"
+    );
+    expect(html).toContain("data-copy=");
+    expect(html).toContain("navigator.clipboard.writeText");
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
@@ -52,6 +57,9 @@ describe("catalog", () => {
         id: string;
         installCommand: string;
         auditCommand: string;
+        policyCommand: string;
+        diffCommand: string;
+        workflowCommands: Array<{ label: string; command: string }>;
         audit: {
           risk: string;
           fileCount: number;
@@ -63,11 +71,16 @@ describe("catalog", () => {
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     expect(starterPack?.installCommand).toContain(
-      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced"
     );
     expect(starterPack?.auditCommand).toContain(
-      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
     );
+    expect(starterPack?.policyCommand).toContain(
+      "npx @agents-market/cli policy check starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --preset balanced --json"
+    );
+    expect(starterPack?.diffCommand).toContain("--json");
+    expect(starterPack?.workflowCommands.map((command) => command.label)).toEqual(["Audit", "Policy Check", "Diff", "Install"]);
     expect(starterPack?.audit.risk).toBe("high");
     expect(starterPack?.audit.fileCount).toBe(12);
   });

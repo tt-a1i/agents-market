@@ -243,10 +243,10 @@ agents-market catalog build --out ./site --base-url https://example.com/agents-m
 The catalog generator writes:
 
 - `index.html`: searchable static catalog
-- `catalog.json`: machine-readable catalog with pack audits, install commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, safety workflow commands, install commands, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
-Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable commands that install from the hosted `registry.bundle.json` URL instead of a local relative path.
+Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable audit, policy check, diff, and install commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
 

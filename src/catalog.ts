@@ -66,6 +66,15 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
         summary.audit.warnings.length > 0
           ? `<ul class="warnings">${summary.audit.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>`
           : "";
+      const commands = summary.workflowCommands
+        .map(
+          (command) => `<div class="command">
+            <div class="command-label">${escapeHtml(command.label)}</div>
+            <pre>${escapeHtml(command.command)}</pre>
+            <button type="button" data-copy="${escapeHtml(command.command)}">Copy</button>
+          </div>`
+        )
+        .join("");
       return `<article class="card" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.audit.risk}`)}">
         <div class="eyebrow">${escapeHtml(pack.tags.join(" / ") || "pack")}</div>
         <h2>${escapeHtml(pack.name)}</h2>
@@ -75,8 +84,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
           <span>${summary.audit.agentCount} agents</span>
           <span>${summary.audit.fileCount} files</span>
         </div>
-        <pre>${escapeHtml(summary.installCommand)}</pre>
-        <pre>${escapeHtml(summary.auditCommand)}</pre>
+        <div class="commands">${commands}</div>
         ${warnings}
         <ul>${agents}</ul>
       </article>`;
@@ -119,7 +127,12 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; }
     .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; margin: 12px 0; }
     .meta span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; background: var(--fill); }
-    pre { overflow-x: auto; padding: 12px; border-radius: 6px; background: var(--fill); border: 1px solid var(--line); font-size: 13px; }
+    .commands { display: grid; gap: 10px; margin: 14px 0; }
+    .command { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+    .command-label { grid-column: 1 / -1; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    pre { overflow-x: auto; margin: 0; padding: 12px; border-radius: 6px; background: var(--fill); border: 1px solid var(--line); font-size: 13px; }
+    button { height: 40px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); padding: 0 12px; font: inherit; cursor: pointer; }
+    button.copied { border-color: var(--accent); color: var(--accent); }
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
     .warnings { border-left: 3px solid #b45309; padding-left: 16px; }
@@ -164,6 +177,17 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
         item.style.display = !query || item.dataset.search.toLowerCase().includes(query) ? "" : "none";
       }
     });
+    document.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-copy]");
+      if (!button) return;
+      await navigator.clipboard.writeText(button.dataset.copy);
+      button.textContent = "Copied";
+      button.classList.add("copied");
+      setTimeout(() => {
+        button.textContent = "Copy";
+        button.classList.remove("copied");
+      }, 1400);
+    });
   </script>
 </body>
 </html>
@@ -192,11 +216,22 @@ function packCatalogSummary(registry: Registry, packId: string, bundlePath: stri
   const pack = registry.packs.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error(`Unknown pack: ${packId}`);
   const audit = auditPack(registry, pack.id, "all");
+  const auditCommand = `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath} --json`;
+  const policyCommand = `npx @agents-market/cli policy check ${pack.id} --target all --registry ${bundlePath} --preset balanced --json`;
+  const diffCommand = `npx @agents-market/cli diff ${pack.id} --target all --registry ${bundlePath} --json`;
+  const installCommand = `npx @agents-market/cli install ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced`;
   return {
     ...pack,
-    installCommand: `npx @agents-market/cli install ${pack.id} --target all --registry ${bundlePath}`,
-    auditCommand: `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath}`,
-    diffCommand: `npx @agents-market/cli diff ${pack.id} --target all --registry ${bundlePath}`,
+    installCommand,
+    auditCommand,
+    policyCommand,
+    diffCommand,
+    workflowCommands: [
+      { label: "Audit", command: auditCommand },
+      { label: "Policy Check", command: policyCommand },
+      { label: "Diff", command: diffCommand },
+      { label: "Install", command: installCommand }
+    ],
     audit,
     agents: pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined)
   };
