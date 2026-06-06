@@ -348,12 +348,12 @@ Use `--package github:tt-a1i/agents-market` for preview catalogs before npm publ
 The catalog generator writes:
 
 - `index.html`: searchable static catalog with target filters, quality ratings, provenance summaries, and import workflow commands
-- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, pack compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, registry trust workflow commands, pack compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
-Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
+Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path. The catalog also includes registry trust workflow commands for `registry info`, `registry lock`, and `registry verify-lock` so teams can inspect and lock the hosted registry before installing packs.
 
-Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, quality scores, provenance summaries, import workflow commands, `apply` workflow commands, and hosted bundle URLs.
+Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, import workflow commands, `apply` workflow commands, and hosted bundle URLs.
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
 

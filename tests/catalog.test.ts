@@ -43,6 +43,9 @@ describe("catalog", () => {
     expect(html).toContain("risk:");
     expect(html).toContain("quality:");
     expect(html).toContain("average prompt quality");
+    expect(html).toContain("Registry Trust Workflow");
+    expect(html).toContain("Inspect Hosted Registry");
+    expect(html).toContain("Lock Registry In Project");
     expect(html).toContain("Import Workflows");
     expect(html).toContain("Import GitHub Repository");
     expect(html).toContain("Filter by target");
@@ -56,6 +59,12 @@ describe("catalog", () => {
     );
     expect(html).toContain(
       "npx github:tt-a1i/agents-market audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --json"
+    );
+    expect(html).toContain(
+      "npx github:tt-a1i/agents-market registry info --registry https://example.com/agents-market/registry.bundle.json --json"
+    );
+    expect(html).toContain(
+      "npx github:tt-a1i/agents-market registry lock --registry https://example.com/agents-market/registry.bundle.json"
     );
     expect(html).toContain("data-copy=");
     expect(html).toContain("navigator.clipboard.writeText");
@@ -78,6 +87,7 @@ describe("catalog", () => {
       registryBundleUrl: string;
       promptQuality: { averageScore: number; minScore: number };
       provenance: { withProvenance: number; withChecksum: number };
+      registryWorkflows: Array<{ label: string; command: string }>;
       importWorkflows: Array<{ label: string; command: string }>;
       changelog: Array<{ version: string; summary: string }>;
       packs: Array<{
@@ -122,6 +132,14 @@ describe("catalog", () => {
     expect(catalog.metadata.packageSpec).toBe("github:tt-a1i/agents-market");
     expect(catalog.metadata.commit).toBe("abcdef1234567890");
     expect(catalog.provenance.withProvenance).toBe(0);
+    expect(catalog.registryWorkflows.map((workflow) => workflow.label)).toEqual([
+      "Inspect Hosted Registry",
+      "Lock Registry In Project",
+      "Verify Project Lock"
+    ]);
+    expect(catalog.registryWorkflows.map((workflow) => workflow.command).join("\n")).toContain(
+      "registry lock --registry https://example.com/agents-market/registry.bundle.json"
+    );
     expect(catalog.importWorkflows.map((workflow) => workflow.label)).toContain("Import GitHub Repository");
     expect(catalog.importWorkflows.map((workflow) => workflow.command).join("\n")).toContain("import repo owner/community-agents");
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");

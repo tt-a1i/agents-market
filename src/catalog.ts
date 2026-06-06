@@ -44,6 +44,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   const bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
+  const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
   const importWorkflows = importWorkflowCommands(packageSpec);
   const catalog = {
     title,
@@ -56,6 +57,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     agentCount: registry.agents.length,
     promptQuality,
     provenance,
+    registryWorkflows,
     importWorkflows,
     changelog: registry.changelog ?? [],
     packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl, packageSpec)),
@@ -281,6 +283,16 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
       message: "catalog.json does not include the expected import workflow commands."
     });
   }
+  const registryWorkflows = Array.isArray(catalog.registryWorkflows) ? catalog.registryWorkflows : [];
+  const packageSpec = stringValue(catalog.packageSpec) ?? "github:tt-a1i/agents-market";
+  const expectedRegistryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
+  if (JSON.stringify(registryWorkflows) !== JSON.stringify(expectedRegistryWorkflows)) {
+    findings.push({
+      severity: "error",
+      code: "registry-workflows-mismatch",
+      message: "catalog.json registry workflow commands do not match the registry bundle URL."
+    });
+  }
 }
 
 async function readJson(path: string, findings: CatalogVerificationFinding[], label: string): Promise<Record<string, unknown> | undefined> {
@@ -339,6 +351,7 @@ function renderHtml(
 ): string {
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
+  const registryWorkflows = registryWorkflowCommands(packageSpec, bundlePath);
   const importWorkflows = importWorkflowCommands(packageSpec);
   const packs = registry.packs
     .map((pack) => {
@@ -414,6 +427,15 @@ function renderHtml(
     .join("\n");
 
   const importCommands = importWorkflows
+    .map(
+      (workflow) => `<div class="command">
+        <div class="command-label">${escapeHtml(workflow.label)}</div>
+        <pre>${escapeHtml(workflow.command)}</pre>
+        <button type="button" data-copy="${escapeHtml(workflow.command)}">Copy</button>
+      </div>`
+    )
+    .join("");
+  const registryCommands = registryWorkflows
     .map(
       (workflow) => `<div class="command">
         <div class="command-label">${escapeHtml(workflow.label)}</div>
@@ -513,6 +535,11 @@ function renderHtml(
     </section>`
         : ""
     }
+    <section class="section">
+      <h2>Registry Trust Workflow</h2>
+      <p>Inspect and lock the hosted registry before installing packs in team projects or CI-managed repositories.</p>
+      <div class="commands">${registryCommands}</div>
+    </section>
     <section class="section">
       <h2>Import Workflows</h2>
       <p>Bring existing community agents into a reviewable registry, then lint, audit, and publish them through the same catalog pipeline.</p>
@@ -701,6 +728,24 @@ function summarizeProvenance(agents: AgentDefinition[]) {
     withChecksum: agents.filter((agent) => agent.provenance?.sourceSha256 !== undefined).length,
     licenses: [...licenses].sort()
   };
+}
+
+function registryWorkflowCommands(packageSpec: string, bundlePath: string) {
+  const npx = `npx ${packageSpec}`;
+  return [
+    {
+      label: "Inspect Hosted Registry",
+      command: `${npx} registry info --registry ${bundlePath} --json`
+    },
+    {
+      label: "Lock Registry In Project",
+      command: `${npx} registry lock --registry ${bundlePath}`
+    },
+    {
+      label: "Verify Project Lock",
+      command: `${npx} registry verify-lock --json`
+    }
+  ];
 }
 
 function importWorkflowCommands(packageSpec = "github:tt-a1i/agents-market") {
