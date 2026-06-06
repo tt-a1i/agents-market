@@ -50,7 +50,7 @@ agents-market export <pack> --target all --out ./generated
 agents-market registry info --registry ./registry.bundle.json
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
-agents-market registry lint --strict
+agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
@@ -144,7 +144,7 @@ Current checks include:
 - packs with too many agents
 - packs without recommendation signals
 
-CI runs `node dist/index.js registry lint --strict`, which treats warnings as failures for the bundled registry.
+CI runs `node dist/index.js registry lint --strict --json`, which treats warnings as failures for the bundled registry and returns a machine-readable `{ ok, score, findings }` report.
 
 ## Import Pipeline
 

@@ -8,7 +8,9 @@ const checks = [];
 async function main() {
   run("npm", ["run", "lint"], "TypeScript typecheck");
   run("npm", ["run", "build"], "Build CLI");
-  run("node", ["dist/index.js", "registry", "lint", "--strict"], "Registry quality lint");
+  const registryLint = runJson("node", ["dist/index.js", "registry", "lint", "--strict", "--json"], "Registry quality lint");
+  assert(registryLint.ok === true, "Registry quality lint failed.");
+  assert(registryLint.score === 100, `Expected registry lint score 100, found ${registryLint.score}.`);
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);

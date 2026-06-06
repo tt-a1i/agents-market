@@ -83,6 +83,7 @@ agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry verify-lock
 agents-market registry lint --strict
+agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
@@ -165,9 +166,10 @@ Lint a registry before publishing:
 
 ```bash
 agents-market registry lint --strict
+agents-market registry lint --strict --json
 ```
 
-The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt structure, pack size, and recommendation signals.
+The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt structure, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings }`.
 
 ## Built-In Packs
 
@@ -283,7 +285,7 @@ Normalize Claude Code or OpenCode Markdown agents into the registry schema:
 agents-market import markdown ./code-reviewer.md --target claude --out ./registry/agents
 agents-market import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs
 agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
-agents-market registry lint --registry ./registry
+agents-market registry lint --registry ./registry --json
 ```
 
 Preserve provenance when importing community templates:
@@ -349,7 +351,7 @@ Before release:
 ```bash
 npm run lint
 npm run build
-node dist/index.js registry lint --strict
+node dist/index.js registry lint --strict --json
 npm test
 npm pack --dry-run
 ```

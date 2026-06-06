@@ -1254,16 +1254,22 @@ registryCommand
   .command("lint")
   .option("--registry <source>", "registry source to lint", "bundled")
   .option("--strict", "treat warnings as failures")
+  .option("--json", "print machine-readable JSON")
   .description("Lint registry quality, safety, and pack references")
-  .action(async (options: { registry: string; strict?: boolean }) => {
+  .action(async (options: { registry: string; strict?: boolean; json?: boolean }) => {
     const { registry } = await loadRegistryWithInfo(options.registry);
     const report = lintRegistry(registry);
-    for (const finding of report.findings) {
-      const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warning");
-      console.log(`${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+    const ok = report.errorCount === 0 && (!options.strict || report.warningCount === 0);
+    if (options.json) {
+      console.log(JSON.stringify({ ok, strict: Boolean(options.strict), ...report }, null, 2));
+    } else {
+      for (const finding of report.findings) {
+        const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warning");
+        console.log(`${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+      }
+      console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings)`);
     }
-    console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings)`);
-    if (report.errorCount > 0 || (options.strict && report.warningCount > 0)) {
+    if (!ok) {
       process.exitCode = 1;
     }
   });
