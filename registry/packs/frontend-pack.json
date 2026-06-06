@@ -1,0 +1,13 @@
+{
+  "id": "frontend-pack",
+  "name": "Frontend Quality Pack",
+  "description": "Frontend-focused agents for visual verification, accessibility, reviews, tests, and debugging.",
+  "version": "0.1.0",
+  "tags": ["frontend", "ui", "accessibility"],
+  "agents": ["code-reviewer", "frontend-verifier", "accessibility-auditor", "test-runner", "debugger"],
+  "recommendedFor": {
+    "frameworks": ["react", "vue", "svelte", "tailwind", "playwright"],
+    "languages": ["javascript", "typescript"],
+    "files": ["package.json"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "nextjs-pack",
+  "name": "Next.js Pack",
+  "description": "Next.js and React agents for performance, frontend verification, accessibility, tests, and review.",
+  "version": "0.1.0",
+  "tags": ["nextjs", "react", "performance"],
+  "agents": ["nextjs-performance-reviewer", "frontend-verifier", "accessibility-auditor", "code-reviewer", "test-runner"],
+  "recommendedFor": {
+    "frameworks": ["nextjs", "react", "tailwind", "playwright"],
+    "languages": ["typescript", "javascript"],
+    "files": ["next.config.js", "next.config.mjs", "package.json"]
+  }
+}
