@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { auditPack } from "./audit.js";
 import { createRegistryBundle } from "./registry.js";
 import type { Registry } from "./types.js";
 
@@ -19,10 +20,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     generatedAt: new Date().toISOString(),
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
-    packs: registry.packs.map((pack) => ({
-      ...pack,
-      agents: pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter(Boolean)
-    })),
+    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, "registry.bundle.json")),
     agents: registry.agents
   };
 
@@ -51,16 +49,26 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
 function renderHtml(title: string, registry: Registry, bundlePath: string): string {
   const packs = registry.packs
     .map((pack) => {
-      const agents = pack.agents
-        .map((id) => registry.agents.find((agent) => agent.id === id))
-        .filter((agent) => agent !== undefined)
+      const summary = packCatalogSummary(registry, pack.id, bundlePath);
+      const agents = summary.agents
         .map((agent) => `<li><code>${escapeHtml(agent.id)}</code> ${escapeHtml(agent.description)}</li>`)
         .join("");
-      return `<article class="card" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")}`)}">
+      const warnings =
+        summary.audit.warnings.length > 0
+          ? `<ul class="warnings">${summary.audit.warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>`
+          : "";
+      return `<article class="card" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.audit.risk}`)}">
         <div class="eyebrow">${escapeHtml(pack.tags.join(" / ") || "pack")}</div>
         <h2>${escapeHtml(pack.name)}</h2>
         <p>${escapeHtml(pack.description)}</p>
-        <pre>agents-market install ${escapeHtml(pack.id)} --target all --registry ${escapeHtml(bundlePath)}</pre>
+        <div class="meta">
+          <span>risk: <strong>${escapeHtml(summary.audit.risk)}</strong></span>
+          <span>${summary.audit.agentCount} agents</span>
+          <span>${summary.audit.fileCount} files</span>
+        </div>
+        <pre>${escapeHtml(summary.installCommand)}</pre>
+        <pre>${escapeHtml(summary.auditCommand)}</pre>
+        ${warnings}
         <ul>${agents}</ul>
       </article>`;
     })
@@ -100,9 +108,12 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
     .card { border: 1px solid var(--line); border-radius: 8px; padding: 18px; background: #fff; }
     .eyebrow { color: var(--accent); font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 13px; margin: 12px 0; }
+    .meta span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; background: var(--fill); }
     pre { overflow-x: auto; padding: 12px; border-radius: 6px; background: var(--fill); border: 1px solid var(--line); font-size: 13px; }
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
+    .warnings { border-left: 3px solid #b45309; padding-left: 16px; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
     th, td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); padding: 12px 8px; }
     th { color: var(--muted); font-size: 13px; }
@@ -166,4 +177,18 @@ function renderProvenance(provenance: { source?: string; repository?: string; li
     return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>`;
   }
   return escapeHtml(label);
+}
+
+function packCatalogSummary(registry: Registry, packId: string, bundlePath: string) {
+  const pack = registry.packs.find((candidate) => candidate.id === packId);
+  if (!pack) throw new Error(`Unknown pack: ${packId}`);
+  const audit = auditPack(registry, pack.id, "all");
+  return {
+    ...pack,
+    installCommand: `npx @agents-market/cli install ${pack.id} --target all --registry ${bundlePath}`,
+    auditCommand: `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath}`,
+    diffCommand: `npx @agents-market/cli diff ${pack.id} --target all --registry ${bundlePath}`,
+    audit,
+    agents: pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined)
+  };
 }

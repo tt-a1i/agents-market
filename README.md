@@ -190,7 +190,7 @@ agents-market catalog build --out ./site
 The catalog generator writes:
 
 - `index.html`: searchable static catalog
-- `catalog.json`: machine-readable catalog summary
+- `catalog.json`: machine-readable catalog with pack audits, install commands, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.

@@ -34,12 +34,29 @@ describe("catalog", () => {
     expect(html).toContain("Agents Market Test");
     expect(html).toContain("starter-dev-pack");
     expect(html).toContain("Source");
+    expect(html).toContain("risk:");
+    expect(html).toContain("npx @agents-market/cli install starter-dev-pack");
+    expect(html).toContain("npx @agents-market/cli audit starter-dev-pack");
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
       agentCount: number;
+      packs: Array<{
+        id: string;
+        installCommand: string;
+        auditCommand: string;
+        audit: {
+          risk: string;
+          fileCount: number;
+        };
+      }>;
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
+    const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
+    expect(starterPack?.installCommand).toContain("npx @agents-market/cli install starter-dev-pack");
+    expect(starterPack?.auditCommand).toContain("npx @agents-market/cli audit starter-dev-pack");
+    expect(starterPack?.audit.risk).toBe("high");
+    expect(starterPack?.audit.fileCount).toBe(12);
   });
 });

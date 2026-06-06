@@ -107,7 +107,7 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 Outputs:
 
 - `index.html`: searchable catalog for humans
-- `catalog.json`: compact machine-readable summary
+- `catalog.json`: machine-readable catalog with pack audits, install commands, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
 The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
