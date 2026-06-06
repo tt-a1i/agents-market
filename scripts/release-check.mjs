@@ -778,6 +778,8 @@ async function runSecurityWorkflowSmoke() {
   assert(workflow.includes("cancel-in-progress: true"), "Security workflow should cancel superseded runs.");
   assert(workflow.includes("fail-on-severity: high"), "Dependency review should fail high-severity dependency changes.");
   assert(workflow.includes("publish_results: true"), "Security workflow should publish OpenSSF Scorecard results.");
+  assert(!/^env:\n/m.test(workflow), "Security workflow must not declare top-level env because OpenSSF Scorecard publish_results rejects workflow-level env.");
+  assert(!/^defaults:\n/m.test(workflow), "Security workflow must not declare top-level defaults because OpenSSF Scorecard publish_results rejects workflow-level defaults.");
   assert(workflow.includes("timeout-minutes: 15"), "Security workflow should define timeouts for long-running scan jobs.");
   assert(workflow.includes("timeout-minutes: 10"), "Security workflow should define a timeout for dependency review.");
   assert(workflow.includes("persist-credentials: false"), "Security workflow should avoid persisting checkout credentials.");
