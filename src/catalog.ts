@@ -49,6 +49,14 @@ export interface CatalogVerificationReport {
   };
 }
 
+export interface CatalogManifestReport {
+  source: {
+    kind: "url";
+    value: string;
+  };
+  manifest: Record<string, unknown>;
+}
+
 export async function buildCatalog(registry: Registry, options: CatalogOptions): Promise<string[]> {
   const title = options.title ?? "Agents Market";
   await mkdir(options.outDir, { recursive: true });
@@ -291,6 +299,15 @@ export async function verifyCatalogUrl(url: string): Promise<CatalogVerification
     await rm(dir, { recursive: true, force: true });
     throw error;
   }
+}
+
+export async function readCatalogManifestUrl(url: string): Promise<CatalogManifestReport> {
+  const baseUrl = normalizeCatalogBaseUrl(url);
+  const manifest = JSON.parse(await fetchCatalogAsset(baseUrl, "agents-market.json")) as Record<string, unknown>;
+  return {
+    source: { kind: "url", value: baseUrl },
+    manifest
+  };
 }
 
 function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: RegistryBundle, findings: CatalogVerificationFinding[]): void {
@@ -662,9 +679,13 @@ function normalizeCatalogBaseUrl(value: string): string {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(`Catalog URL must use http or https: ${value}`);
   }
-  if (parsed.pathname.endsWith("/catalog.json")) {
-    parsed.pathname = parsed.pathname.slice(0, -"catalog.json".length);
-  } else if (!parsed.pathname.endsWith("/")) {
+  for (const fileName of ["catalog.json", "agents-market.json"]) {
+    if (parsed.pathname.endsWith(`/${fileName}`) || parsed.pathname.endsWith(fileName)) {
+      parsed.pathname = parsed.pathname.slice(0, -fileName.length);
+      break;
+    }
+  }
+  if (!parsed.pathname.endsWith("/")) {
     parsed.pathname = `${parsed.pathname}/`;
   }
   parsed.search = "";

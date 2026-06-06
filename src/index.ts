@@ -12,7 +12,7 @@ import {
   verifyRegistryBundleSignature,
   verifyRegistryLock
 } from "./registry.js";
-import { buildCatalog, verifyCatalog, verifyCatalogUrl } from "./catalog.js";
+import { buildCatalog, readCatalogManifestUrl, verifyCatalog, verifyCatalogUrl } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
@@ -91,6 +91,10 @@ function parseCiProvider(value: string): CiProvider {
 
 function collectOption(value: string, previous: string[] = []): string[] {
   return [...previous, value];
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function summarizeChanges(changes: Array<{ state: string }>): Record<"create" | "update" | "same", number> {
@@ -2260,6 +2264,43 @@ catalogCommand
       signingKeyId: options.keyId
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
+  });
+
+catalogCommand
+  .command("info")
+  .requiredOption("--url <url>", "hosted catalog base URL, catalog.json URL, or agents-market.json URL")
+  .option("--json", "print machine-readable JSON")
+  .description("Read the hosted agent-readable marketplace manifest")
+  .action(async (options: { url: string; json?: boolean }) => {
+    const report = await readCatalogManifestUrl(options.url);
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+
+    const manifest = report.manifest;
+    const title = typeof manifest.title === "string" ? manifest.title : "Agents Market";
+    const packageSpec = typeof manifest.packageSpec === "string" ? manifest.packageSpec : "unknown";
+    const registryBundleUrl = typeof manifest.registryBundleUrl === "string" ? manifest.registryBundleUrl : "unknown";
+    const publicKeyUrl = typeof manifest.publicKeyUrl === "string" ? manifest.publicKeyUrl : undefined;
+    const packs = Array.isArray(manifest.packs) ? manifest.packs : [];
+    console.log(`${pc.bold(title)} ${pc.dim(report.source.value)}`);
+    console.log(`- package: ${packageSpec}`);
+    console.log(`- registry bundle: ${registryBundleUrl}`);
+    if (publicKeyUrl) console.log(`- public key: ${publicKeyUrl}`);
+    console.log(`- packs: ${packs.length}`);
+    const commands = isPlainRecord(manifest.commands) ? manifest.commands : {};
+    for (const group of ["trust", "install", "automation"] as const) {
+      const entries = Array.isArray(commands[group]) ? commands[group] : [];
+      if (entries.length === 0) continue;
+      console.log(`\n${pc.bold(group)}`);
+      for (const entry of entries) {
+        if (!isPlainRecord(entry)) continue;
+        const label = typeof entry.label === "string" ? entry.label : "Command";
+        const command = typeof entry.command === "string" ? entry.command : undefined;
+        if (command) console.log(`- ${label}: ${command}`);
+      }
+    }
   });
 
 catalogCommand

@@ -144,6 +144,7 @@ agents-market ci diff
 agents-market ci init --provider github --yes
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0
+agents-market catalog info --url https://example.com/agents-market/agents-market.json --json
 agents-market catalog verify --dir ./site
 agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
@@ -372,6 +373,7 @@ Build a static marketplace catalog:
 ```bash
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0 --repository https://github.com/acme/agents-market
+agents-market catalog info --url https://example.com/agents-market/agents-market.json --json
 agents-market catalog verify --dir ./site
 agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
 ```
@@ -387,6 +389,8 @@ The catalog generator writes:
 - `site.webmanifest`, `robots.txt`, and `favicon.svg`: static site metadata for Pages, CDN, or object-storage hosting
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path. The catalog also includes registry trust workflow commands for `registry info`, signature verification when signing is configured, `registry lock`, and `registry verify-lock` so teams can inspect and lock the hosted registry before installing packs.
+
+Use `catalog info --url <catalog>` when an agent or automation wants to discover a hosted marketplace before installing anything. The URL can be the catalog base URL, `catalog.json`, or `agents-market.json`; JSON output returns the compact manifest with trust, integration install, CI setup, import, and pack-selection commands.
 
 Run `catalog verify` before publishing static assets, and use `catalog verify --url` after deployment to verify the hosted catalog directly. It checks that `catalog.json`, `agents-market.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, agent-readable install/automation commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls and runtime fallbacks, manifest metadata, favicon wiring, and hosted registry signatures when `registry-public.pem` is present.
 

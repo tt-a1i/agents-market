@@ -5,7 +5,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCatalog, verifyCatalog, verifyCatalogUrl } from "../src/catalog.js";
+import { buildCatalog, readCatalogManifestUrl, verifyCatalog, verifyCatalogUrl } from "../src/catalog.js";
 import { loadRegistry, verifyRegistryBundleSignature } from "../src/registry.js";
 import type { RegistryBundle } from "../src/types.js";
 
@@ -252,6 +252,16 @@ describe("catalog", () => {
         keyId: "hosted-test",
         algorithm: "ed25519"
       });
+      const manifestReport = await readCatalogManifestUrl(`${baseUrl}/agents-market.json`);
+      expect(manifestReport.source).toEqual({ kind: "url", value: `${baseUrl}/` });
+      expect(manifestReport.manifest.schemaVersion).toBe(1);
+      expect(manifestReport.manifest.registryBundleUrl).toBe(`${baseUrl}/registry.bundle.json`);
+      const commands = manifestReport.manifest.commands as {
+        install?: Array<{ command: string }>;
+        automation?: Array<{ command: string }>;
+      };
+      expect(commands.install?.some((command) => command.command.includes("integrations install --target all"))).toBe(true);
+      expect(commands.automation?.some((command) => command.command.includes("ci init --provider github"))).toBe(true);
     } finally {
       await closeServer(server);
     }

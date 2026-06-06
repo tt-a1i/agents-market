@@ -79,6 +79,18 @@ async function main() {
     );
     const catalogVerify = runJson("node", ["dist/index.js", "catalog", "verify", "--dir", siteDir, "--json"], "Catalog verify");
     assert(catalogVerify.ok === true, "Catalog verification failed after build.");
+    await withStaticServer(siteDir, async (baseUrl) => {
+      const catalogInfo = runJson("node", ["dist/index.js", "catalog", "info", "--url", `${baseUrl}/agents-market.json`, "--json"], "Catalog info");
+      assert(catalogInfo.manifest?.schemaVersion === 1, "Catalog info did not return the agent-readable manifest.");
+      assert(
+        catalogInfo.manifest?.commands?.install?.some((command) => command.command?.includes("integrations install --target all")),
+        "Catalog info should expose the agent-native integration install command."
+      );
+      assert(
+        catalogInfo.manifest?.commands?.automation?.some((command) => command.command?.includes("ci init --provider github")),
+        "Catalog info should expose the CI setup command."
+      );
+    });
     const catalogHtml = await readFile(join(siteDir, "index.html"), "utf8");
     assert(
       catalogHtml.includes('const itemTargets = item.dataset.targets || "";'),
