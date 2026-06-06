@@ -1181,6 +1181,16 @@ async function runReleaseWorkflowSmoke() {
   assert(workflow.includes("timeout-minutes: 10"), "Release publish job should define a timeout.");
   assert(workflow.includes("release-artifacts:"), "Release workflow should build and upload artifacts in a dedicated job.");
   assert(workflow.includes("publish-npm:"), "Release workflow should publish npm from a dedicated protected job.");
+  const releaseArtifactsJob = workflow.slice(workflow.indexOf("  release-artifacts:"), workflow.indexOf("  publish-npm:"));
+  const publishNpmJob = workflow.slice(workflow.indexOf("  publish-npm:"));
+  assert(
+    releaseArtifactsJob.includes("permissions:\n      attestations: write\n      contents: write\n      id-token: write"),
+    "Release artifact job should explicitly limit permissions to artifact attestations, release uploads, and OIDC."
+  );
+  assert(
+    publishNpmJob.includes("permissions:\n      contents: read\n      id-token: write"),
+    "NPM publish job should explicitly limit permissions to source checkout and provenance OIDC."
+  );
   assert(workflow.includes("needs: release-artifacts"), "NPM publishing should wait for release artifact verification and upload.");
   assert(workflow.includes("environment: npm-release"), "Release workflow should use the protected npm-release environment for npm publishing.");
   assert(
@@ -1236,6 +1246,10 @@ async function runReleaseWorkflowSmoke() {
   assert(pagesWorkflow.includes("REGISTRY_SIGNING_KEY_ID"), "Pages workflow should support the registry signing key id secret.");
   assert(pagesWorkflow.includes("--private-key registry-private.pem --public-key registry-public.pem --key-id"), "Pages workflow should sign the hosted catalog registry bundle when signing secrets are present.");
   assert(workflow.includes("npm publish --provenance"), "Release workflow should publish the npm package with provenance.");
+  assert(
+    publishNpmJob.indexOf("id-token: write") < publishNpmJob.indexOf("npm publish --provenance"),
+    "NPM publish job should grant OIDC before publishing with provenance."
+  );
   assert(workflow.includes("if: startsWith(needs.release-artifacts.outputs.tag, 'v')"), "Release workflow should publish to npm only for v-prefixed release tags.");
   checks.push("Release workflow upload coverage");
 }

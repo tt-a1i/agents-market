@@ -37,7 +37,7 @@ Production npm publishing requires this GitHub repository secret:
 | `REGISTRY_SIGNING_PUBLIC_KEY` | Optional Ed25519 public key PEM uploaded as `registry-public.pem` and used to verify the signed bundle during artifact generation. |
 | `REGISTRY_SIGNING_KEY_ID` | Optional signing key id recorded in bundle signatures, for example `main`. |
 
-The Release workflow uses npm provenance and GitHub Artifact Attestations, so it also needs the workflow `id-token: write` and `attestations: write` permissions already declared in `.github/workflows/release.yml`.
+The Release workflow declares job-level permissions in `.github/workflows/release.yml`: the artifact job gets `attestations: write`, `contents: write`, and `id-token: write` for GitHub Release uploads and attestations, while the protected npm publish job gets only `contents: read` and `id-token: write` for source checkout and npm provenance.
 
 Configure all three registry signing secrets together. If any one signing secret is present without the others, the Release and Pages workflows fail before publishing.
 
