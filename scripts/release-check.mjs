@@ -1203,6 +1203,8 @@ async function runReleaseWorkflowSmoke() {
   assert(workflow.includes("attestations: write"), "Release workflow should be allowed to write artifact attestations.");
   assert(workflow.includes("actions/attest@v4"), "Release workflow should create GitHub Artifact Attestations.");
   assert(workflow.includes("subject-checksums: ./release-artifacts/SHA256SUMS"), "Release workflow should attest the generated SHA256SUMS subjects.");
+  assert(workflow.includes("Attest checksum manifest"), "Release workflow should separately attest SHA256SUMS for strict installer mode.");
+  assert(workflow.includes("subject-path: ./release-artifacts/SHA256SUMS"), "Release workflow should attest the SHA256SUMS manifest itself.");
   assert(workflow.includes("Attest complete release artifact archive"), "Release workflow should separately attest the complete artifact archive.");
   assert(
     workflow.includes("subject-path: ./release-artifacts/agents-market-release-artifacts-*.tgz"),
@@ -1214,8 +1216,10 @@ async function runReleaseWorkflowSmoke() {
   );
   assert(
     workflow.indexOf("subject-checksums: ./release-artifacts/SHA256SUMS") <
+      workflow.indexOf("subject-path: ./release-artifacts/SHA256SUMS") &&
+      workflow.indexOf("subject-path: ./release-artifacts/SHA256SUMS") <
       workflow.indexOf("subject-path: ./release-artifacts/agents-market-release-artifacts-*.tgz"),
-    "Release workflow should attest the complete archive after checksum-subject attestations."
+    "Release workflow should attest SHA256SUMS before the complete archive after checksum-subject attestations."
   );
   assert(workflow.includes("release-artifacts/*.tgz"), "Release workflow should upload top-level release tarballs.");
   assert(workflow.includes("release-artifacts/npm/*.tgz"), "Release workflow should upload the npm package tarball.");

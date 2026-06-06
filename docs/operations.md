@@ -95,6 +95,7 @@ npx @agents-market/cli list
 npx @agents-market/cli registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
 npx @agents-market/cli catalog verify --url https://tt-a1i.github.io/agents-market/catalog.json --json
 gh attestation verify ./release-artifacts/registry.bundle.json --repo tt-a1i/agents-market
+gh attestation verify ./release-artifacts/SHA256SUMS --repo tt-a1i/agents-market
 gh attestation verify ./release-artifacts/agents-market-release-artifacts-0.1.0.tgz --repo tt-a1i/agents-market
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/v0.1.0/install.sh | AGENTS_MARKET_REQUIRE_ATTESTATION=1 sh
 ```

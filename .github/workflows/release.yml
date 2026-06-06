@@ -93,6 +93,10 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-checksums: ./release-artifacts/SHA256SUMS
+      - name: Attest checksum manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: ./release-artifacts/SHA256SUMS
       - name: Attest complete release artifact archive
         uses: actions/attest@v4
         with:

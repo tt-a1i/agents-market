@@ -50,9 +50,10 @@ If the repository secrets `REGISTRY_SIGNING_PRIVATE_KEY`, `REGISTRY_SIGNING_PUBL
 
 The Release workflow serializes runs by release tag or manual version and checks out source with persisted GitHub credentials disabled. Artifact generation, verification, attestation, and GitHub Release uploads run before the protected npm publish job so preview releases can be refreshed without npm credentials. Only the `publish-npm` job runs in the `npm-release` GitHub Actions environment, and only for `v*` release tags.
 
-The Release workflow also creates GitHub Artifact Attestations from `release-artifacts/SHA256SUMS` and separately attests the complete release artifact archive after `release:verify-artifacts` passes. After downloading release assets, verify attested files with GitHub CLI:
+The Release workflow also creates GitHub Artifact Attestations from `release-artifacts/SHA256SUMS`, separately attests the `SHA256SUMS` manifest itself for strict installer mode, and separately attests the complete release artifact archive after `release:verify-artifacts` passes. After downloading release assets, verify attested files with GitHub CLI:
 
 ```bash
+gh attestation verify ./release-artifacts/SHA256SUMS --repo tt-a1i/agents-market
 gh attestation verify ./release-artifacts/registry.bundle.json --repo tt-a1i/agents-market
 gh attestation verify ./release-artifacts/npm/agents-market-cli-0.1.0.tgz --repo tt-a1i/agents-market
 gh attestation verify ./release-artifacts/agents-market-release-artifacts-0.1.0.tgz --repo tt-a1i/agents-market
