@@ -2309,11 +2309,12 @@ catalogCommand
   .requiredOption("--url <url>", "hosted catalog base URL, catalog.json URL, or agents-market.json URL")
   .option("--cwd <path>", "project root to initialize")
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--pack <pack>", "pack to preview in the onboarding plan; default is the top project recommendation")
   .option("--ci", "also install the generated Agents Market GitHub Actions workflow")
   .option("--yes", "write files; default is preview only")
   .option("--json", "print machine-readable JSON")
   .description("Connect a project to a hosted marketplace catalog")
-  .action(async (options: { url: string; cwd?: string; target: string; ci?: boolean; yes?: boolean; json?: boolean }) => {
+  .action(async (options: { url: string; cwd?: string; target: string; pack?: string; ci?: boolean; yes?: boolean; json?: boolean }) => {
     const root = cwd(options.cwd);
     const target = parseTarget(options.target);
     const manifestReport = await readCatalogManifestUrl(options.url);
@@ -2327,6 +2328,26 @@ catalogCommand
     const signature = publicKeyUrl ? verifyRegistryBundleSignature(bundle, await readTextSource(publicKeyUrl), bundle.signatures?.[0]?.keyId) : undefined;
     if (publicKeyUrl && !signature?.ok) {
       throw new Error(`Catalog registry signature verification failed: ${signature?.error ?? "unknown error"}`);
+    }
+    const signals = await detectProject(root);
+    const recommendations = recommendPackDetails(loaded.registry, signals);
+    const selectedPack = options.pack
+      ? getPack(loaded.registry, options.pack)
+      : recommendations[0]?.pack ?? loaded.registry.packs.find((pack) => pack.id === "starter-dev-pack") ?? loaded.registry.packs[0];
+    if (!selectedPack) throw new Error("Registry does not contain any packs.");
+    const selectedRecommendation = recommendations.find((recommendation) => recommendation.pack.id === selectedPack.id);
+    const plan = createInstallPlan(loaded.registry, selectedPack.id, target);
+    const audit = auditPack(loaded.registry, selectedPack.id, target);
+    const packFiles = generatePackFiles(loaded.registry, selectedPack.id, target);
+    const diff = [];
+    for (const file of packFiles) {
+      const existing = await readExisting(root, file);
+      diff.push({
+        path: file.path,
+        target: file.target,
+        agentId: file.agent.id,
+        state: summarizeFileChange(existing, file.content)
+      });
     }
     const registryLock = {
       schemaVersion: 1 as const,
@@ -2375,6 +2396,7 @@ catalogCommand
       await saveRegistryLock(root, registryLock);
       await writeGeneratedFiles(root, ciWorkflow ? [...integrationFiles, ciWorkflow] : integrationFiles);
     }
+    const registryArg = options.yes ? "" : ` --registry ${loaded.source.value}`;
     const result = {
       root,
       source: manifestReport.source,
@@ -2382,14 +2404,25 @@ catalogCommand
       registry: loaded.source,
       signature,
       target,
+      signals,
+      recommendation: {
+        packId: selectedPack.id,
+        name: selectedPack.name,
+        description: selectedPack.description,
+        score: selectedRecommendation?.score ?? 0,
+        reasons: selectedRecommendation?.reasons ?? (options.pack ? ["selected by --pack"] : ["baseline"])
+      },
+      plan,
+      audit,
+      diff,
       ci: Boolean(options.ci),
       lockWritten: Boolean(options.yes),
       written: options.yes ? changes.length : 0,
       changes,
       nextCommands: [
         "agents-market registry verify-lock --json",
-        `agents-market apply --target ${target} --json`,
-        `agents-market apply --target ${target} --yes`,
+        `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --json`,
+        `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --yes`,
         ...(options.ci ? ["agents-market status --diff --json", "agents-market doctor --strict --json"] : ["agents-market ci init --provider github --yes"])
       ]
     };
@@ -2401,6 +2434,9 @@ catalogCommand
     console.log(`- root: ${root}`);
     console.log(`- registry: ${loaded.source.value}`);
     if (signature) console.log(`- signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red(signature.error ?? "failed")}`);
+    console.log(`- recommended pack: ${pc.cyan(selectedPack.id)} - ${selectedPack.description}`);
+    console.log(`- audit risk: ${audit.risk}`);
+    console.log(`- planned files: ${plan.fileCount}`);
     for (const change of changes) {
       const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
       console.log(`${label} ${change.path}`);

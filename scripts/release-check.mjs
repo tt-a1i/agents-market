@@ -104,6 +104,14 @@ async function main() {
         assert(catalogInitPreview.dryRun === true, "Catalog init should preview by default.");
         assert(catalogInitPreview.changes?.some((change) => change.path === ".agents-market/registry-lock.json"), "Catalog init preview should include the registry lock.");
         assert(catalogInitPreview.changes?.some((change) => change.path === ".claude/skills/agents-market-installer/SKILL.md"), "Catalog init preview should include Claude integration.");
+        assert(catalogInitPreview.recommendation?.packId, "Catalog init preview should include a project-aware pack recommendation.");
+        assert(catalogInitPreview.plan?.fileCount > 0, "Catalog init preview should include the selected pack install plan.");
+        assert(catalogInitPreview.audit?.packId === catalogInitPreview.recommendation.packId, "Catalog init preview audit should match the recommended pack.");
+        assert(catalogInitPreview.diff?.length === catalogInitPreview.plan.fileCount, "Catalog init preview diff should match the selected pack install plan.");
+        assert(
+          catalogInitPreview.nextCommands?.some((command) => command.includes(`--registry ${baseUrl}/registry.bundle.json`)),
+          "Catalog init dry-run next commands should include the hosted registry URL before a lock is written."
+        );
         const catalogInitInstall = runJson(
           "node",
           ["dist/index.js", "catalog", "init", "--url", `${baseUrl}/agents-market.json`, "--cwd", catalogProjectDir, "--target", "all", "--ci", "--yes", "--json"],
@@ -111,8 +119,42 @@ async function main() {
         );
         assert(catalogInitInstall.lockWritten === true, "Catalog init --yes should write the registry lock.");
         assert(catalogInitInstall.changes?.some((change) => change.path === ".github/workflows/agents-market.yml"), "Catalog init --ci should include the CI workflow.");
+        assert(
+          catalogInitInstall.nextCommands?.some((command) => command.includes("apply starter-dev-pack --target all --policy-preset balanced --yes")),
+          "Catalog init --yes next commands should use the written registry lock instead of repeating --registry."
+        );
         const catalogInitLock = JSON.parse(await readFile(join(catalogProjectDir, ".agents-market", "registry-lock.json"), "utf8"));
         assert(catalogInitLock.source === `${baseUrl}/registry.bundle.json`, `Catalog init lock source mismatch: ${catalogInitLock.source}.`);
+        const catalogPackProjectDir = await mkdtemp(join(tmpdir(), "agents-market-catalog-pack-"));
+        try {
+          const catalogPackPreview = runJson(
+            "node",
+            [
+              "dist/index.js",
+              "catalog",
+              "init",
+              "--url",
+              `${baseUrl}/agents-market.json`,
+              "--cwd",
+              catalogPackProjectDir,
+              "--target",
+              "codex",
+              "--pack",
+              "security-pack",
+              "--json"
+            ],
+            "Catalog init selected pack"
+          );
+          assert(catalogPackPreview.recommendation?.packId === "security-pack", "Catalog init --pack should select the requested pack.");
+          assert(catalogPackPreview.target === "codex", "Catalog init --pack should preserve the requested target.");
+          assert(catalogPackPreview.audit?.packId === "security-pack", "Catalog init --pack audit should match the requested pack.");
+          assert(
+            catalogPackPreview.nextCommands?.some((command) => command.includes("apply security-pack --target codex")),
+            "Catalog init --pack next commands should install the requested pack."
+          );
+        } finally {
+          await rm(catalogPackProjectDir, { recursive: true, force: true });
+        }
       } finally {
         await rm(catalogProjectDir, { recursive: true, force: true });
       }
