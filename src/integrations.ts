@@ -22,6 +22,7 @@ Safety:
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
 - Use \`outdated --json\` before update workflows, then \`update --dry-run --json\` before asking for confirmation.
+- Use \`agents-market status --diff --json\` when generated files are modified or missing and the user needs a concise drift summary.
 - Use \`--target claude\`, \`--target codex\`, or \`--target opencode\` when the user wants one tool only.
 `;
 

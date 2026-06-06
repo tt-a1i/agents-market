@@ -35,3 +35,5 @@ Treat policy failures as blockers unless the user explicitly updates project pol
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.
 
 Use `agents-market outdated --json` before update workflows, then use `agents-market update --dry-run --json` before asking for confirmation.
+
+Use `agents-market status --diff --json` when generated files are modified or missing and the user needs a concise drift summary.

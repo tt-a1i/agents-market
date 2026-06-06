@@ -69,6 +69,7 @@ agents-market install starter-dev-pack --target all --enforce-policy
 agents-market pack create frontend-lite --agent code-reviewer accessibility-auditor --out ./registry/packs
 agents-market status
 agents-market status --json
+agents-market status --diff --json
 agents-market doctor
 agents-market doctor --strict --json
 agents-market outdated
@@ -105,7 +106,7 @@ Installs write `.agents-market/manifest.json`. The manifest records installed pa
 
 This enables drift-aware operations:
 
-- `status` reports clean, modified, and missing generated files; use `status --json` for automation.
+- `status` reports clean, modified, and missing generated files; use `status --json` for automation and `status --diff --json` when you need line-level drift summaries for modified or missing generated files.
 - `doctor` runs manifest, registry lock, policy, drift, and target directory health checks; use `doctor --strict --json` in CI.
 - `outdated` compares installed pack versions with the current registry; use `outdated --json` before update automation.
 - `update` refreshes installed packs from the current registry.

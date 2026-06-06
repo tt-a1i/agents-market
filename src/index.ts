@@ -27,6 +27,7 @@ import { searchRegistry, type SearchKind } from "./search.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
+import { summarizeTextDrift } from "./drift.js";
 import { versionStatus } from "./version.js";
 import {
   loadManifest,
@@ -763,22 +764,48 @@ program
   .command("status")
   .description("Show installed packs and whether generated files drifted")
   .option("--cwd <path>", "project root to inspect")
+  .option("--registry <source>", "registry source used for --diff expected content")
+  .option("--diff", "include generated-file drift summaries")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { cwd?: string; json?: boolean }) => {
+  .action(async (options: { cwd?: string; registry?: string; diff?: boolean; json?: boolean }) => {
     const root = cwd(options.cwd);
     const manifest = await loadManifest(root);
     const installs = [];
 
     for (const install of manifest.installs) {
+      let expectedByPath = new Map<string, string>();
+      let driftError: string | undefined;
+      if (options.diff) {
+        try {
+          const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
+          expectedByPath = new Map(generatePackFiles(loaded.registry, install.packId, install.target).map((file) => [file.path, file.content]));
+        } catch (error) {
+          driftError = error instanceof Error ? error.message : String(error);
+        }
+      }
       const files = [];
       for (const file of install.files) {
         const current = await readExisting(root, { path: file.path, content: "" });
         const state = current === undefined ? "missing" : sha256(current) === file.sha256 ? "clean" : "modified";
+        const expected = expectedByPath.get(file.path);
         files.push({
           path: file.path,
           target: file.target,
           agentId: file.agentId,
-          state
+          state,
+          ...(options.diff
+            ? {
+                expectedSha256: expected ? sha256(expected) : file.sha256,
+                currentSha256: current ? sha256(current) : undefined,
+                drift:
+                  expected && current !== undefined && state !== "clean"
+                    ? summarizeTextDrift(expected, current)
+                    : expected && current === undefined
+                      ? summarizeTextDrift(expected, "")
+                      : undefined,
+                driftError
+              }
+            : {})
         });
       }
       installs.push({
@@ -817,6 +844,12 @@ program
       for (const file of status?.files ?? []) {
         const state = file.state === "missing" ? pc.red("missing") : file.state === "clean" ? pc.green("clean") : pc.yellow("modified");
         console.log(`  ${state} ${file.path}`);
+        if (options.diff && file.drift) {
+          console.log(`    +${file.drift.addedLines} -${file.drift.removedLines}`);
+          for (const line of file.drift.preview) console.log(`    ${line}`);
+        } else if (options.diff && file.driftError) {
+          console.log(`    ${pc.red(file.driftError)}`);
+        }
       }
     }
   });

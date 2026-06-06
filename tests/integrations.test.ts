@@ -20,6 +20,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market registry info --registry <source> --json");
       expect(file.content).toContain("agents-market pack create");
       expect(file.content).toContain("agents-market status --json");
+      expect(file.content).toContain("agents-market status --diff --json");
       expect(file.content).toContain("agents-market outdated --json");
       expect(file.content).toContain("agents-market doctor --strict --json");
       expect(file.content).toContain("Treat policy failures as blockers");

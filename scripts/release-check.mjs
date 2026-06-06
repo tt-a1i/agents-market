@@ -168,6 +168,11 @@ async function runLifecycleSmoke() {
 
     await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- local edit from release smoke -->\n", "utf8");
 
+    const driftStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--diff", "--json"], "Lifecycle drift status");
+    const driftFile = driftStatus.installs?.[0]?.files?.find((file) => file.path === ".claude/agents/code-reviewer.md");
+    assert(driftFile?.state === "modified", `Expected code-reviewer drift state to be modified, found ${driftFile?.state}.`);
+    assert(driftFile?.drift?.addedLines > 0, "Expected drift status to report added lines for the local edit.");
+
     const updateDryRun = runJson(
       "node",
       ["dist/index.js", "update", "starter-dev-pack", "--cwd", projectDir, "--dry-run", "--json"],
@@ -337,6 +342,7 @@ function verifyTarball(packOutput) {
     "dist/catalog.js",
     "dist/audit.js",
     "dist/doctor.js",
+    "dist/drift.js",
     "dist/policy.js",
     "dist/pack.js",
     "dist/version.js",

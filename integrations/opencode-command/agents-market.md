@@ -24,3 +24,4 @@ Safety:
 - Prefer curated packs.
 - Do not use `--force` unless the user explicitly confirms overwriting or removing modified generated files.
 - Use `agents-market outdated --json` before update workflows, then use `agents-market update --dry-run --json` before asking for confirmation.
+- Use `agents-market status --diff --json` when generated files are modified or missing and the user needs a concise drift summary.
