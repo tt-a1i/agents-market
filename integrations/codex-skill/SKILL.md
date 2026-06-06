@@ -35,27 +35,33 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
    agents-market audit <pack-id> --target all --json
    ```
 
-7. Preview changes before writing:
+7. If the project has `.agents-market/policy.json`, check project policy:
+
+   ```bash
+   agents-market policy check <pack-id> --target all --json
+   ```
+
+8. Preview changes before writing:
 
    ```bash
    agents-market diff <pack-id> --target all --json
    ```
 
-8. Explain the target files, permission implications, warnings, and source/license status.
-9. After user confirmation, install:
+9. Explain the target files, permission implications, policy findings, warnings, and source/license status.
+10. After user confirmation, install:
 
    ```bash
    agents-market install <pack-id> --target all
    ```
 
-10. Verify install state:
+11. Verify install state:
 
    ```bash
    agents-market status
    agents-market doctor --json
    ```
 
-11. Summarize installed files, health warnings, and how the user can invoke the new agents.
+12. Summarize installed files, health warnings, and how the user can invoke the new agents.
 
 ## Target Selection
 
@@ -66,6 +72,6 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 
 ## Safety
 
-Always run `audit` and `diff` before `install`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
+Always run `audit` and `diff` before `install`. Treat policy failures as blockers unless the user explicitly updates the project policy. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
 
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.

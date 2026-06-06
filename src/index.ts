@@ -16,6 +16,7 @@ import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
+import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyPreset } from "./policy.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -52,6 +53,11 @@ function parseConcreteTarget(value: string): Target {
 function parseSearchKind(value: string): SearchKind {
   if (value === "all" || value === "agents" || value === "packs") return value;
   throw new Error(`Invalid search type: ${value}. Use all, agents, or packs.`);
+}
+
+function parsePolicyPreset(value: string): PolicyPreset {
+  if (value === "open" || value === "balanced" || value === "strict") return value;
+  throw new Error(`Invalid policy preset: ${value}. Use open, balanced, or strict.`);
 }
 
 function isNotFoundError(error: unknown): boolean {
@@ -470,6 +476,83 @@ program
         console.log(`- ${pc.yellow(warning)}`);
       }
     }
+  });
+
+const policyCommand = program.command("policy").description("Create and check project policy for agent packs");
+
+policyCommand
+  .command("init")
+  .option("--cwd <path>", "project root to initialize policy in")
+  .option("--preset <preset>", "open, balanced, or strict", "balanced")
+  .option("--overwrite", "overwrite an existing policy file")
+  .option("--dry-run", "preview without writing")
+  .option("--json", "print machine-readable JSON")
+  .description("Write .agents-market/policy.json for team-safe pack review")
+  .action(async (options: { cwd?: string; preset: string; overwrite?: boolean; dryRun?: boolean; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const preset = parsePolicyPreset(options.preset);
+    const path = policyPath(root);
+    const policy = createPolicyPreset(preset);
+
+    if (!options.overwrite) {
+      try {
+        await readFile(path, "utf8");
+        throw new Error(`Policy already exists: ${path}. Use --overwrite to replace it.`);
+      } catch (error) {
+        if (error instanceof Error && error.message.startsWith("Policy already exists:")) throw error;
+        if (!isNotFoundError(error)) throw error;
+      }
+    }
+
+    if (!options.dryRun) await savePolicy(path, policy);
+
+    const result = {
+      path,
+      preset,
+      dryRun: Boolean(options.dryRun),
+      written: !options.dryRun,
+      policy
+    };
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`${pc.green(options.dryRun ? "Would write" : "Wrote")} ${path}`);
+  });
+
+policyCommand
+  .command("check")
+  .argument("<pack>", "pack id to check")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--cwd <path>", "project root containing .agents-market/policy.json")
+  .option("--policy <path>", "policy file path")
+  .option("--preset <preset>", "use a built-in policy preset instead of reading a file")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON")
+  .description("Check whether a pack satisfies project policy")
+  .action(async (packId: string, options: { target: string; cwd?: string; policy?: string; preset?: string; registry?: string; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const target = parseTarget(options.target);
+    const loaded = await loadProjectRegistry(root, options.registry);
+    const policy = options.preset ? createPolicyPreset(parsePolicyPreset(options.preset)) : await loadPolicy(resolve(options.policy ?? policyPath(root)));
+    const report = checkPackPolicy(loaded.registry, packId, target, policy);
+
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
+
+    const state = report.ok ? pc.green("pass") : pc.red("fail");
+    console.log(`${pc.bold(report.packId)} policy:${state}`);
+    console.log(`- target: ${report.target}`);
+    console.log(`- max permission: ${report.policy.maxPermission}`);
+    console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
+    for (const finding of report.findings) {
+      const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
+      console.log(`- ${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+    }
+    if (!report.ok) process.exitCode = 1;
   });
 
 program

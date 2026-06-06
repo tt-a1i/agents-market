@@ -63,6 +63,21 @@ async function runLifecycleSmoke() {
     const lock = runJson("node", ["dist/index.js", "registry", "verify-lock", "--cwd", projectDir, "--json"], "Lifecycle verify lock");
     assert(lock.ok === true, "Lifecycle registry lock verification failed.");
 
+    const policyInit = runJson(
+      "node",
+      ["dist/index.js", "policy", "init", "--cwd", projectDir, "--preset", "balanced", "--json"],
+      "Lifecycle policy init"
+    );
+    assert(policyInit.written === true, "Lifecycle policy init did not write a policy file.");
+    assert(policyInit.policy?.maxPermission === "command", "Lifecycle policy init did not use the balanced preset.");
+
+    const policyCheck = runJson(
+      "node",
+      ["dist/index.js", "policy", "check", "starter-dev-pack", "--cwd", projectDir, "--target", "claude", "--json"],
+      "Lifecycle policy check"
+    );
+    assert(policyCheck.ok === true, "Lifecycle policy check failed for starter-dev-pack under balanced policy.");
+
     run("node", ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir], "Lifecycle install");
 
     const cleanStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle clean status");
@@ -155,10 +170,12 @@ function verifyTarball(packOutput) {
     "dist/catalog.js",
     "dist/audit.js",
     "dist/doctor.js",
+    "dist/policy.js",
     "dist/pack.js",
     "registry/agents/code-reviewer.json",
     "registry/packs/starter-dev-pack.json",
     "docs/agent-native.md",
+    "docs/policy.md",
     "integrations/codex-skill/SKILL.md"
   ];
   const missing = required.filter((file) => !files.has(file));

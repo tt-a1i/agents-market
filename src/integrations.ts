@@ -11,14 +11,16 @@ Workflow:
 5. If the user provides a registry URL or bundle path, run \`agents-market registry lock --registry <source>\`.
 6. Create a structured install plan with \`agents-market plan <pack-id> --target all\`.
 7. Audit permissions and provenance with \`agents-market audit <pack-id> --target all --json\`.
-8. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
-9. Explain target files, permission implications, warnings, and source/license status.
-10. After user confirmation, run \`agents-market install <pack-id> --target all\`.
-11. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
-12. Summarize installed files, health warnings, and how to invoke the new agents.
+8. If the project has \`.agents-market/policy.json\`, run \`agents-market policy check <pack-id> --target all --json\`.
+9. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
+10. Explain target files, permission implications, policy findings, warnings, and source/license status.
+11. After user confirmation, run \`agents-market install <pack-id> --target all\`.
+12. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
+13. Summarize installed files, health warnings, and how to invoke the new agents.
 
 Safety:
 - Always audit and preview with \`audit\` and \`diff\` before \`install\`.
+- Treat policy failures as blockers unless the user explicitly updates the project policy.
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
 - Use \`--target claude\`, \`--target codex\`, or \`--target opencode\` when the user wants one tool only.

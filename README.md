@@ -55,6 +55,9 @@ agents-market recommend
 agents-market recommend --json
 agents-market plan starter-dev-pack --target all
 agents-market audit starter-dev-pack --target all
+agents-market policy init --preset balanced
+agents-market policy check starter-dev-pack --target all
+agents-market policy check starter-dev-pack --target all --json
 agents-market diff starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all --json
 agents-market install starter-dev-pack --target claude
@@ -205,6 +208,21 @@ agents-market diff nextjs-pack --target all --json
 ```
 
 Use `audit` before installation to summarize permissions, tool access, target support, provenance, and source license coverage.
+
+## Project Policy
+
+Create a team policy before installing packs from a shared or hosted registry:
+
+```bash
+agents-market policy init --preset balanced
+agents-market policy check frontend-pack --target all --json
+```
+
+This writes `.agents-market/policy.json` and lets CI or agent-native workflows block packs that exceed project rules for max permission, full bash, web access, allowed targets, blocked agents, or blocked packs.
+
+Use `policy check` after `audit` and before `diff`/`install`. It exits non-zero on policy violations, so it is safe to run in CI.
+
+See [docs/policy.md](./docs/policy.md).
 
 ## Web Catalog
 

@@ -18,11 +18,13 @@ Shall I install it?
 2. Run `agents-market recommend`.
 3. Pick the best pack or ask the user to choose when ambiguous.
 4. If the user or organization has a registry URL, run `agents-market registry lock --registry <source>`.
-5. Run `agents-market diff <pack> --target <target>`.
-6. Explain files, permissions, and command-running risk.
-7. After confirmation, run `agents-market install <pack> --target <target>`.
-8. Run `agents-market status` and summarize the installed files.
-9. Tell the user how to invoke the installed agents.
+5. Run `agents-market audit <pack> --target <target> --json`.
+6. If `.agents-market/policy.json` exists, run `agents-market policy check <pack> --target <target> --json`.
+7. Run `agents-market diff <pack> --target <target>`.
+8. Explain files, permissions, policy findings, and command-running risk.
+9. After confirmation, run `agents-market install <pack> --target <target>`.
+10. Run `agents-market status` and summarize the installed files.
+11. Tell the user how to invoke the installed agents.
 
 For agent-native integrations, prefer structured output where available:
 
@@ -32,6 +34,7 @@ agents-market search <query> --json
 agents-market init --target <target> --json
 agents-market plan <pack> --target <target>
 agents-market audit <pack> --target <target> --json
+agents-market policy check <pack> --target <target> --json
 agents-market diff <pack> --target <target> --json
 agents-market update --dry-run --json
 agents-market uninstall <pack> --target <target> --dry-run --json
@@ -46,6 +49,7 @@ Use `recommend --json` when the user asks for a project-aware suggestion. Use `s
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
+Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
 Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, and target directories.
 Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
@@ -74,11 +78,12 @@ Generated files:
 - Codex: `.agents/skills/agents-market-installer/SKILL.md`
 - OpenCode: `.opencode/commands/agents-market.md`
 
-After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `recommend`, `diff`, `install`, and `status` in that order.
+After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `recommend`, `audit`, optional `policy check`, `diff`, `install`, and `status` in that order.
 
 ## Safety Rules
 
 - Always run `diff` before `install`.
+- Run `policy check` when the project has `.agents-market/policy.json`.
 - Run `status` after install/update.
 - Use `registry lock` for organization or hosted marketplace registries before installing.
 - Prefer curated packs over installing many individual agents.
