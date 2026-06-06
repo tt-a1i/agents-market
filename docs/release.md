@@ -15,7 +15,7 @@ npm ci
 npm run release:check
 ```
 
-`release:check` runs typecheck, build, registry strict lint, tests, catalog build, npm package dry run, and required tarball content checks.
+`release:check` runs typecheck, build, registry strict lint, tests, catalog build, a full CLI lifecycle smoke test, npm package dry run, and required tarball content checks.
 
 ## Release Flow
 

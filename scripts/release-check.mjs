@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -17,6 +17,8 @@ async function main() {
   } finally {
     await rm(siteDir, { recursive: true, force: true });
   }
+
+  await runLifecycleSmoke();
 
   const pack = run("npm", ["pack", "--dry-run", "--json"], "Package dry run");
   verifyTarball(parseNpmPackJson(pack.stdout));
@@ -37,6 +39,103 @@ function run(command, args, label) {
   }
   checks.push(label);
   return result;
+}
+
+async function runLifecycleSmoke() {
+  const projectDir = await mkdtemp(join(tmpdir(), "agents-market-release-lifecycle-"));
+  try {
+    const init = runJson(
+      "node",
+      ["dist/index.js", "init", "--cwd", projectDir, "--target", "claude", "--json"],
+      "Lifecycle init"
+    );
+    assert(init.lockWritten === true, "Lifecycle init did not write a registry lock.");
+    assert(init.recommendation?.packId, "Lifecycle init did not include a pack recommendation.");
+    assert(
+      init.integrations?.some((file) => file.path === ".claude/skills/agents-market-installer/SKILL.md"),
+      "Lifecycle init did not plan the Claude installer skill."
+    );
+
+    const lock = runJson("node", ["dist/index.js", "registry", "verify-lock", "--cwd", projectDir, "--json"], "Lifecycle verify lock");
+    assert(lock.ok === true, "Lifecycle registry lock verification failed.");
+
+    run("node", ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir], "Lifecycle install");
+
+    const cleanStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle clean status");
+    assert(cleanStatus.installCount === 1, `Expected one install after lifecycle install, found ${cleanStatus.installCount}.`);
+    const cleanFiles = cleanStatus.installs?.[0]?.files ?? [];
+    assert(cleanFiles.length === 4, `Expected four Claude agent files after lifecycle install, found ${cleanFiles.length}.`);
+    assert(cleanFiles.every((file) => file.state === "clean"), "Expected all lifecycle-installed files to be clean.");
+
+    const doctor = runJson("node", ["dist/index.js", "doctor", "--cwd", projectDir, "--strict", "--json"], "Lifecycle strict doctor");
+    assert(doctor.health === "ok", `Expected strict doctor health to be ok, found ${doctor.health}.`);
+
+    await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- local edit from release smoke -->\n", "utf8");
+
+    const updateDryRun = runJson(
+      "node",
+      ["dist/index.js", "update", "starter-dev-pack", "--cwd", projectDir, "--dry-run", "--json"],
+      "Lifecycle update dry run"
+    );
+    assert(updateDryRun.skipped === 1, `Expected update dry run to skip one modified file, found ${updateDryRun.skipped}.`);
+    assert(hasAction(updateDryRun.updates, "skip-modified"), "Expected update dry run to report a skip-modified action.");
+
+    const uninstallDryRun = runJson(
+      "node",
+      ["dist/index.js", "uninstall", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--dry-run", "--json"],
+      "Lifecycle uninstall dry run"
+    );
+    assert(uninstallDryRun.removed === 3, `Expected uninstall dry run to remove three clean files, found ${uninstallDryRun.removed}.`);
+    assert(uninstallDryRun.skipped === 1, `Expected uninstall dry run to skip one modified file, found ${uninstallDryRun.skipped}.`);
+    assert(hasAction(uninstallDryRun.uninstalls, "skip-modified"), "Expected uninstall dry run to report a skip-modified action.");
+
+    const uninstall = runJson(
+      "node",
+      ["dist/index.js", "uninstall", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--json"],
+      "Lifecycle uninstall"
+    );
+    assert(uninstall.removed === 3, `Expected uninstall to remove three clean files, found ${uninstall.removed}.`);
+    assert(uninstall.skipped === 1, `Expected uninstall to preserve one modified file, found ${uninstall.skipped}.`);
+
+    const partialStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle partial status");
+    assert(partialStatus.installCount === 1, "Expected skipped modified file to remain tracked after uninstall.");
+    const remainingFiles = partialStatus.installs?.[0]?.files ?? [];
+    assert(remainingFiles.length === 1, `Expected one remaining tracked file, found ${remainingFiles.length}.`);
+    assert(remainingFiles[0]?.state === "modified", `Expected remaining file to be modified, found ${remainingFiles[0]?.state}.`);
+
+    const forceUninstall = runJson(
+      "node",
+      ["dist/index.js", "uninstall", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--force", "--json"],
+      "Lifecycle force uninstall"
+    );
+    assert(forceUninstall.removed === 1, `Expected force uninstall to remove the remaining file, found ${forceUninstall.removed}.`);
+    assert(forceUninstall.skipped === 0, `Expected force uninstall to skip zero files, found ${forceUninstall.skipped}.`);
+
+    const finalStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle final status");
+    assert(finalStatus.installCount === 0, `Expected no installs after force uninstall, found ${finalStatus.installCount}.`);
+
+    checks.push("Lifecycle smoke assertions");
+  } finally {
+    await rm(projectDir, { recursive: true, force: true });
+  }
+}
+
+function runJson(command, args, label) {
+  const result = run(command, args, label);
+  try {
+    return JSON.parse(result.stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${label} did not return valid JSON: ${message}`);
+  }
+}
+
+function hasAction(summaries, action) {
+  return summaries?.some((summary) => summary.changes?.some((change) => change.action === action)) ?? false;
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
 }
 
 function verifyTarball(packOutput) {
