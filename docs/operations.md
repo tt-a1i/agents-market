@@ -7,10 +7,12 @@ This runbook covers the production controls that keep Agents Market safe to oper
 Protect `main` before accepting external contributions:
 
 - Require pull requests before merging.
-- Require passing CI on the latest commit.
+- Require passing checks on the latest commit: `test`, `registry-review`, `CodeQL`, and `Dependency Review`.
 - Require review from CODEOWNERS.
 - Dismiss stale approvals when new commits are pushed.
 - Restrict force pushes and branch deletion.
+
+`registry-review` intentionally runs on every pull request so it can be configured as a required check. `test` runs `npm run release:check`, while the dedicated security checks keep CodeQL and dependency review visible as independent merge gates.
 
 Sensitive paths are owned in `.github/CODEOWNERS`, including registry content, release workflows, dependency automation, release scripts, security policy, and package metadata. `npm run release:check` validates that the expected CODEOWNERS coverage is present.
 

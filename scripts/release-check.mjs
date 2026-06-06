@@ -746,6 +746,7 @@ async function runRepositoryAutomationSmoke() {
   assert(ciWorkflow.includes("persist-credentials: false"), "CI workflow should avoid persisting checkout credentials.");
 
   const registryReviewWorkflow = await readFile(".github/workflows/registry-review.yml", "utf8");
+  assert(!registryReviewWorkflow.includes("paths:"), "Registry Review workflow should run on every pull request so it can be a required check.");
   assert(registryReviewWorkflow.includes("contents: read"), "Registry Review workflow should keep read-only contents permission.");
   assert(registryReviewWorkflow.includes("pull-requests: write"), "Registry Review workflow should be allowed to update PR comments.");
   assert(registryReviewWorkflow.includes("group: registry-review-${{ github.ref }}"), "Registry Review workflow should cancel superseded runs by ref.");

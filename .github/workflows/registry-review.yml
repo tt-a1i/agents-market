@@ -5,13 +5,6 @@ env:
 
 on:
   pull_request:
-    paths:
-      - "registry/**"
-      - "scripts/registry-submission-check.mjs"
-      - "docs/contributing-agents.md"
-      - ".github/workflows/registry-review.yml"
-      - ".github/pull_request_template.md"
-      - ".github/ISSUE_TEMPLATE/agent_pack_submission.yml"
 
 concurrency:
   group: registry-review-${{ github.ref }}
