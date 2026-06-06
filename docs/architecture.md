@@ -47,6 +47,7 @@ agents-market status
 agents-market update
 agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
+agents-market registry info --registry ./registry.bundle.json
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry lint --strict
@@ -99,6 +100,8 @@ The CLI supports multiple registry sources:
 - agents
 - packs
 - sha256 checksum
+
+`agents-market registry info` reports source type, version, checksum, pack count, agent count, target support, and pack inventory for bundled, local, file, or hosted registry sources.
 
 `agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands prefer that lockfile and verify its source/version/checksum when present. For installed-pack maintenance, the CLI then falls back to the registry source recorded in `.agents-market/manifest.json`, and only then to the bundled registry.
 

@@ -3,7 +3,7 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { dirname, resolve, sep } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createRegistryBundle, loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
+import { createRegistryBundle, loadRegistryWithInfo, summarizeRegistry, verifyRegistryLock } from "./registry.js";
 import { buildCatalog, verifyCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
@@ -1136,6 +1136,31 @@ packCommand
   );
 
 const registryCommand = program.command("registry").description("Registry utilities");
+
+registryCommand
+  .command("info")
+  .option("--registry <source>", "registry source to inspect", "bundled")
+  .option("--json", "print machine-readable JSON")
+  .description("Inspect registry source, version, checksum, and pack inventory")
+  .action(async (options: { registry: string; json?: boolean }) => {
+    const loaded = await loadRegistryWithInfo(options.registry);
+    const summary = summarizeRegistry(loaded);
+    if (options.json) {
+      console.log(JSON.stringify(summary, null, 2));
+      return;
+    }
+    console.log(pc.bold("Registry"));
+    console.log(`- source: ${summary.source.value}`);
+    console.log(`- kind: ${summary.source.kind}`);
+    if (summary.source.version) console.log(`- version: ${summary.source.version}`);
+    if (summary.source.sha256) console.log(`- sha256: ${summary.source.sha256}`);
+    console.log(`- packs: ${summary.packCount}`);
+    console.log(`- agents: ${summary.agentCount}`);
+    console.log(`- target support: claude ${summary.targets.claude}, codex ${summary.targets.codex}, opencode ${summary.targets.opencode}`);
+    for (const pack of summary.packs) {
+      console.log(`  ${pc.cyan(pack.id)} ${pack.version} - ${pack.agentCount} agents`);
+    }
+  });
 
 registryCommand
   .command("export")

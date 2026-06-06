@@ -17,6 +17,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market apply --target all --json");
       expect(file.content).toContain("agents-market apply <pack-id> --target all --json");
       expect(file.content).toContain("agents-market apply <pack-id> --target all --yes");
+      expect(file.content).toContain("agents-market registry info --registry <source> --json");
       expect(file.content).toContain("agents-market pack create");
       expect(file.content).toContain("agents-market status --json");
       expect(file.content).toContain("agents-market doctor --strict --json");

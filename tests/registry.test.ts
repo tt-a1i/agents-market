@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRegistryBundle, loadRegistry, verifyRegistryLock } from "../src/registry.js";
+import { createRegistryBundle, loadRegistry, summarizeRegistry, verifyRegistryLock } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { auditPack } from "../src/audit.js";
 import { runDoctor } from "../src/doctor.js";
@@ -167,6 +167,22 @@ describe("registry", () => {
     expect(bundle.schemaVersion).toBe(1);
     expect(bundle.sha256).toHaveLength(64);
     expect(bundle.packs.length).toBe(registry.packs.length);
+  });
+
+  it("summarizes registry source and pack inventory", async () => {
+    const registry = await loadRegistry();
+    const summary = summarizeRegistry({
+      registry,
+      source: { kind: "bundled", value: "bundled" }
+    });
+
+    expect(summary.source.kind).toBe("bundled");
+    expect(summary.packCount).toBe(registry.packs.length);
+    expect(summary.agentCount).toBe(registry.agents.length);
+    expect(summary.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
+    expect(summary.targets.claude).toBeGreaterThan(0);
+    expect(summary.targets.codex).toBeGreaterThan(0);
+    expect(summary.targets.opencode).toBeGreaterThan(0);
   });
 
   it("verifies locked registry checksums", async () => {

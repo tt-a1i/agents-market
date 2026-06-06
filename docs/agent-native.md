@@ -15,7 +15,7 @@ Shall I install it?
 ## Agent-Native Flow
 
 1. Inspect the project.
-2. If the user or organization has a registry URL, run `agents-market registry lock --registry <source>`.
+2. If the user or organization has a registry URL, run `agents-market registry info --registry <source> --json`, summarize the source/version/checksum, then run `agents-market registry lock --registry <source>` after confirmation.
 3. Run `agents-market apply --target <target> --json` to preview the recommended pack, audit, policy result, and file diff.
 4. If the user names a pack, run `agents-market apply <pack> --target <target> --json` instead.
 5. Explain files, permissions, policy findings, and command-running risk.
@@ -27,6 +27,7 @@ For agent-native integrations, prefer structured output where available:
 
 ```bash
 agents-market recommend --json
+agents-market registry info --registry <source> --json
 agents-market apply --target <target> --json
 agents-market apply <pack> --target <target> --yes
 agents-market search <query> --json

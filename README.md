@@ -77,6 +77,8 @@ agents-market update --dry-run --json
 agents-market uninstall starter-dev-pack --target claude
 agents-market uninstall starter-dev-pack --target claude --dry-run --json
 agents-market export frontend-pack --target all --out ./generated
+agents-market registry info
+agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry verify-lock
@@ -121,6 +123,7 @@ Commands that read packs support a registry source:
 
 ```bash
 agents-market list --registry bundled
+agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json
 agents-market diff starter-dev-pack --registry ./registry.bundle.json
 agents-market install starter-dev-pack --registry https://example.com/registry.bundle.json
 ```
@@ -148,6 +151,15 @@ Verify a lock explicitly:
 agents-market registry verify-lock
 agents-market registry verify-lock --json
 ```
+
+Inspect a registry before locking or installing:
+
+```bash
+agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json
+agents-market registry info --registry ./registry.bundle.json --json
+```
+
+`registry info` reports source type, source URL/path, version, checksum, pack count, agent count, target support, and pack inventory. Agent-native workflows can use the JSON output to summarize a hosted registry before asking the user to lock or install from it.
 
 Lint a registry before publishing:
 

@@ -15,6 +15,20 @@ export interface LoadedRegistry {
   };
 }
 
+export interface RegistrySummary {
+  source: LoadedRegistry["source"];
+  packCount: number;
+  agentCount: number;
+  packs: Array<{
+    id: string;
+    name: string;
+    version: string;
+    agentCount: number;
+    tags: string[];
+  }>;
+  targets: Record<"claude" | "codex" | "opencode", number>;
+}
+
 async function readJsonFiles<T>(dir: string, parse: (value: unknown) => T): Promise<T[]> {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = entries
@@ -115,6 +129,32 @@ export async function loadRegistryWithInfo(source?: string): Promise<LoadedRegis
   return {
     registry: bundle,
     source: { kind: "file", value: path, version: bundle.version, sha256: bundle.sha256 }
+  };
+}
+
+export function summarizeRegistry(loaded: LoadedRegistry): RegistrySummary {
+  const targets: RegistrySummary["targets"] = {
+    claude: 0,
+    codex: 0,
+    opencode: 0
+  };
+  for (const agent of loaded.registry.agents) {
+    for (const target of agent.recommendedTargets) {
+      targets[target] += 1;
+    }
+  }
+  return {
+    source: loaded.source,
+    packCount: loaded.registry.packs.length,
+    agentCount: loaded.registry.agents.length,
+    packs: loaded.registry.packs.map((pack) => ({
+      id: pack.id,
+      name: pack.name,
+      version: pack.version,
+      agentCount: pack.agents.length,
+      tags: pack.tags
+    })),
+    targets
   };
 }
 

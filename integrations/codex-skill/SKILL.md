@@ -10,7 +10,7 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 ## Workflow
 
 1. Inspect the repository briefly so you understand the project type.
-2. If the user provides a registry URL or bundle path, run `agents-market registry lock --registry <source>`.
+2. If the user provides a registry URL or bundle path, run `agents-market registry info --registry <source> --json`, summarize the source/version/checksum, then run `agents-market registry lock --registry <source>` after confirmation.
 3. Run `agents-market apply --target all --json` to preview the recommended pack, audit, policy result, and file diff.
 4. If the user names a pack, run `agents-market apply <pack-id> --target all --json` instead.
 5. If the user wants a small custom set, run `agents-market search <query> --json`, create a pack with `agents-market pack create <pack-id> --agent <ids...> --out ./registry/packs`, then preview it with `agents-market apply <pack-id> --target all --json`.
