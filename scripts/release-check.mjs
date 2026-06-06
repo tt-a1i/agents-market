@@ -242,6 +242,41 @@ async function runLifecycleSmoke() {
       init.integrations?.some((file) => file.path === ".claude/skills/agents-market-installer/SKILL.md"),
       "Lifecycle init did not plan the Claude installer skill."
     );
+    const dryInitProjectDir = await mkdtemp(join(tmpdir(), "agents-market-init-dry-"));
+    try {
+      const dryInit = runJson(
+        "node",
+        ["dist/index.js", "init", "--cwd", dryInitProjectDir, "--target", "codex", "--dry-run", "--json"],
+        "Lifecycle init dry-run"
+      );
+      assert(dryInit.dryRun === true, "Lifecycle init --dry-run should report dryRun true.");
+      assert(dryInit.lockWritten === false, "Lifecycle init --dry-run should not write a registry lock.");
+      assert(
+        dryInit.nextCommands?.some((command) => command === "agents-market init --target codex --registry bundled"),
+        `Lifecycle init --dry-run should tell users how to confirm writing files, found: ${JSON.stringify(dryInit.nextCommands)}.`
+      );
+      assert(
+        !dryInit.nextCommands?.includes("agents-market registry verify-lock --json"),
+        "Lifecycle init --dry-run should not suggest registry verify-lock before a lock is written."
+      );
+    } finally {
+      await rm(dryInitProjectDir, { recursive: true, force: true });
+    }
+    const noLockProjectDir = await mkdtemp(join(tmpdir(), "agents-market-init-nolock-"));
+    try {
+      const noLockInit = runJson(
+        "node",
+        ["dist/index.js", "init", "--cwd", noLockProjectDir, "--target", "opencode", "--no-lock", "--json"],
+        "Lifecycle init no-lock"
+      );
+      assert(noLockInit.lockWritten === false, "Lifecycle init --no-lock should not write a registry lock.");
+      assert(
+        !noLockInit.nextCommands?.some((command) => command.includes("registry verify-lock")),
+        "Lifecycle init --no-lock should not suggest registry lock verification."
+      );
+    } finally {
+      await rm(noLockProjectDir, { recursive: true, force: true });
+    }
 
     const lock = runJson("node", ["dist/index.js", "registry", "verify-lock", "--cwd", projectDir, "--json"], "Lifecycle verify lock");
     assert(lock.ok === true, "Lifecycle registry lock verification failed.");

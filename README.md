@@ -180,7 +180,7 @@ agents-market init --target all
 agents-market init --target claude --dry-run --json
 ```
 
-`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `apply --json`, `apply --yes`, and `doctor --strict --json` commands. It does not install the recommended pack automatically; pack installation still requires explicit confirmation with `apply --yes`.
+`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `apply --json`, `apply --yes`, and `doctor --strict --json` commands. Dry-run output first shows the confirming `init ...` command and does not suggest `registry verify-lock` until a lock has actually been written. It does not install the recommended pack automatically; pack installation still requires explicit confirmation with `apply --yes`.
 
 ## Registry Sources
 

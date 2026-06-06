@@ -267,6 +267,16 @@ program
         }
         await writeGeneratedFiles(root, integrationFiles);
       }
+      const initConfirmCommand = [
+        "agents-market init",
+        `--target ${target}`,
+        options.registry ? `--registry ${options.registry}` : undefined,
+        options.lock === false ? "--no-lock" : undefined
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const lockNextCommands =
+        options.lock === false ? [] : options.dryRun ? [`${initConfirmCommand}`] : ["agents-market registry verify-lock --json"];
 
       const result = {
         root,
@@ -287,7 +297,7 @@ program
         audit,
         diff,
         nextCommands: [
-          ...(options.lock === false ? [] : ["agents-market registry verify-lock --json"]),
+          ...lockNextCommands,
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --json`,
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --yes`,
           "agents-market doctor --strict --json"

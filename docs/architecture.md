@@ -81,6 +81,7 @@ The manifest records:
 
 This gives the installer a lifecycle:
 
+- `init` previews or writes the project registry lock and agent-native integration files, detects the project, recommends a pack, and emits next commands. Dry-run output starts with the confirming `init ...` command and only suggests `registry verify-lock` after a lock is written.
 - `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
 - `plan` creates a project-aware confirmation payload for a selected pack, including registry source, pack metadata, file changes, audit risk, compatibility, optional policy results, readiness, and next commands.
 - `apply`, `install`, and `update` check pack compatibility requirements such as `requires.agentsMarket` before writing files.
