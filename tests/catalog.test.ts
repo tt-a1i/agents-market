@@ -21,7 +21,8 @@ describe("catalog", () => {
     const files = await buildCatalog(registry, {
       outDir: cleanupPath,
       version: "0.1.0",
-      title: "Agents Market Test"
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market"
     });
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
@@ -35,12 +36,18 @@ describe("catalog", () => {
     expect(html).toContain("starter-dev-pack");
     expect(html).toContain("Source");
     expect(html).toContain("risk:");
-    expect(html).toContain("npx @agents-market/cli install starter-dev-pack");
-    expect(html).toContain("npx @agents-market/cli audit starter-dev-pack");
+    expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
+    expect(html).toContain(
+      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+    );
+    expect(html).toContain(
+      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+    );
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
       agentCount: number;
+      registryBundleUrl: string;
       packs: Array<{
         id: string;
         installCommand: string;
@@ -53,9 +60,14 @@ describe("catalog", () => {
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
+    expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
-    expect(starterPack?.installCommand).toContain("npx @agents-market/cli install starter-dev-pack");
-    expect(starterPack?.auditCommand).toContain("npx @agents-market/cli audit starter-dev-pack");
+    expect(starterPack?.installCommand).toContain(
+      "npx @agents-market/cli install starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+    );
+    expect(starterPack?.auditCommand).toContain(
+      "npx @agents-market/cli audit starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json"
+    );
     expect(starterPack?.audit.risk).toBe("high");
     expect(starterPack?.audit.fileCount).toBe(12);
   });

@@ -13,7 +13,11 @@ async function main() {
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));
   try {
-    run("node", ["dist/index.js", "catalog", "build", "--out", siteDir], "Catalog build");
+    run(
+      "node",
+      ["dist/index.js", "catalog", "build", "--out", siteDir, "--base-url", "https://example.com/agents-market"],
+      "Catalog build"
+    );
   } finally {
     await rm(siteDir, { recursive: true, force: true });
   }

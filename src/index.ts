@@ -1020,13 +1020,15 @@ catalogCommand
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .option("--version <version>", "catalog registry bundle version", BUNDLED_REGISTRY_VERSION)
   .option("--title <title>", "catalog site title", "Agents Market")
+  .option("--base-url <url>", "public base URL used in copyable registry commands")
   .description("Build a static Web catalog for packs and agents")
-  .action(async (options: { out: string; registry?: string; version: string; title: string }) => {
+  .action(async (options: { out: string; registry?: string; version: string; title: string; baseUrl?: string }) => {
     const { registry } = await loadRegistryWithInfo(options.registry);
     const files = await buildCatalog(registry, {
       outDir: resolve(options.out),
       version: options.version,
-      title: options.title
+      title: options.title,
+      baseUrl: options.baseUrl
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });

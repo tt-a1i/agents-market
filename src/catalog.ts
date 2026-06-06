@@ -8,6 +8,7 @@ export interface CatalogOptions {
   outDir: string;
   version: string;
   title?: string;
+  baseUrl?: string;
 }
 
 export async function buildCatalog(registry: Registry, options: CatalogOptions): Promise<string[]> {
@@ -15,12 +16,15 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   await mkdir(options.outDir, { recursive: true });
 
   const bundle = createRegistryBundle(registry, options.version, "agents-market");
+  const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
   const catalog = {
     title,
     generatedAt: new Date().toISOString(),
+    baseUrl: options.baseUrl,
+    registryBundleUrl: bundleUrl,
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
-    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, "registry.bundle.json")),
+    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl)),
     agents: registry.agents
   };
 
@@ -35,7 +39,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     },
     {
       name: "index.html",
-      content: renderHtml(title, registry, "registry.bundle.json")
+      content: renderHtml(title, registry, bundleUrl)
     }
   ];
 
@@ -44,6 +48,11 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   }
 
   return files.map((file) => join(options.outDir, file.name));
+}
+
+function assetUrl(path: string, baseUrl?: string): string {
+  if (!baseUrl) return path;
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 function renderHtml(title: string, registry: Registry, bundlePath: string): string {
