@@ -56,6 +56,12 @@ export interface RegistryChangelogEntry {
   removed?: string[];
 }
 
+export interface RegistrySignature {
+  keyId: string;
+  algorithm: "ed25519";
+  signature: string;
+}
+
 export interface Registry {
   agents: AgentDefinition[];
   packs: PackDefinition[];
@@ -70,6 +76,7 @@ export interface RegistryBundle {
   agents: AgentDefinition[];
   packs: PackDefinition[];
   changelog?: RegistryChangelogEntry[];
+  signatures?: RegistrySignature[];
   sha256?: string;
 }
 

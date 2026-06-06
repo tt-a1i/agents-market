@@ -1,9 +1,10 @@
 import { stat, readFile, readdir } from "node:fs/promises";
+import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 import { isAbsolute, join, resolve } from "node:path";
 import { registryRoot } from "./paths.js";
 import { agentSchema, changelogEntrySchema, packSchema, registryBundleSchema } from "./schema.js";
 import { sha256 } from "./hash.js";
-import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock } from "./types.js";
+import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock, RegistrySignature } from "./types.js";
 
 export interface LoadedRegistry {
   registry: Registry;
@@ -193,6 +194,61 @@ export function createRegistryBundle(registry: Registry, version: string, name =
   };
 }
 
+export function signRegistryBundle(bundle: RegistryBundle, privateKeyPem: string, keyId: string): RegistryBundle {
+  const sha = registryBundleHash(bundle);
+  const signature: RegistrySignature = {
+    keyId,
+    algorithm: "ed25519",
+    signature: cryptoSign(null, registrySignaturePayload(sha), createPrivateKey(privateKeyPem)).toString("base64")
+  };
+  return {
+    ...bundle,
+    sha256: sha,
+    signatures: [...(bundle.signatures ?? []).filter((candidate) => candidate.keyId !== keyId), signature]
+  };
+}
+
+export function verifyRegistryBundleSignature(
+  bundle: RegistryBundle,
+  publicKeyPem: string,
+  keyId?: string
+): { ok: boolean; keyId?: string; algorithm?: RegistrySignature["algorithm"]; error?: string } {
+  const sha = registryBundleHash(bundle);
+  if (bundle.sha256 && bundle.sha256 !== sha) {
+    return { ok: false, error: "Registry bundle checksum mismatch." };
+  }
+
+  const signatures = bundle.signatures ?? [];
+  const candidates = keyId ? signatures.filter((signature) => signature.keyId === keyId) : signatures;
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      keyId,
+      error: keyId ? `No signature found for key id ${keyId}.` : "Registry bundle does not include signatures."
+    };
+  }
+
+  const publicKey = createPublicKey(publicKeyPem);
+  for (const signature of candidates) {
+    if (signature.algorithm !== "ed25519") continue;
+    const verified = cryptoVerify(
+      null,
+      registrySignaturePayload(sha),
+      publicKey,
+      Buffer.from(signature.signature, "base64")
+    );
+    if (verified) {
+      return { ok: true, keyId: signature.keyId, algorithm: signature.algorithm };
+    }
+  }
+
+  return {
+    ok: false,
+    keyId,
+    error: keyId ? `Signature verification failed for key id ${keyId}.` : "Signature verification failed."
+  };
+}
+
 export function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock): void {
   if (loaded.source.value !== lock.source) {
     throw new Error(`Registry lock source mismatch: expected ${lock.source}, loaded ${loaded.source.value}`);
@@ -207,7 +263,7 @@ export function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock): 
   }
 }
 
-function registryBundleHash(bundle: Omit<RegistryBundle, "sha256">): string {
+function registryBundleHash(bundle: RegistryBundle | Omit<RegistryBundle, "sha256">): string {
   return sha256(
     JSON.stringify({
       schemaVersion: bundle.schemaVersion,
@@ -219,6 +275,10 @@ function registryBundleHash(bundle: Omit<RegistryBundle, "sha256">): string {
       changelog: bundle.changelog
     })
   );
+}
+
+function registrySignaturePayload(sha: string): Buffer {
+  return Buffer.from(`agents-market-registry-v1\n${sha}`, "utf8");
 }
 
 async function readChangelog(root: string): Promise<Registry["changelog"]> {

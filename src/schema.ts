@@ -72,10 +72,17 @@ export const registrySchema = z.object({
   changelog: z.array(changelogEntrySchema).optional()
 });
 
+export const registrySignatureSchema = z.object({
+  keyId: z.string().min(1),
+  algorithm: z.literal("ed25519"),
+  signature: z.string().min(1)
+});
+
 export const registryBundleSchema = registrySchema.extend({
   schemaVersion: z.literal(1),
   name: z.string().min(1),
   version: z.string().min(1),
   exportedAt: z.string().min(1),
+  signatures: z.array(registrySignatureSchema).optional(),
   sha256: z.string().optional()
 });

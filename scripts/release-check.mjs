@@ -1,4 +1,5 @@
-import { appendFile, mkdtemp, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -18,6 +19,7 @@ async function main() {
   const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
+  await runRegistrySignatureSmoke();
   run("node", ["scripts/registry-submission-check.mjs"], "Registry submission gate");
   run("npm", ["test"], "Unit tests");
 
@@ -226,6 +228,54 @@ async function runLifecycleSmoke() {
     checks.push("Lifecycle smoke assertions");
   } finally {
     await rm(projectDir, { recursive: true, force: true });
+  }
+}
+
+async function runRegistrySignatureSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-signature-"));
+  try {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPath = join(dir, "registry-private.pem");
+    const publicKeyPath = join(dir, "registry-public.pem");
+    const bundlePath = join(dir, "registry.bundle.json");
+    await writeFile(privateKeyPath, privateKey.export({ format: "pem", type: "pkcs8" }).toString(), "utf8");
+    await writeFile(publicKeyPath, publicKey.export({ format: "pem", type: "spki" }).toString(), "utf8");
+
+    run(
+      "node",
+      [
+        "dist/index.js",
+        "registry",
+        "export",
+        "--out",
+        bundlePath,
+        "--private-key",
+        privateKeyPath,
+        "--key-id",
+        "release-test"
+      ],
+      "Signed registry export"
+    );
+    const verified = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "registry",
+        "verify",
+        "--registry",
+        bundlePath,
+        "--public-key",
+        publicKeyPath,
+        "--key-id",
+        "release-test",
+        "--json"
+      ],
+      "Signed registry verify"
+    );
+    assert(verified.ok === true, "Signed registry verification failed.");
+    assert(verified.signatures?.verified?.ok === true, "Expected signed registry verification result to be ok.");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 }
 

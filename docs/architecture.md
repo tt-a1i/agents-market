@@ -102,8 +102,11 @@ The CLI supports multiple registry sources:
 - packs
 - changelog entries
 - sha256 checksum
+- optional Ed25519 signatures
 
 `agents-market registry info` reports source type, version, checksum, pack count, agent count, target support, changelog status, and pack inventory for bundled, local, file, or hosted registry sources. `agents-market registry changelog` exposes release history for humans and agent-native wrappers.
+
+`agents-market registry export --private-key <pem> --key-id <id>` signs an exported bundle with Ed25519. The signature covers the bundle checksum, and the checksum covers the registry payload. `agents-market registry verify --public-key <pem> --key-id <id>` validates the checksum and signature before a hosted bundle is locked or installed from.
 
 `agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands prefer that lockfile and verify its source/version/checksum when present. For installed-pack maintenance, the CLI then falls back to the registry source recorded in `.agents-market/manifest.json`, and only then to the bundled registry.
 
@@ -180,7 +183,6 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 ## Future Production Requirements
 
 - Pack version constraints and update checks.
-- Registry signature verification.
 - Manifest conflict resolution and richer drift reports.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.

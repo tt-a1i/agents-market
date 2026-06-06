@@ -81,6 +81,8 @@ agents-market registry info --registry https://tt-a1i.github.io/agents-market/re
 agents-market registry changelog
 agents-market registry changelog --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
 agents-market registry export --out ./registry.bundle.json
+agents-market registry export --out ./registry.bundle.json --private-key ./registry-private.pem --key-id main
+agents-market registry verify --registry ./registry.bundle.json --public-key ./registry-public.pem --key-id main --json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry verify-lock
 agents-market registry lint --strict
@@ -169,6 +171,15 @@ View registry release history:
 agents-market registry changelog
 agents-market registry changelog --registry ./registry.bundle.json --json
 ```
+
+Sign and verify a portable bundle:
+
+```bash
+agents-market registry export --out ./registry.bundle.json --private-key ./registry-private.pem --key-id main
+agents-market registry verify --registry ./registry.bundle.json --public-key ./registry-public.pem --key-id main --json
+```
+
+Bundle signatures use Ed25519 and cover the registry bundle checksum. `registry verify` always validates the bundle checksum while loading the source; when a public key is provided, it also verifies the matching signature. Hosted marketplace catalogs can publish the public key separately so agent-native installers can verify a bundle before locking or installing from it.
 
 Lint a registry before publishing:
 

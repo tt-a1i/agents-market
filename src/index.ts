@@ -3,7 +3,14 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { dirname, resolve, sep } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { createRegistryBundle, loadRegistryWithInfo, summarizeRegistry, verifyRegistryLock } from "./registry.js";
+import {
+  createRegistryBundle,
+  loadRegistryWithInfo,
+  signRegistryBundle,
+  summarizeRegistry,
+  verifyRegistryBundleSignature,
+  verifyRegistryLock
+} from "./registry.js";
 import { buildCatalog, verifyCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
@@ -29,7 +36,7 @@ import {
   upsertInstallEntry
 } from "./manifest.js";
 import { sha256 } from "./hash.js";
-import type { ManifestFileEntry, ManifestInstallEntry, Target } from "./types.js";
+import type { ManifestFileEntry, ManifestInstallEntry, RegistryBundle, Target } from "./types.js";
 
 const program = new Command();
 const BUNDLED_REGISTRY_VERSION = "0.1.0";
@@ -1209,14 +1216,87 @@ registryCommand
   .option("--registry <source>", "registry source to bundle", "bundled")
   .option("--name <name>", "bundle name", "agents-market")
   .option("--version <version>", "bundle version", BUNDLED_REGISTRY_VERSION)
+  .option("--private-key <path>", "Ed25519 private key PEM used to sign the exported bundle")
+  .option("--key-id <id>", "signature key id")
   .description("Export a registry source as a single portable JSON bundle")
-  .action(async (options: { out: string; registry: string; name: string; version: string }) => {
-    const { registry } = await loadRegistryWithInfo(options.registry);
-    const bundle = createRegistryBundle(registry, options.version, options.name);
-    const out = resolve(options.out);
-    await mkdir(dirname(out), { recursive: true });
-    await writeFile(out, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
-    console.log(pc.green(`Wrote registry bundle to ${out}`));
+  .action(
+    async (options: {
+      out: string;
+      registry: string;
+      name: string;
+      version: string;
+      privateKey?: string;
+      keyId?: string;
+    }) => {
+      const { registry } = await loadRegistryWithInfo(options.registry);
+      let bundle = createRegistryBundle(registry, options.version, options.name);
+      if (options.privateKey) {
+        if (!options.keyId) throw new Error("--key-id is required when --private-key is provided.");
+        const privateKey = await readFile(resolve(options.privateKey), "utf8");
+        bundle = signRegistryBundle(bundle, privateKey, options.keyId);
+      }
+      const out = resolve(options.out);
+      await mkdir(dirname(out), { recursive: true });
+      await writeFile(out, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+      console.log(pc.green(`Wrote registry bundle to ${out}`));
+    }
+  );
+
+registryCommand
+  .command("verify")
+  .option("--registry <source>", "registry bundle source to verify", "bundled")
+  .option("--public-key <path>", "Ed25519 public key PEM used to verify a bundle signature")
+  .option("--key-id <id>", "signature key id to verify")
+  .option("--json", "print machine-readable JSON")
+  .description("Verify registry checksum and optional bundle signature")
+  .action(async (options: { registry: string; publicKey?: string; keyId?: string; json?: boolean }) => {
+    try {
+      const loaded = await loadRegistryWithInfo(options.registry);
+      const bundle = loaded.registry as RegistryBundle;
+      const signatures = bundle.signatures ?? [];
+      const signature = options.publicKey
+        ? verifyRegistryBundleSignature(bundle, await readFile(resolve(options.publicKey), "utf8"), options.keyId)
+        : undefined;
+      const checksumOk = Boolean(loaded.source.sha256 || loaded.source.kind === "bundled" || loaded.source.kind === "directory");
+      const ok = checksumOk && (!signature || signature.ok);
+      const result = {
+        ok,
+        source: loaded.source,
+        checksum: {
+          ok: checksumOk,
+          sha256: loaded.source.sha256
+        },
+        signatures: {
+          count: signatures.length,
+          verified: signature
+        }
+      };
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(pc.bold("Registry verification"));
+        console.log(`- source: ${loaded.source.value}`);
+        console.log(`- checksum: ${result.checksum.ok ? pc.green("ok") : pc.yellow("not available")}`);
+        console.log(`- signatures: ${signatures.length}`);
+        if (signature) {
+          console.log(`- signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red(signature.error ?? "failed")}`);
+        }
+      }
+      if (!ok) process.exitCode = 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        ok: false,
+        source: options.registry,
+        error: message
+      };
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(pc.red(`Registry verification failed: ${message}`));
+      }
+      process.exitCode = 1;
+    }
   });
 
 registryCommand

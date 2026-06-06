@@ -1,8 +1,16 @@
 import { mkdtemp, rm } from "node:fs/promises";
+import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRegistryBundle, loadRegistry, summarizeRegistry, verifyRegistryLock } from "../src/registry.js";
+import {
+  createRegistryBundle,
+  loadRegistry,
+  signRegistryBundle,
+  summarizeRegistry,
+  verifyRegistryBundleSignature,
+  verifyRegistryLock
+} from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { auditPack } from "../src/audit.js";
 import { runDoctor } from "../src/doctor.js";
@@ -169,6 +177,26 @@ describe("registry", () => {
     expect(bundle.sha256).toHaveLength(64);
     expect(bundle.packs.length).toBe(registry.packs.length);
     expect(bundle.changelog?.[0]?.summary).toContain("Initial public registry");
+  });
+
+  it("signs and verifies portable registry bundles", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+    const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
+    const registry = await loadRegistry();
+    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry");
+    const signed = signRegistryBundle(bundle, privateKeyPem, "test-key");
+
+    expect(signed.signatures?.[0]?.keyId).toBe("test-key");
+    expect(signed.sha256).toBe(bundle.sha256);
+    expect(verifyRegistryBundleSignature(signed, publicKeyPem, "test-key")).toMatchObject({
+      ok: true,
+      keyId: "test-key",
+      algorithm: "ed25519"
+    });
+    expect(verifyRegistryBundleSignature(signed, publicKeyPem, "missing-key")).toMatchObject({
+      ok: false
+    });
   });
 
   it("summarizes registry source and pack inventory", async () => {
