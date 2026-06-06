@@ -67,6 +67,16 @@ export function upsertInstall(
   };
 }
 
+export function upsertInstallEntry(manifest: InstallManifest, entry: ManifestInstallEntry): InstallManifest {
+  return {
+    schemaVersion: 1,
+    installs: [
+      ...manifest.installs.filter((candidate) => !(candidate.packId === entry.packId && candidate.target === entry.target)),
+      entry
+    ]
+  };
+}
+
 export function removeInstall(manifest: InstallManifest, packId: string, target?: Target | "all"): InstallManifest {
   return {
     schemaVersion: 1,

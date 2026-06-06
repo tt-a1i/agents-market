@@ -33,6 +33,7 @@ agents-market init --target <target> --json
 agents-market plan <pack> --target <target>
 agents-market audit <pack> --target <target> --json
 agents-market diff <pack> --target <target> --json
+agents-market update --dry-run --json
 agents-market doctor --json
 ```
 
@@ -43,6 +44,7 @@ Use `pack create` when the user wants a small custom set from individual search 
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `doctor --json` after installation or updates to verify manifest health, registry lock status, generated-file drift, and target directories.
+Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
 
 ## Integration Strategy
 

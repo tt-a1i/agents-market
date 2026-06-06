@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { removeInstall, upsertInstall } from "../src/manifest.js";
+import { removeInstall, upsertInstall, upsertInstallEntry } from "../src/manifest.js";
 import type { InstallManifest } from "../src/types.js";
 
 describe("manifest", () => {
@@ -46,5 +46,26 @@ describe("manifest", () => {
 
     const next = removeInstall(manifest, "starter-dev-pack");
     expect(next.installs.map((entry) => entry.packId)).toEqual(["frontend-pack"]);
+  });
+
+  it("replaces one install entry without touching others", () => {
+    const manifest: InstallManifest = {
+      schemaVersion: 1,
+      installs: [
+        { packId: "starter-dev-pack", target: "claude", installedAt: "old", files: [] },
+        { packId: "frontend-pack", target: "claude", installedAt: "now", files: [] }
+      ]
+    };
+
+    const next = upsertInstallEntry(manifest, {
+      packId: "starter-dev-pack",
+      target: "claude",
+      installedAt: "new",
+      files: [{ path: ".claude/agents/code-reviewer.md", target: "claude", agentId: "code-reviewer", sha256: "hash" }]
+    });
+
+    expect(next.installs).toHaveLength(2);
+    expect(next.installs.find((entry) => entry.packId === "starter-dev-pack")?.installedAt).toBe("new");
+    expect(next.installs.find((entry) => entry.packId === "frontend-pack")?.installedAt).toBe("now");
   });
 });

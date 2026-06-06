@@ -62,6 +62,7 @@ agents-market pack create frontend-lite --agent code-reviewer accessibility-audi
 agents-market status
 agents-market doctor
 agents-market update
+agents-market update --dry-run --json
 agents-market uninstall starter-dev-pack --target claude
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
@@ -87,7 +88,7 @@ This enables drift-aware operations:
 - `update` refreshes installed packs from the current registry.
 - `uninstall` removes generated files while skipping user-modified files by default.
 
-Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+Use `update --dry-run --json` before updating installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
 
 ## Initialize A Project
 

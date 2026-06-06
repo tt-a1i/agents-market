@@ -23,10 +23,11 @@ import {
   removeInstall,
   saveManifest,
   saveRegistryLock,
-  upsertInstall
+  upsertInstall,
+  upsertInstallEntry
 } from "./manifest.js";
 import { sha256 } from "./hash.js";
-import type { Target } from "./types.js";
+import type { ManifestFileEntry, Target } from "./types.js";
 
 const program = new Command();
 const BUNDLED_REGISTRY_VERSION = "0.1.0";
@@ -568,9 +569,11 @@ program
   .argument("[pack]", "optional pack id to update; updates all installed packs when omitted")
   .option("--cwd <path>", "project root to update")
   .option("--force", "overwrite modified generated files")
+  .option("--dry-run", "preview without writing")
+  .option("--json", "print machine-readable JSON")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Update installed packs from the current registry")
-  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; registry?: string }) => {
+  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; dryRun?: boolean; json?: boolean; registry?: string }) => {
     const root = cwd(options.cwd);
     const loaded = await loadProjectRegistry(root, options.registry);
     const registry = loaded.registry;
@@ -585,32 +588,93 @@ program
     let written = 0;
     let skipped = 0;
     let nextManifest = manifest;
+    const summaries = [];
     for (const install of installs) {
       const files = generatePackFiles(registry, install.packId, install.target);
       const safeFiles = [];
+      const manifestFiles: ManifestFileEntry[] = [];
+      const changes = [];
       for (const file of files) {
         const previous = install.files.find((entry) => entry.path === file.path);
         const current = await readExisting(root, file);
         const modified = previous && current !== undefined && sha256(current) !== previous.sha256;
+        const fileState = summarizeFileChange(current, file.content);
         if (modified && !options.force) {
           skipped += 1;
-          console.log(`${pc.yellow("skip modified")} ${file.path}`);
+          changes.push({
+            path: file.path,
+            target: file.target,
+            agentId: file.agent.id,
+            state: fileState,
+            action: "skip-modified"
+          });
+          if (previous) manifestFiles.push(previous);
+          if (!options.json) console.log(`${pc.yellow("skip modified")} ${file.path}`);
           continue;
         }
-        safeFiles.push(file);
+        const action = fileState === "unchanged" ? "unchanged" : fileState === "create" ? "write-create" : "write-update";
+        changes.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agent.id,
+          state: fileState,
+          action
+        });
+        manifestFiles.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agent.id,
+          sha256: sha256(file.content)
+        });
+        if (action !== "unchanged") {
+          safeFiles.push(file);
+        }
       }
 
-      await writeGeneratedFiles(root, safeFiles);
-      written += safeFiles.length;
-      nextManifest = upsertInstall(nextManifest, install.packId, install.target, files, new Date(), {
-        source: loaded.source.value,
-        version: loaded.source.version,
-        sha256: loaded.source.sha256
+      const writeCount = changes.filter((change) => change.action === "write-create" || change.action === "write-update").length;
+      written += writeCount;
+      summaries.push({
+        packId: install.packId,
+        target: install.target,
+        changes
       });
+
+      if (!options.dryRun) {
+        await writeGeneratedFiles(root, safeFiles);
+        nextManifest = upsertInstallEntry(nextManifest, {
+          packId: install.packId,
+          target: install.target,
+          installedAt: new Date().toISOString(),
+          registry: {
+            source: loaded.source.value,
+            version: loaded.source.version,
+            sha256: loaded.source.sha256
+          },
+          files: manifestFiles
+        });
+      }
     }
 
-    await saveManifest(root, nextManifest);
-    console.log(pc.green(`Updated packs: wrote ${written}, skipped ${skipped}.`));
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            dryRun: Boolean(options.dryRun),
+            written,
+            skipped,
+            updates: summaries
+          },
+          null,
+          2
+        )
+      );
+    } else {
+      console.log(pc.green(`${options.dryRun ? "Previewed" : "Updated"} packs: wrote ${written}, skipped ${skipped}.`));
+    }
+
+    if (!options.dryRun) {
+      await saveManifest(root, nextManifest);
+    }
   });
 
 program
