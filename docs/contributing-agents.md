@@ -121,10 +121,11 @@ Run these before opening a pull request:
 
 ```bash
 npm run registry:check
+node dist/index.js registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md
 npm test
 ```
 
-`registry:check` builds the CLI, runs strict registry lint, checks all first-class target support, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
+`registry:check` builds the CLI and runs the same full review gate. `registry review` runs strict registry lint, checks all first-class target support, audits every pack, previews `apply --json` for every pack under the balanced policy, verifies a catalog built from `./registry`, and can write JSON and Markdown summaries for pull request evidence.
 
 Registry-related pull requests run the `Registry Review` workflow automatically. The workflow uploads `registry-submission-summary.json` and `registry-submission-summary.md`, writes the Markdown report to the Actions job summary, and updates a sticky PR comment with lint score, prompt quality, catalog verification, and pack-by-pack audit/apply preview results.
 
@@ -148,6 +149,7 @@ Include this evidence in the PR body:
 - Changelog entry added or updated.
 - Why the agent or pack should exist.
 - Expected user trigger, for example "Next.js app with performance issues".
+- `registry review` JSON or Markdown summary.
 - `registry lint --strict --json` result.
 - `audit --json` result for changed packs.
 - `apply --json` preview summary.

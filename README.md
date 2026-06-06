@@ -113,6 +113,7 @@ agents-market registry lock --registry ./registry.bundle.json
 agents-market registry verify-lock
 agents-market registry lint --strict
 agents-market registry lint --strict --json
+agents-market registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market integrations package --target all --out ./integration-packages
@@ -398,7 +399,7 @@ See [docs/import.md](./docs/import.md).
 
 Agents Market is curated. Before adding or importing registry content, read [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/contributing-agents.md](./docs/contributing-agents.md).
 
-Registry pull requests should include provenance, source checksums, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
+Registry pull requests should include provenance, source checksums, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. Use `agents-market registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md` to generate the same structured evidence package used by CI. The pull request template lists the required evidence.
 
 Registry-related pull requests also run the `Registry Review` GitHub Actions workflow. It uploads JSON and Markdown review artifacts, writes the same pack-by-pack report to the Actions summary, and maintains a sticky PR comment with lint, prompt quality, catalog verification, audit, and apply-preview results.
 

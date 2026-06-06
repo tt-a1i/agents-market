@@ -37,6 +37,7 @@ Useful commands:
 
 ```bash
 npm run registry:check
+node dist/index.js registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md
 node dist/index.js registry lint --registry ./registry --strict --json
 node dist/index.js audit <pack-id> --target all --json
 node dist/index.js apply <pack-id> --target all --policy-preset balanced --json

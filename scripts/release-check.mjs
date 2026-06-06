@@ -49,6 +49,14 @@ async function main() {
   const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
+  const registryReview = runJson(
+    "node",
+    ["dist/index.js", "registry", "review", "--registry", "./registry", "--json"],
+    "Registry review"
+  );
+  assert(registryReview.ok === true, "Expected registry review to pass.");
+  assert(registryReview.packs?.length === registryInfo.packCount, "Expected registry review to include every pack.");
+  assert(registryReview.catalog?.ok === true, "Expected registry review catalog verification to pass.");
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
   await runCiWorkflowSmoke();

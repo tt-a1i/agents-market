@@ -26,6 +26,7 @@ import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
+import { renderRegistryReviewMarkdown, reviewRegistry } from "./registry-review.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import { summarizeTextDrift } from "./drift.js";
 import { versionStatus } from "./version.js";
@@ -1816,6 +1817,47 @@ registryCommand
       process.exitCode = 1;
     }
   });
+
+registryCommand
+  .command("review")
+  .option("--registry <source>", "registry source to review", "./registry")
+  .option("--catalog-base-url <url>", "base URL used for catalog verification commands", "https://example.com/agents-market")
+  .option("--package <spec>", "package spec used by generated catalog commands", "github:tt-a1i/agents-market")
+  .option("--summary-json <path>", "write registry review JSON report")
+  .option("--summary-markdown <path>", "write registry review Markdown report")
+  .option("--json", "print machine-readable JSON")
+  .description("Run the full registry submission review gate")
+  .action(
+    async (options: {
+      registry: string;
+      catalogBaseUrl: string;
+      package: string;
+      summaryJson?: string;
+      summaryMarkdown?: string;
+      json?: boolean;
+    }) => {
+      const loaded = await loadRegistryWithInfo(options.registry);
+      const report = await reviewRegistry({
+        loaded,
+        catalogBaseUrl: options.catalogBaseUrl,
+        packageSpec: options.package
+      });
+      if (options.summaryJson) {
+        await mkdir(dirname(resolve(options.summaryJson)), { recursive: true });
+        await writeFile(resolve(options.summaryJson), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+      }
+      if (options.summaryMarkdown) {
+        await mkdir(dirname(resolve(options.summaryMarkdown)), { recursive: true });
+        await writeFile(resolve(options.summaryMarkdown), renderRegistryReviewMarkdown(report), "utf8");
+      }
+      if (options.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(renderRegistryReviewMarkdown(report));
+      }
+      if (!report.ok) process.exitCode = 1;
+    }
+  );
 
 const integrationsCommand = program.command("integrations").description("Install agent-native installer integrations");
 
