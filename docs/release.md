@@ -33,7 +33,7 @@ The artifact builder stamps `registry.bundle.json`, `catalog/catalog.json`, and 
 
 - `registry.bundle.json`
 - `registry-public.pem` when registry signing secrets are configured
-- `catalog/` with `index.html`, `catalog.json`, `agents-market.json`, `registry.bundle.json`, `site.webmanifest`, `robots.txt`, and `favicon.svg`
+- `catalog/` with `index.html`, `catalog.json`, `agents-market.json`, `registry.bundle.json`, `site.webmanifest`, `robots.txt`, `sitemap.xml`, and `favicon.svg`
 - `agents-market-catalog-<version>.tgz`
 - `agents-market-claude-<version>.tgz`
 - `agents-market-codex-<version>.tgz`

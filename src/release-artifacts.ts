@@ -68,6 +68,7 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
     "catalog/favicon.svg",
     "catalog/registry.bundle.json",
     "catalog/robots.txt",
+    "catalog/sitemap.xml",
     "catalog/site.webmanifest",
     `agents-market-catalog-${version}.tgz`,
     `agents-market-claude-${version}.tgz`,
@@ -104,6 +105,8 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   const catalogHtml = await readText(join(root, "catalog", "index.html"), "catalog/index.html");
   assert(catalogHtml.includes('rel="manifest"') && catalogHtml.includes('href="site.webmanifest"'), "Catalog HTML does not reference site.webmanifest.");
   assert(catalogHtml.includes('rel="icon"') && catalogHtml.includes('href="favicon.svg"'), "Catalog HTML does not reference favicon.svg.");
+  assert(catalogHtml.includes('rel="sitemap"') && catalogHtml.includes('href="sitemap.xml"'), "Catalog HTML does not reference sitemap.xml.");
+  assert(catalogHtml.includes('property="og:title"') && catalogHtml.includes('name="twitter:card"'), "Catalog HTML is missing social preview metadata.");
   const catalogWebManifest = await readJson(join(root, "catalog", "site.webmanifest"), "catalog/site.webmanifest");
   assert(catalogWebManifest.name === catalog.title, "Catalog site.webmanifest name does not match catalog title.");
   assert(
@@ -112,6 +115,8 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   );
   const catalogRobots = await readText(join(root, "catalog", "robots.txt"), "catalog/robots.txt");
   assert(catalogRobots.includes("User-agent: *") && catalogRobots.includes("Allow: /"), "Catalog robots.txt does not allow indexing.");
+  const catalogSitemap = await readText(join(root, "catalog", "sitemap.xml"), "catalog/sitemap.xml");
+  assert(catalogSitemap.includes("<urlset") && catalogSitemap.includes("<loc>"), "Catalog sitemap.xml does not include a URL entry.");
   if (manifestPaths.has("catalog/registry-public.pem")) {
     const catalogRegistry = await readJson(join(root, "catalog", "registry.bundle.json"), "catalog/registry.bundle.json");
     signatures.catalog = await verifyRegistryBundleSignature(catalogRegistry, join(root, "catalog", "registry-public.pem"), "catalog/registry.bundle.json");

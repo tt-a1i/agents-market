@@ -889,6 +889,7 @@ async function runReleaseArtifactsSmoke() {
       "catalog/favicon.svg",
       "catalog/registry.bundle.json",
       "catalog/robots.txt",
+      "catalog/sitemap.xml",
       "catalog/site.webmanifest",
       "sbom.spdx.json",
       `agents-market-catalog-${packageVersion}.tgz`,
@@ -909,6 +910,7 @@ async function runReleaseArtifactsSmoke() {
       "SHA256SUMS",
       "catalog/agents-market.json",
       "catalog/index.html",
+      "catalog/sitemap.xml",
       "catalog/site.webmanifest",
       `npm/agents-market-cli-${packageVersion}.tgz`
     ]) {

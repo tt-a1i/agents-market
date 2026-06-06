@@ -39,7 +39,8 @@ describe("catalog", () => {
       "index.html",
       "registry.bundle.json",
       "robots.txt",
-      "site.webmanifest"
+      "site.webmanifest",
+      "sitemap.xml"
     ]);
 
     const html = await readFile(join(cleanupPath, "index.html"), "utf8");
@@ -80,11 +81,18 @@ describe("catalog", () => {
     expect(html).toContain("Copy failed");
     expect(html).toContain('rel="manifest" href="site.webmanifest"');
     expect(html).toContain('rel="icon" href="favicon.svg"');
+    expect(html).toContain('rel="sitemap" type="application/xml" href="sitemap.xml"');
     expect(html).toContain('rel="canonical" href="https://example.com/agents-market"');
+    expect(html).toContain('property="og:title" content="Agents Market Test"');
+    expect(html).toContain('property="og:url" content="https://example.com/agents-market"');
+    expect(html).toContain('name="twitter:card" content="summary"');
     expect(html).toContain("href=\"https://github.com/example/agents-market\"");
     expect(html).toContain("href=\"https://github.com/example/agents-market/releases/tag/v0.1.0\"");
     expect(html).toContain("commit <code>abcdef123456</code>");
-    expect(await readFile(join(cleanupPath, "robots.txt"), "utf8")).toContain("Allow: /");
+    const robots = await readFile(join(cleanupPath, "robots.txt"), "utf8");
+    expect(robots).toContain("Allow: /");
+    expect(robots).toContain("Sitemap: https://example.com/agents-market/sitemap.xml");
+    expect(await readFile(join(cleanupPath, "sitemap.xml"), "utf8")).toContain("<loc>https://example.com/agents-market</loc>");
     expect(await readFile(join(cleanupPath, "favicon.svg"), "utf8")).toContain("<svg");
     const webManifest = JSON.parse(await readFile(join(cleanupPath, "site.webmanifest"), "utf8")) as {
       name: string;
@@ -292,7 +300,8 @@ describe("catalog", () => {
       "registry-public.pem",
       "registry.bundle.json",
       "robots.txt",
-      "site.webmanifest"
+      "site.webmanifest",
+      "sitemap.xml"
     ]);
     expect(await readFile(join(cleanupPath, "registry-public.pem"), "utf8")).toBe(publicKeyPem);
 

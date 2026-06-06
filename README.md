@@ -386,11 +386,11 @@ Use a tag- or SHA-pinned GitHub package spec such as `--package github:tt-a1i/ag
 
 The catalog generator writes:
 
-- `index.html`: searchable static catalog with target filters, quality ratings, provenance summaries, copyable workflow commands, and import workflow commands
+- `index.html`: searchable static catalog with target filters, quality ratings, provenance summaries, social preview metadata, copyable workflow commands, and import workflow commands
 - `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, registry trust workflow commands, pack compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
 - `agents-market.json`: compact agent-readable marketplace manifest with registry bundle/public-key URLs, trust commands, agent-native integration install commands, CI setup commands, import commands, and pack summaries
 - `registry.bundle.json`: portable registry bundle that users can install from
-- `site.webmanifest`, `robots.txt`, and `favicon.svg`: static site metadata for Pages, CDN, or object-storage hosting
+- `site.webmanifest`, `robots.txt`, `sitemap.xml`, and `favicon.svg`: static site metadata and discovery files for Pages, CDN, or object-storage hosting
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path. The catalog also includes registry trust workflow commands for `registry info`, signature verification when signing is configured, `registry lock`, and `registry verify-lock` so teams can inspect and lock the hosted registry before installing packs.
 
@@ -398,7 +398,7 @@ Use `catalog info --url <catalog>` when an agent or automation wants to discover
 
 Use `catalog init --url <catalog>` to connect a project to a hosted marketplace. By default it previews the registry lock, agent-native integration files, project signals, the recommended pack, pack audit, install plan, file diff, and next `apply` commands; add `--pack <pack>` to preview a specific pack. Dry-run next commands first show how to confirm the catalog connection with `catalog init ... --yes`, and the preview/install commands include the hosted registry URL because no lock has been written yet. After `--yes` writes the lock, next commands switch to `registry verify-lock` and lock-backed `apply` commands. Add `--ci` to install the generated GitHub maintenance workflow. Signed catalogs verify the hosted registry bundle with `registry-public.pem` before writing a signature-aware lock.
 
-Run `catalog verify` before publishing static assets, and use `catalog verify --url` after deployment to verify the hosted catalog directly. It checks that `catalog.json`, `agents-market.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, agent-readable install/automation commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls and runtime fallbacks, manifest metadata, favicon wiring, and hosted registry signatures when `registry-public.pem` is present.
+Run `catalog verify` before publishing static assets, and use `catalog verify --url` after deployment to verify the hosted catalog directly. It checks that `catalog.json`, `agents-market.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, agent-readable install/automation commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls and runtime fallbacks, manifest metadata, favicon/sitemap wiring, social preview metadata, and hosted registry signatures when `registry-public.pem` is present.
 
 The repository includes GitHub Actions for CI, CodeQL/dependency security scanning, and GitHub Pages catalog deployment.
 

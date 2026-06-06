@@ -71,7 +71,11 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   await writeFile(join(dir, "registry-public.pem"), publicKeyPem, "utf8");
   await writeFile(join(dir, "catalog", "registry.bundle.json"), `${JSON.stringify(catalogBundle, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "catalog", "registry-public.pem"), publicKeyPem, "utf8");
-  await writeFile(join(dir, "catalog", "index.html"), '<html><head><link rel="manifest" href="site.webmanifest"><link rel="icon" href="favicon.svg"></head></html>\n', "utf8");
+  await writeFile(
+    join(dir, "catalog", "index.html"),
+    '<html><head><meta property="og:title" content="Agents Market Test"><meta property="og:description" content="Test catalog"><meta property="og:type" content="website"><meta name="twitter:card" content="summary"><link rel="manifest" href="site.webmanifest"><link rel="sitemap" type="application/xml" href="sitemap.xml"><link rel="icon" href="favicon.svg"></head></html>\n',
+    "utf8"
+  );
   await writeFile(join(dir, "catalog", "catalog.json"), `${JSON.stringify({
     title: "Agents Market Test",
     packageSpec: "github:tt-a1i/agents-market",
@@ -94,7 +98,12 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
     packs: registry.packs.map((pack) => ({ id: pack.id }))
   }, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "catalog", "favicon.svg"), "<svg />\n", "utf8");
-  await writeFile(join(dir, "catalog", "robots.txt"), "User-agent: *\nAllow: /\n", "utf8");
+  await writeFile(join(dir, "catalog", "robots.txt"), "User-agent: *\nAllow: /\nSitemap: https://example.com/sitemap.xml\n", "utf8");
+  await writeFile(
+    join(dir, "catalog", "sitemap.xml"),
+    '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://example.com</loc>\n  </url>\n</urlset>\n',
+    "utf8"
+  );
   await writeFile(join(dir, "catalog", "site.webmanifest"), `${JSON.stringify({
     name: "Agents Market Test",
     icons: [{ src: "favicon.svg" }]
@@ -136,6 +145,7 @@ async function writeManifestAndChecksums(dir: string): Promise<void> {
     "catalog/registry-public.pem",
     "catalog/registry.bundle.json",
     "catalog/robots.txt",
+    "catalog/sitemap.xml",
     "catalog/site.webmanifest",
     "install.sh",
     "npm/agents-market-cli-0.1.0.tgz",

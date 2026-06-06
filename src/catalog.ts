@@ -125,7 +125,11 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     },
     {
       name: "robots.txt",
-      content: "User-agent: *\nAllow: /\n"
+      content: robotsTxt(options.baseUrl)
+    },
+    {
+      name: "sitemap.xml",
+      content: sitemapXml(options.baseUrl)
     },
     {
       name: "favicon.svg",
@@ -148,7 +152,8 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
   const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
   const html = await readText(join(dir, "index.html"), findings, "index.html");
-  await readText(join(dir, "robots.txt"), findings, "robots.txt");
+  const robots = await readText(join(dir, "robots.txt"), findings, "robots.txt");
+  const sitemap = await readText(join(dir, "sitemap.xml"), findings, "sitemap.xml");
   await readText(join(dir, "favicon.svg"), findings, "favicon.svg");
 
   let registryBundle: RegistryBundle | undefined;
@@ -233,6 +238,56 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         message: "index.html does not reference favicon.svg."
       });
     }
+    if (!html.includes('rel="sitemap"') || !html.includes('href="sitemap.xml"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-sitemap",
+        message: "index.html does not reference sitemap.xml."
+      });
+    }
+    for (const required of ['property="og:title"', 'property="og:description"', 'property="og:type"', 'name="twitter:card"', 'name="twitter:title"', 'name="twitter:description"']) {
+      if (!html.includes(required)) {
+        findings.push({
+          severity: "error",
+          code: "html-missing-social-metadata",
+          message: "index.html is missing social preview metadata.",
+          detail: required
+        });
+      }
+    }
+    const catalogUrl = stringValue(catalog.baseUrl) ?? (isRecord(catalog.metadata) ? stringValue(catalog.metadata.catalogUrl) : undefined);
+    if (catalogUrl && !html.includes(`property="og:url" content="${escapeAttribute(normalizeSiteUrl(catalogUrl))}"`)) {
+      findings.push({
+        severity: "error",
+        code: "html-og-url-mismatch",
+        message: "index.html Open Graph URL does not match the catalog base URL.",
+        detail: normalizeSiteUrl(catalogUrl)
+      });
+    }
+  }
+
+  if (catalog && robots && sitemap) {
+    const catalogUrl = stringValue(catalog.baseUrl) ?? (isRecord(catalog.metadata) ? stringValue(catalog.metadata.catalogUrl) : undefined);
+    if (catalogUrl) {
+      const siteUrl = normalizeSiteUrl(catalogUrl);
+      const sitemapUrl = assetUrl("sitemap.xml", siteUrl);
+      if (!robots.includes(`Sitemap: ${sitemapUrl}`)) {
+        findings.push({
+          severity: "error",
+          code: "robots-missing-sitemap",
+          message: "robots.txt does not advertise sitemap.xml.",
+          detail: sitemapUrl
+        });
+      }
+      if (!sitemap.includes(`<loc>${escapeXml(siteUrl)}</loc>`)) {
+        findings.push({
+          severity: "error",
+          code: "sitemap-missing-catalog-url",
+          message: "sitemap.xml does not include the catalog base URL.",
+          detail: siteUrl
+        });
+      }
+    }
   }
 
   if (catalog && webManifestFile) {
@@ -279,6 +334,7 @@ export async function verifyCatalogUrl(url: string): Promise<CatalogVerification
       fetchCatalogAsset(baseUrl, "agents-market.json").then((content) => writeFile(join(dir, "agents-market.json"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "index.html").then((content) => writeFile(join(dir, "index.html"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "robots.txt").then((content) => writeFile(join(dir, "robots.txt"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "sitemap.xml").then((content) => writeFile(join(dir, "sitemap.xml"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "favicon.svg").then((content) => writeFile(join(dir, "favicon.svg"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "site.webmanifest").then((content) => writeFile(join(dir, "site.webmanifest"), content, "utf8"))
     ]);
@@ -722,6 +778,8 @@ function renderHtml(
   packageSpec: string,
   metadata?: RegistryMetadata
 ): string {
+  const description = "Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode.";
+  const catalogUrl = metadata?.catalogUrl ? normalizeSiteUrl(metadata.catalogUrl) : undefined;
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const registryWorkflows = registryWorkflowCommands(packageSpec, bundlePath);
@@ -823,10 +881,19 @@ function renderHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode.">
+  <meta name="description" content="${escapeAttribute(description)}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeAttribute(title)}">
+  <meta property="og:description" content="${escapeAttribute(description)}">
+  <meta property="og:site_name" content="${escapeAttribute(title)}">
+  ${catalogUrl ? `<meta property="og:url" content="${escapeAttribute(catalogUrl)}">` : ""}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeAttribute(title)}">
+  <meta name="twitter:description" content="${escapeAttribute(description)}">
   <title>${escapeHtml(title)}</title>
-  ${metadata?.catalogUrl ? `<link rel="canonical" href="${escapeAttribute(metadata.catalogUrl)}">` : ""}
+  ${catalogUrl ? `<link rel="canonical" href="${escapeAttribute(catalogUrl)}">` : ""}
   <link rel="manifest" href="site.webmanifest">
+  <link rel="sitemap" type="application/xml" href="sitemap.xml">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: light; --ink: #172026; --muted: #5f6b76; --line: #d7dde3; --fill: #f6f8fa; --accent: #0f766e; --good: #166534; --warn: #b45309; }
@@ -1009,6 +1076,24 @@ function webManifest(title: string, baseUrl?: string) {
   };
 }
 
+function robotsTxt(baseUrl?: string): string {
+  const lines = ["User-agent: *", "Allow: /"];
+  if (baseUrl) {
+    lines.push(`Sitemap: ${assetUrl("sitemap.xml", normalizeSiteUrl(baseUrl))}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function sitemapXml(baseUrl?: string): string {
+  const siteUrl = baseUrl ? normalizeSiteUrl(baseUrl) : undefined;
+  const urls = siteUrl ? `  <url>\n    <loc>${escapeXml(siteUrl)}</loc>\n  </url>\n` : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}</urlset>\n`;
+}
+
+function normalizeSiteUrl(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
 function renderFavicon(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#0f766e"/>
@@ -1055,6 +1140,10 @@ function escapeHtml(value: string): string {
 }
 
 function escapeAttribute(value: string): string {
+  return escapeHtml(value);
+}
+
+function escapeXml(value: string): string {
   return escapeHtml(value);
 }
 
