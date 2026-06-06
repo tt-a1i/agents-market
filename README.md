@@ -92,7 +92,7 @@ Installs write `.agents-market/manifest.json`. The manifest records installed pa
 This enables drift-aware operations:
 
 - `status` reports clean, modified, and missing generated files; use `status --json` for automation.
-- `doctor` runs manifest, registry lock, drift, and target directory health checks; use `doctor --strict --json` in CI.
+- `doctor` runs manifest, registry lock, policy, drift, and target directory health checks; use `doctor --strict --json` in CI.
 - `update` refreshes installed packs from the current registry.
 - `uninstall` removes generated files while skipping and continuing to track user-modified files by default.
 
@@ -224,6 +224,8 @@ This writes `.agents-market/policy.json` and lets CI or agent-native workflows b
 Use `policy check` after `audit` and before `diff`/`install`. It exits non-zero on policy violations, so it is safe to run in CI.
 
 Use `install --enforce-policy` when a project has `.agents-market/policy.json`; the CLI will block installation before writing files if the pack violates policy.
+
+`doctor --strict --json` also checks installed packs against policy, so CI can detect policy drift after installation.
 
 See [docs/policy.md](./docs/policy.md).
 

@@ -48,6 +48,16 @@ agents-market install frontend-pack --target all --policy-preset strict --dry-ru
 
 Policy enforcement is explicit, so existing personal workflows keep working unless they opt into a policy gate.
 
+## Continuous Checks
+
+`doctor` checks installed packs against `.agents-market/policy.json` when policy exists:
+
+```bash
+agents-market doctor --strict --json
+```
+
+Use this in CI after installation. It catches policy drift when a policy is tightened, a registry changes, or a previously installed pack no longer satisfies team rules.
+
 ## Policy Fields
 
 ```json

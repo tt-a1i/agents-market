@@ -2,6 +2,8 @@ import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { sha256 } from "./hash.js";
 import { loadManifest, loadRegistryLock, MANIFEST_PATH, REGISTRY_LOCK_PATH } from "./manifest.js";
+import { checkPackPolicy, loadPolicy, policyPath, type AgentPolicy, type PolicyCheckReport } from "./policy.js";
+import { loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
 import type { InstallManifest, ManifestFileEntry, RegistryLock, Target } from "./types.js";
 
 export type DoctorSeverity = "pass" | "warn" | "error";
@@ -26,12 +28,15 @@ export interface DoctorReport {
   targets: Record<Target, number>;
   manifest?: InstallManifest;
   registryLock?: RegistryLock;
+  policy?: AgentPolicy;
+  policyChecks?: PolicyCheckReport[];
   checks: DoctorCheck[];
 }
 
 export async function runDoctor(root: string): Promise<DoctorReport> {
   const manifest = await loadManifest(root);
   const registryLock = await loadRegistryLock(root);
+  const policyFile = policyPath(root);
   const checks: DoctorCheck[] = [];
   const fileCounts = {
     total: 0,
@@ -94,6 +99,50 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     }
   }
 
+  const policyExists = await exists(policyFile);
+  let policy: AgentPolicy | undefined;
+  let policyChecks: PolicyCheckReport[] | undefined;
+  if (policyExists) {
+    try {
+      policy = await loadPolicy(policyFile);
+      checks.push({ id: "policy", severity: "pass", message: "Project policy exists.", detail: ".agents-market/policy.json" });
+    } catch (error) {
+      checks.push({
+        id: "policy",
+        severity: "error",
+        message: "Project policy could not be parsed.",
+        detail: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    if (policy && manifest.installs.length > 0) {
+      try {
+        const activePolicy = policy;
+        const loaded = await loadRegistryWithInfo(registryLock?.source);
+        if (registryLock) verifyRegistryLock(loaded, registryLock);
+        policyChecks = manifest.installs.map((install) => checkPackPolicy(loaded.registry, install.packId, install.target, activePolicy));
+        const violations = policyChecks.filter((report) => !report.ok);
+        if (violations.length > 0) {
+          checks.push({
+            id: "policy-installed-packs",
+            severity: "error",
+            message: `${violations.length} installed packs violate project policy.`,
+            detail: violations.map((report) => report.packId).join(", ")
+          });
+        } else {
+          checks.push({ id: "policy-installed-packs", severity: "pass", message: "Installed packs satisfy project policy." });
+        }
+      } catch (error) {
+        checks.push({
+          id: "policy-registry",
+          severity: "error",
+          message: "Could not load registry to check installed packs against policy.",
+          detail: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  }
+
   return {
     root,
     health: healthFromChecks(checks),
@@ -102,6 +151,8 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     targets,
     manifest,
     registryLock,
+    policy,
+    policyChecks,
     checks
   };
 }

@@ -103,6 +103,10 @@ async function runLifecycleSmoke() {
 
     const doctor = runJson("node", ["dist/index.js", "doctor", "--cwd", projectDir, "--strict", "--json"], "Lifecycle strict doctor");
     assert(doctor.health === "ok", `Expected strict doctor health to be ok, found ${doctor.health}.`);
+    assert(
+      doctor.checks?.some((check) => check.id === "policy-installed-packs" && check.severity === "pass"),
+      "Expected strict doctor to verify installed packs against project policy."
+    );
 
     await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- local edit from release smoke -->\n", "utf8");
 

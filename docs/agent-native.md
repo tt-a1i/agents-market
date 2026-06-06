@@ -51,7 +51,7 @@ Use `init --json` when the project does not yet have Agents Market integrations 
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
 Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.
-Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, and target directories.
+Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, policy compliance, and target directories.
 Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
 Use `uninstall --dry-run --json` before uninstalling packs, then ask for confirmation before running `uninstall`.

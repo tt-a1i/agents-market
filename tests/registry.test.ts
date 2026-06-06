@@ -8,10 +8,11 @@ import { auditPack } from "../src/audit.js";
 import { runDoctor } from "../src/doctor.js";
 import { createInstallPlan, generatePackFiles } from "../src/install.js";
 import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
-import { saveManifest, upsertInstall } from "../src/manifest.js";
+import { saveManifest, saveRegistryLock, upsertInstall } from "../src/manifest.js";
 import { composePack } from "../src/pack.js";
 import { searchRegistry } from "../src/search.js";
 import { writeGeneratedFiles } from "../src/files.js";
+import { createPolicyPreset, savePolicy, policyPath } from "../src/policy.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -101,6 +102,32 @@ describe("registry", () => {
       expect(installed.fileCounts.clean).toBe(4);
       expect(installed.targets.claude).toBe(4);
       expect(installed.checks.some((check) => check.id === "registry-lock" && check.severity === "warn")).toBe(true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("checks installed packs against project policy in doctor", async () => {
+    const registry = await loadRegistry();
+    const root = await mkdtemp(join(tmpdir(), "agents-market-doctor-policy-"));
+    try {
+      const files = generatePackFiles(registry, "starter-dev-pack", "claude");
+      await writeGeneratedFiles(root, files);
+      await saveManifest(root, upsertInstall({ schemaVersion: 1, installs: [] }, "starter-dev-pack", "claude", files));
+      await saveRegistryLock(root, { schemaVersion: 1, source: "bundled", lockedAt: "2026-01-01T00:00:00.000Z" });
+
+      await savePolicy(policyPath(root), createPolicyPreset("balanced"));
+      const balanced = await runDoctor(root);
+      expect(balanced.health).toBe("ok");
+      expect(balanced.policyChecks?.[0]?.ok).toBe(true);
+      expect(balanced.checks.some((check) => check.id === "policy-installed-packs" && check.severity === "pass")).toBe(true);
+
+      await savePolicy(policyPath(root), createPolicyPreset("strict"));
+      const strict = await runDoctor(root);
+      expect(strict.health).toBe("error");
+      expect(strict.policyChecks?.[0]?.ok).toBe(false);
+      expect(strict.policyChecks?.[0]?.findings.map((finding) => finding.code)).toContain("permission-exceeds-policy");
+      expect(strict.checks.some((check) => check.id === "policy-installed-packs" && check.severity === "error")).toBe(true);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
