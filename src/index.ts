@@ -17,6 +17,7 @@ import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
+import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -105,6 +106,30 @@ async function resolvePolicyForCommand(root: string, options: { enforcePolicy?: 
   if (options.policy) return loadPolicy(resolve(options.policy));
   if (options.enforcePolicy) return loadPolicy(policyPath(root));
   return undefined;
+}
+
+async function resolvePolicyForApply(root: string, options: { enforcePolicy?: boolean; policy?: boolean; policyFile?: string; policyPreset?: string }): Promise<{
+  policy: Awaited<ReturnType<typeof defaultApplyPolicy>> | undefined;
+  source: ApplyPolicySource;
+  commandArg: string;
+}> {
+  if (options.policy === false) return { policy: undefined, source: "none", commandArg: " --no-policy" };
+  if (options.policyPreset) {
+    const preset = parsePolicyPreset(options.policyPreset);
+    return { policy: createPolicyPreset(preset), source: "preset", commandArg: ` --policy-preset ${preset}` };
+  }
+  if (options.policyFile) {
+    return { policy: await loadPolicy(resolve(options.policyFile)), source: "file", commandArg: ` --policy-file ${options.policyFile}` };
+  }
+  if (options.enforcePolicy) {
+    return { policy: await loadPolicy(policyPath(root)), source: "project", commandArg: " --enforce-policy" };
+  }
+  try {
+    return { policy: await loadPolicy(policyPath(root)), source: "project", commandArg: " --enforce-policy" };
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
+    return { policy: defaultApplyPolicy(), source: "preset", commandArg: " --policy-preset balanced" };
+  }
 }
 
 function printPolicyReport(report: PolicyCheckReport): void {
@@ -380,6 +405,87 @@ program
       console.log(`- ${pc.cyan(pack.id)} - ${pack.description}`);
     }
   });
+
+program
+  .command("apply")
+  .argument("[pack]", "optional pack id; omitted means use the top recommendation")
+  .description("Run the safe recommendation, audit, policy, diff, and install workflow")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--cwd <path>", "project root to inspect or install into")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--yes", "install after the audit, policy, and diff workflow passes")
+  .option("--enforce-policy", "require the pack to satisfy .agents-market/policy.json")
+  .option("--policy-file <path>", "policy file path to enforce before installing")
+  .option("--policy-preset <preset>", "enforce a built-in policy preset: open, balanced, or strict")
+  .option("--no-policy", "skip policy checks")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (
+      packId: string | undefined,
+      options: {
+        target: string;
+        cwd?: string;
+        registry?: string;
+        yes?: boolean;
+        enforcePolicy?: boolean;
+        policy?: boolean;
+        policyPreset?: string;
+        policyFile?: string;
+        json?: boolean;
+      }
+    ) => {
+      const root = cwd(options.cwd);
+      const target = parseTarget(options.target);
+      const loaded = await loadProjectRegistry(root, options.registry);
+      const policy = await resolvePolicyForApply(root, {
+        enforcePolicy: options.enforcePolicy,
+        policy: options.policy,
+        policyFile: options.policyFile,
+        policyPreset: options.policyPreset
+      });
+      const result = await runApplyWorkflow({
+        root,
+        registry: loaded.registry,
+        registrySource: loaded.source,
+        packId,
+        target,
+        mode: options.yes ? "install" : "preview",
+        policy: policy.policy,
+        policySource: policy.source,
+        policyCommandArg: policy.commandArg
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        if (result.policy && !result.policy.ok) process.exitCode = 1;
+        return;
+      }
+
+      console.log(`${pc.bold("Agents Market apply")} ${result.mode === "install" ? pc.green("install") : pc.yellow("preview")}`);
+      console.log(`- root: ${result.root}`);
+      console.log(`- registry: ${loaded.source.value}`);
+      console.log(`- pack: ${pc.cyan(result.pack.id)}${result.pack.explicit ? "" : " (recommended)"}`);
+      if (result.pack.reasons.length > 0) console.log(`- reasons: ${result.pack.reasons.join(", ")}`);
+      console.log(`- target: ${result.target}`);
+      console.log(`- audit risk: ${result.audit.risk}`);
+      console.log(`- files: ${result.changes.length}`);
+      if (result.policy) printPolicyReport(result.policy);
+      if (result.policy && !result.policy.ok) {
+        process.exitCode = 1;
+        return;
+      }
+      for (const change of result.changes) {
+        const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+        console.log(`${label} ${change.path}`);
+      }
+      if (result.installed) {
+        console.log(pc.green(`Installed ${result.changes.length} files for ${result.pack.id}.`));
+      } else {
+        console.log(`\n${pc.bold("Next")}`);
+        for (const command of result.nextCommands) console.log(`- ${command}`);
+      }
+    }
+  );
 
 program
   .command("diff")

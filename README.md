@@ -31,6 +31,8 @@ After publishing, the intended user flow is:
 ```bash
 npx @agents-market/cli init --target all
 npx @agents-market/cli recommend
+npx @agents-market/cli apply --target all
+npx @agents-market/cli apply frontend-pack --target all --yes
 npx @agents-market/cli install frontend-pack --target all
 ```
 
@@ -53,6 +55,9 @@ agents-market search accessibility --target claude
 agents-market search --type agents --category frontend --json
 agents-market recommend
 agents-market recommend --json
+agents-market apply --target all
+agents-market apply nextjs-pack --target all --json
+agents-market apply nextjs-pack --target all --policy-preset balanced --yes
 agents-market plan starter-dev-pack --target all
 agents-market audit starter-dev-pack --target all
 agents-market policy init --preset balanced
@@ -108,7 +113,7 @@ agents-market init --target all
 agents-market init --target claude --dry-run --json
 ```
 
-`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `audit`, `diff`, `install`, and `doctor` commands. It does not install the recommended pack automatically; pack installation still requires an explicit `install`.
+`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `audit`, `diff`, `install`, and `doctor` commands. It does not install the recommended pack automatically; pack installation still requires an explicit `install` or `apply --yes`.
 
 ## Registry Sources
 
@@ -200,16 +205,20 @@ This writes:
 | Codex | `.agents/skills/agents-market-installer/SKILL.md` |
 | OpenCode | `.opencode/commands/agents-market.md` |
 
-Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `diff`, asks for confirmation, installs with the CLI, and verifies with `status`.
+Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `apply --json`, asks for confirmation, installs with `apply --yes`, and verifies with `status` and `doctor`.
 
 Agent-native wrappers can use structured output:
 
 ```bash
+agents-market apply --target all --json
+agents-market apply nextjs-pack --target all --json
 agents-market recommend --json
 agents-market plan nextjs-pack --target all
 agents-market audit nextjs-pack --target all --json
 agents-market diff nextjs-pack --target all --json
 ```
+
+Use `apply` as the high-level agent-native workflow. Without a pack id, it detects the project and selects the top recommendation. By default it previews the audit, policy check, and file diff without writing files. Add `--yes` only after confirmation to install the selected pack and record it in `.agents-market/manifest.json`.
 
 Use `audit` before installation to summarize permissions, tool access, target support, provenance, and source license coverage.
 

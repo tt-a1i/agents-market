@@ -15,21 +15,20 @@ Shall I install it?
 ## Agent-Native Flow
 
 1. Inspect the project.
-2. Run `agents-market recommend`.
-3. Pick the best pack or ask the user to choose when ambiguous.
-4. If the user or organization has a registry URL, run `agents-market registry lock --registry <source>`.
-5. Run `agents-market audit <pack> --target <target> --json`.
-6. If `.agents-market/policy.json` exists, run `agents-market policy check <pack> --target <target> --json`.
-7. Run `agents-market diff <pack> --target <target>`.
-8. Explain files, permissions, policy findings, and command-running risk.
-9. After confirmation, run `agents-market install <pack> --target <target> --enforce-policy` when policy exists, otherwise run `agents-market install <pack> --target <target>`.
-10. Run `agents-market status` and summarize the installed files.
-11. Tell the user how to invoke the installed agents.
+2. If the user or organization has a registry URL, run `agents-market registry lock --registry <source>`.
+3. Run `agents-market apply --target <target> --json` to preview the recommended pack, audit, policy result, and file diff.
+4. If the user names a pack, run `agents-market apply <pack> --target <target> --json` instead.
+5. Explain files, permissions, policy findings, and command-running risk.
+6. After confirmation, run `agents-market apply <pack> --target <target> --yes`.
+7. Run `agents-market status --json` and `agents-market doctor --strict --json`.
+8. Tell the user how to invoke the installed agents.
 
 For agent-native integrations, prefer structured output where available:
 
 ```bash
 agents-market recommend --json
+agents-market apply --target <target> --json
+agents-market apply <pack> --target <target> --yes
 agents-market search <query> --json
 agents-market init --target <target> --json
 agents-market plan <pack> --target <target>
@@ -46,6 +45,8 @@ agents-market doctor --strict --json
 Use the JSON output for parsing, and translate it into concise human-facing summaries before asking for confirmation.
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
+Use `apply --json` as the default preview path because it combines recommendation, audit, policy, and diff into one agent-friendly response.
+Use `apply --yes` after explicit user confirmation to install the selected pack.
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
@@ -79,11 +80,12 @@ Generated files:
 - Codex: `.agents/skills/agents-market-installer/SKILL.md`
 - OpenCode: `.opencode/commands/agents-market.md`
 
-After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `recommend`, `audit`, optional `policy check`, `diff`, `install`, and `status` in that order.
+After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `apply --json`, ask for confirmation, run `apply --yes`, then verify with `status` and `doctor`.
 
 ## Safety Rules
 
-- Always run `diff` before `install`.
+- Prefer `apply` for the standard path because it runs recommendation, audit, policy, and diff before install.
+- Always preview before installing.
 - Run `policy check` when the project has `.agents-market/policy.json`.
 - Run `status` after install/update.
 - Use `registry lock` for organization or hosted marketplace registries before installing.

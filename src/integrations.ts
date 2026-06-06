@@ -5,21 +5,19 @@ const INSTALLER_WORKFLOW = `You help users install specialized coding subagent p
 
 Workflow:
 1. Inspect the repository briefly to understand project type.
-2. Run \`agents-market recommend --json\`.
-3. Choose the most relevant pack, or ask the user when ambiguous.
-4. If the user wants a small custom set, run \`agents-market search <query> --json\` and compose a pack with \`agents-market pack create <pack-id> --agent <ids...> --out ./registry/packs\`.
-5. If the user provides a registry URL or bundle path, run \`agents-market registry lock --registry <source>\`.
-6. Create a structured install plan with \`agents-market plan <pack-id> --target all\`.
-7. Audit permissions and provenance with \`agents-market audit <pack-id> --target all --json\`.
-8. If the project has \`.agents-market/policy.json\`, run \`agents-market policy check <pack-id> --target all --json\`.
-9. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
-10. Explain target files, permission implications, policy findings, warnings, and source/license status.
-11. After user confirmation, run \`agents-market install <pack-id> --target all --enforce-policy\` when policy exists, otherwise run \`agents-market install <pack-id> --target all\`.
-12. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
-13. Summarize installed files, health warnings, and how to invoke the new agents.
+2. If the user provides a registry URL or bundle path, run \`agents-market registry lock --registry <source>\`.
+3. Run \`agents-market apply --target all --json\` to get the recommended pack, audit, policy check, and file diff in one preview.
+4. If the user names a pack, run \`agents-market apply <pack-id> --target all --json\` instead.
+5. If the user wants a small custom set, run \`agents-market search <query> --json\` and compose a pack with \`agents-market pack create <pack-id> --agent <ids...> --out ./registry/packs\`, then preview it with \`agents-market apply <pack-id> --target all --json\`.
+6. Explain target files, permission implications, policy findings, warnings, and source/license status.
+7. Treat policy failures as blockers unless the user explicitly updates project policy.
+8. After user confirmation, run \`agents-market apply <pack-id> --target all --yes\`.
+9. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
+10. Summarize installed files, health warnings, and how to invoke the new agents.
 
 Safety:
-- Always audit and preview with \`audit\` and \`diff\` before \`install\`.
+- Prefer \`apply\` because it combines recommendation, audit, policy, diff, and guarded install.
+- Use \`recommend\`, \`audit\`, \`policy check\`, \`diff\`, and \`install\` directly only when the user needs a lower-level workflow.
 - Treat policy failures as blockers unless the user explicitly updates the project policy.
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.

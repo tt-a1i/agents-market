@@ -14,15 +14,13 @@ describe("agent-native integrations", () => {
   it("instructs integrations to preview before installing", () => {
     const files = generateIntegrations("all");
     for (const file of files) {
-      expect(file.content).toContain("agents-market recommend --json");
+      expect(file.content).toContain("agents-market apply --target all --json");
+      expect(file.content).toContain("agents-market apply <pack-id> --target all --json");
+      expect(file.content).toContain("agents-market apply <pack-id> --target all --yes");
       expect(file.content).toContain("agents-market pack create");
-      expect(file.content).toContain("agents-market audit");
-      expect(file.content).toContain("agents-market policy check <pack-id> --target all --json");
-      expect(file.content).toContain("agents-market diff <pack-id> --target all --json");
-      expect(file.content).toContain("agents-market install <pack-id> --target all --enforce-policy");
-      expect(file.content).toContain("agents-market install");
       expect(file.content).toContain("agents-market status --json");
       expect(file.content).toContain("agents-market doctor --strict --json");
+      expect(file.content).toContain("Treat policy failures as blockers");
     }
   });
 });

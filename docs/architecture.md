@@ -39,6 +39,8 @@ Agents Market is built around one invariant: the registry is tool-neutral, and a
 ```bash
 agents-market list
 agents-market recommend
+agents-market apply --target all
+agents-market apply <pack> --target all --yes
 agents-market diff <pack> --target all
 agents-market install <pack> --target all
 agents-market status
@@ -72,6 +74,7 @@ The manifest records:
 
 This gives the installer a lifecycle:
 
+- `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
 - `status` compares current files with stored hashes.
 - `update` regenerates installed packs and skips user-modified files unless `--force` is set.
 - `uninstall` removes generated files and skips user-modified files unless `--force` is set. Skipped files remain in the manifest so later `status`, `doctor`, or forced uninstall can still find them.

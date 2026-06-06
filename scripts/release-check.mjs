@@ -80,6 +80,33 @@ async function runLifecycleSmoke() {
     );
     assert(policyCheck.ok === true, "Lifecycle policy check failed for starter-dev-pack under balanced policy.");
 
+    const applyPreview = runJson(
+      "node",
+      ["dist/index.js", "apply", "--target", "claude", "--cwd", projectDir, "--json"],
+      "Lifecycle apply preview"
+    );
+    assert(applyPreview.installed === false, "Lifecycle apply preview should not install without --yes.");
+    assert(applyPreview.pack?.id === "starter-dev-pack", `Expected apply preview to recommend starter-dev-pack, found ${applyPreview.pack?.id}.`);
+    assert(applyPreview.policy?.ok === true, "Lifecycle apply preview did not include a passing policy report.");
+    assert(applyPreview.changes?.length === 4, `Expected apply preview to include four changes, found ${applyPreview.changes?.length}.`);
+
+    const blockedApply = runJsonAllowFailure(
+      "node",
+      ["dist/index.js", "apply", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--policy-preset", "strict", "--yes", "--json"],
+      "Lifecycle blocked apply"
+    );
+    assert(blockedApply.status === 1, `Expected strict apply to exit 1, found ${blockedApply.status}.`);
+    assert(blockedApply.json.installed === false, "Expected strict apply to avoid installing files.");
+    assert(blockedApply.json.policy?.ok === false, "Expected strict apply to include a failing policy report.");
+
+    const applyInstall = runJson(
+      "node",
+      ["dist/index.js", "apply", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--enforce-policy", "--yes", "--json"],
+      "Lifecycle apply install"
+    );
+    assert(applyInstall.installed === true, "Expected apply --yes to install files after policy passed.");
+    assert(applyInstall.policy?.ok === true, "Expected apply install to include a passing policy report.");
+
     const policyInstallPreview = runJson(
       "node",
       ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--dry-run", "--enforce-policy", "--json"],
