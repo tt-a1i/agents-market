@@ -14,7 +14,7 @@ Workflow:
 8. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
 9. Explain target files, permission implications, warnings, and source/license status.
 10. After user confirmation, run \`agents-market install <pack-id> --target all\`.
-11. Run \`agents-market status --json\` and \`agents-market doctor --json\`.
+11. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
 12. Summarize installed files, health warnings, and how to invoke the new agents.
 
 Safety:

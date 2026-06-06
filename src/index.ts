@@ -538,11 +538,13 @@ program
   .description("Run project health checks for Agents Market installs")
   .option("--cwd <path>", "project root to inspect")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { cwd?: string; json?: boolean }) => {
+  .option("--strict", "exit with a non-zero status when health is warning or error")
+  .action(async (options: { cwd?: string; json?: boolean; strict?: boolean }) => {
     const root = cwd(options.cwd);
     const report = await runDoctor(root);
     if (options.json) {
       console.log(JSON.stringify(report, null, 2));
+      if (options.strict && report.health !== "ok") process.exitCode = 1;
       return;
     }
 
@@ -559,6 +561,7 @@ program
       const label = check.severity === "error" ? pc.red("error") : check.severity === "warn" ? pc.yellow("warn") : pc.green("pass");
       console.log(`- ${label} ${check.message}${check.detail ? ` (${check.detail})` : ""}`);
     }
+    if (options.strict && report.health !== "ok") process.exitCode = 1;
   });
 
 program

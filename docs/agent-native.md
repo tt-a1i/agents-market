@@ -37,6 +37,7 @@ agents-market update --dry-run --json
 agents-market uninstall <pack> --target <target> --dry-run --json
 agents-market status --json
 agents-market doctor --json
+agents-market doctor --strict --json
 ```
 
 Use the JSON output for parsing, and translate it into concise human-facing summaries before asking for confirmation.
@@ -46,6 +47,7 @@ Use `pack create` when the user wants a small custom set from individual search 
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, and target directories.
+Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
 Use `uninstall --dry-run --json` before uninstalling packs, then ask for confirmation before running `uninstall`.
 
