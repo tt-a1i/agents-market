@@ -150,9 +150,14 @@ async function runLifecycleSmoke() {
 
     const cleanStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle clean status");
     assert(cleanStatus.installCount === 1, `Expected one install after lifecycle install, found ${cleanStatus.installCount}.`);
+    assert(cleanStatus.installs?.[0]?.packVersion === "0.1.0", "Expected lifecycle status to include installed pack version.");
     const cleanFiles = cleanStatus.installs?.[0]?.files ?? [];
     assert(cleanFiles.length === 4, `Expected four Claude agent files after lifecycle install, found ${cleanFiles.length}.`);
     assert(cleanFiles.every((file) => file.state === "clean"), "Expected all lifecycle-installed files to be clean.");
+
+    const outdated = runJson("node", ["dist/index.js", "outdated", "--cwd", projectDir, "--json"], "Lifecycle outdated check");
+    assert(outdated.outdatedCount === 0, `Expected no outdated packs, found ${outdated.outdatedCount}.`);
+    assert(outdated.checks?.[0]?.status === "current", `Expected installed pack to be current, found ${outdated.checks?.[0]?.status}.`);
 
     const doctor = runJson("node", ["dist/index.js", "doctor", "--cwd", projectDir, "--strict", "--json"], "Lifecycle strict doctor");
     assert(doctor.health === "ok", `Expected strict doctor health to be ok, found ${doctor.health}.`);
@@ -334,6 +339,7 @@ function verifyTarball(packOutput) {
     "dist/doctor.js",
     "dist/policy.js",
     "dist/pack.js",
+    "dist/version.js",
     "registry/agents/code-reviewer.json",
     "registry/changelog.json",
     "registry/packs/starter-dev-pack.json",

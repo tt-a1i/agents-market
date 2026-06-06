@@ -71,6 +71,8 @@ agents-market status
 agents-market status --json
 agents-market doctor
 agents-market doctor --strict --json
+agents-market outdated
+agents-market outdated --json
 agents-market update
 agents-market update --dry-run --json
 agents-market uninstall starter-dev-pack --target claude
@@ -99,16 +101,17 @@ agents-market import repo owner/community-agents --target claude --path agents -
 
 ## Install Manifest
 
-Installs write `.agents-market/manifest.json`. The manifest records installed packs, targets, generated files, and content hashes.
+Installs write `.agents-market/manifest.json`. The manifest records installed packs, pack versions, targets, generated files, and content hashes.
 
 This enables drift-aware operations:
 
 - `status` reports clean, modified, and missing generated files; use `status --json` for automation.
 - `doctor` runs manifest, registry lock, policy, drift, and target directory health checks; use `doctor --strict --json` in CI.
+- `outdated` compares installed pack versions with the current registry; use `outdated --json` before update automation.
 - `update` refreshes installed packs from the current registry.
 - `uninstall` removes generated files while skipping and continuing to track user-modified files by default.
 
-Use `update --dry-run --json` and `uninstall --dry-run --json` before changing installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+Use `outdated --json`, `update --dry-run --json`, and `uninstall --dry-run --json` before changing installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
 
 ## Initialize A Project
 

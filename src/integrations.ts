@@ -12,8 +12,8 @@ Workflow:
 6. Explain target files, permission implications, policy findings, warnings, and source/license status.
 7. Treat policy failures as blockers unless the user explicitly updates project policy.
 8. After user confirmation, run \`agents-market apply <pack-id> --target all --yes\`.
-9. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
-10. Summarize installed files, health warnings, and how to invoke the new agents.
+9. Run \`agents-market status --json\`, \`agents-market outdated --json\`, and \`agents-market doctor --strict --json\`.
+10. Summarize installed files, pack version state, health warnings, and how to invoke the new agents.
 
 Safety:
 - Prefer \`apply\` because it combines recommendation, audit, policy, diff, and guarded install.
@@ -21,6 +21,7 @@ Safety:
 - Treat policy failures as blockers unless the user explicitly updates the project policy.
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
+- Use \`outdated --json\` before update workflows, then \`update --dry-run --json\` before asking for confirmation.
 - Use \`--target claude\`, \`--target codex\`, or \`--target opencode\` when the user wants one tool only.
 `;
 

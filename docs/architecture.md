@@ -67,6 +67,7 @@ Installing a pack writes `.agents-market/manifest.json`.
 The manifest records:
 
 - pack id
+- installed pack version
 - target
 - install timestamp
 - generated file paths
@@ -78,6 +79,7 @@ This gives the installer a lifecycle:
 
 - `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
 - `status` compares current files with stored hashes.
+- `outdated` compares installed pack versions with the current registry source and reports current, outdated, newer, unknown, or missing state.
 - `update` regenerates installed packs and skips user-modified files unless `--force` is set.
 - `uninstall` removes generated files and skips user-modified files unless `--force` is set. Skipped files remain in the manifest so later `status`, `doctor`, or forced uninstall can still find them.
 
@@ -182,7 +184,7 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 
 ## Future Production Requirements
 
-- Pack version constraints and update checks.
+- Pack version constraints.
 - Manifest conflict resolution and richer drift reports.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.

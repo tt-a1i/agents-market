@@ -36,6 +36,7 @@ agents-market plan <pack> --target <target>
 agents-market audit <pack> --target <target> --json
 agents-market policy check <pack> --target <target> --json
 agents-market diff <pack> --target <target> --json
+agents-market outdated --json
 agents-market update --dry-run --json
 agents-market uninstall <pack> --target <target> --dry-run --json
 agents-market status --json
@@ -54,6 +55,7 @@ Use `audit --json` before install confirmation so the user can see permissions, 
 Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
 Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.
 Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, policy compliance, and target directories.
+Use `outdated --json` before update workflows to tell the user which installed packs are current, outdated, newer than the registry, unknown, or missing from the registry.
 Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.
 Use `uninstall --dry-run --json` before uninstalling packs, then ask for confirmation before running `uninstall`.

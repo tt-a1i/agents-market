@@ -5,6 +5,7 @@ import { dirname, resolve, sep } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import {
   createRegistryBundle,
+  getPack,
   loadRegistryWithInfo,
   signRegistryBundle,
   summarizeRegistry,
@@ -26,6 +27,7 @@ import { searchRegistry, type SearchKind } from "./search.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
+import { versionStatus } from "./version.js";
 import {
   loadManifest,
   loadRegistryLock,
@@ -604,21 +606,30 @@ program
 
     await writeGeneratedFiles(root, files);
     const manifest = await loadManifest(root);
+    const pack = getPack(registry, packId);
     await saveManifest(
       root,
-      upsertInstall(manifest, packId, target, files, new Date(), {
-        source: loaded.source.value,
-        version: loaded.source.version,
-        sha256: loaded.source.sha256
-      })
+      upsertInstall(
+        manifest,
+        packId,
+        target,
+        files,
+        new Date(),
+        {
+          source: loaded.source.value,
+          version: loaded.source.version,
+          sha256: loaded.source.sha256
+        },
+        pack.version
+      )
     );
-      if (options.json) {
-        console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
-        return;
-      }
-      if (policyReport) printPolicyReport(policyReport);
-      console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
+    if (options.json) {
+      console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
+      return;
     }
+    if (policyReport) printPolicyReport(policyReport);
+    console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
+  }
   );
 
 program
@@ -775,6 +786,7 @@ program
         target: install.target,
         installedAt: install.installedAt,
         registry: install.registry,
+        packVersion: install.packVersion,
         files
       });
     }
@@ -807,6 +819,77 @@ program
         console.log(`  ${state} ${file.path}`);
       }
     }
+  });
+
+program
+  .command("outdated")
+  .description("Check installed packs against their current registry versions")
+  .option("--cwd <path>", "project root to inspect")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { cwd?: string; registry?: string; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const manifest = await loadManifest(root);
+    const checks = [];
+    for (const install of manifest.installs) {
+      try {
+        const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
+        const currentPack = loaded.registry.packs.find((pack) => pack.id === install.packId);
+        const status = versionStatus(install.packVersion, currentPack?.version);
+        checks.push({
+          packId: install.packId,
+          target: install.target,
+          installedVersion: install.packVersion,
+          currentVersion: currentPack?.version,
+          status,
+          registry: loaded.source
+        });
+      } catch (error) {
+        checks.push({
+          packId: install.packId,
+          target: install.target,
+          installedVersion: install.packVersion,
+          status: "error",
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    const summary = {
+      root,
+      installCount: manifest.installs.length,
+      outdatedCount: checks.filter((check) => check.status === "outdated").length,
+      unknownCount: checks.filter((check) => check.status === "unknown").length,
+      errorCount: checks.filter((check) => check.status === "error").length,
+      checks
+    };
+
+    if (options.json) {
+      console.log(JSON.stringify(summary, null, 2));
+      if (summary.errorCount > 0) process.exitCode = 1;
+      return;
+    }
+
+    if (checks.length === 0) {
+      console.log("No packs installed by Agents Market.");
+      return;
+    }
+    for (const check of checks) {
+      const label =
+        check.status === "outdated"
+          ? pc.yellow("outdated")
+          : check.status === "error"
+            ? pc.red("error")
+            : check.status === "unknown"
+              ? pc.yellow("unknown")
+              : check.status === "newer"
+                ? pc.yellow("newer")
+                : pc.green("current");
+      const versions = `${check.installedVersion ?? "unknown"} -> ${check.currentVersion ?? "missing"}`;
+      console.log(`${label} ${check.packId} (${check.target}) ${versions}`);
+      if ("error" in check && check.error) console.log(`  ${check.error}`);
+    }
+    if (summary.errorCount > 0) process.exitCode = 1;
   });
 
 program
@@ -971,6 +1054,7 @@ program
     for (const install of installs) {
       const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
       const registry = loaded.registry;
+      const pack = getPack(registry, install.packId);
       const files = generatePackFiles(registry, install.packId, install.target);
       const safeFiles = [];
       const manifestFiles: ManifestFileEntry[] = [];
@@ -1017,6 +1101,9 @@ program
       summaries.push({
         packId: install.packId,
         target: install.target,
+        fromVersion: install.packVersion,
+        toVersion: pack.version,
+        versionStatus: versionStatus(install.packVersion, pack.version),
         registry: loaded.source,
         changes
       });
@@ -1025,6 +1112,7 @@ program
         await writeGeneratedFiles(root, safeFiles);
         nextManifest = upsertInstallEntry(nextManifest, {
           packId: install.packId,
+          packVersion: pack.version,
           target: install.target,
           installedAt: new Date().toISOString(),
           registry: {

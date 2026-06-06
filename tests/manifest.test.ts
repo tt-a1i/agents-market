@@ -27,10 +27,13 @@ describe("manifest", () => {
           }
         }
       ],
-      new Date("2026-01-01T00:00:00.000Z")
+      new Date("2026-01-01T00:00:00.000Z"),
+      undefined,
+      "0.1.0"
     );
 
     expect(next.installs).toHaveLength(1);
+    expect(next.installs[0]?.packVersion).toBe("0.1.0");
     expect(next.installs[0]?.files[0]?.sha256).toHaveLength(64);
     expect(next.installs[0]?.installedAt).toBe("2026-01-01T00:00:00.000Z");
   });

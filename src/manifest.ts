@@ -43,10 +43,12 @@ export function upsertInstall(
   target: Target | "all",
   files: GeneratedPackFile[],
   now = new Date(),
-  registry?: ManifestInstallEntry["registry"]
+  registry?: ManifestInstallEntry["registry"],
+  packVersion?: string
 ): InstallManifest {
   const nextEntry: ManifestInstallEntry = {
     packId,
+    packVersion,
     target,
     installedAt: now.toISOString(),
     registry,

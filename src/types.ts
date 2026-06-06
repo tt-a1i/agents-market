@@ -102,6 +102,7 @@ export interface ManifestFileEntry {
 
 export interface ManifestInstallEntry {
   packId: string;
+  packVersion?: string;
   target: Target | "all";
   installedAt: string;
   registry?: {

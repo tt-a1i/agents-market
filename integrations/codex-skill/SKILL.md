@@ -16,8 +16,8 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 5. If the user wants a small custom set, run `agents-market search <query> --json`, create a pack with `agents-market pack create <pack-id> --agent <ids...> --out ./registry/packs`, then preview it with `agents-market apply <pack-id> --target all --json`.
 6. Explain target files, permission implications, policy findings, warnings, and source/license status.
 7. After user confirmation, run `agents-market apply <pack-id> --target all --yes`.
-8. Verify install state with `agents-market status --json` and `agents-market doctor --strict --json`.
-9. Summarize installed files, health warnings, and how the user can invoke the new agents.
+8. Verify install state with `agents-market status --json`, `agents-market outdated --json`, and `agents-market doctor --strict --json`.
+9. Summarize installed files, pack version state, health warnings, and how the user can invoke the new agents.
 
 ## Target Selection
 
@@ -33,3 +33,5 @@ Prefer `apply` because it combines recommendation, audit, policy, diff, and guar
 Treat policy failures as blockers unless the user explicitly updates project policy. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
 
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.
+
+Use `agents-market outdated --json` before update workflows, then use `agents-market update --dry-run --json` before asking for confirmation.

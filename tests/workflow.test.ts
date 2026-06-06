@@ -81,9 +81,10 @@ describe("apply workflow", () => {
 
     expect(result.installed).toBe(true);
     const manifest = JSON.parse(await readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")) as {
-      installs: Array<{ packId: string; target: string; files: unknown[] }>;
+      installs: Array<{ packId: string; packVersion?: string; target: string; files: unknown[] }>;
     };
     expect(manifest.installs[0]?.packId).toBe("starter-dev-pack");
+    expect(manifest.installs[0]?.packVersion).toBe("0.1.0");
     expect(manifest.installs[0]?.target).toBe("claude");
     expect(manifest.installs[0]?.files.length).toBe(4);
   });

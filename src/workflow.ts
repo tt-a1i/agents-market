@@ -83,7 +83,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
         source: options.registrySource?.value ?? "bundled",
         version: options.registrySource?.version,
         sha256: options.registrySource?.sha256
-      })
+      }, selected.pack.version)
     );
   }
 
