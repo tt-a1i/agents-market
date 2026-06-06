@@ -32,6 +32,23 @@ The CLI remains the stable execution layer. Agent-native integrations should be 
 - Codex: skill or plugin that calls the CLI and follows the diff-before-install flow.
 - OpenCode: custom agent/command that calls the CLI.
 
+## Install Integrations
+
+Use the CLI to install agent-native entrypoints into the current project:
+
+```bash
+agents-market integrations diff --target all
+agents-market integrations install --target all
+```
+
+Generated files:
+
+- Claude Code: `.claude/skills/agents-market-installer/SKILL.md`
+- Codex: `.agents/skills/agents-market-installer/SKILL.md`
+- OpenCode: `.opencode/commands/agents-market.md`
+
+After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `recommend`, `diff`, `install`, and `status` in that order.
+
 ## Safety Rules
 
 - Always run `diff` before `install`.

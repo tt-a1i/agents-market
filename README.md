@@ -54,6 +54,8 @@ agents-market uninstall starter-dev-pack --target claude
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
+agents-market integrations diff --target all
+agents-market integrations install --target all
 ```
 
 ## Install Manifest
@@ -99,12 +101,34 @@ This writes `.agents-market/registry-lock.json`. Project commands use the lockfi
 - `frontend-pack`: visual verification, accessibility, review, tests, and debugging.
 - `nextjs-pack`: Next.js performance, frontend verification, accessibility, tests, and review.
 
+## Agent-Native Integrations
+
+Install the installer entrypoints into a project:
+
+```bash
+agents-market integrations install --target all
+```
+
+This writes:
+
+| Tool | Integration file |
+| --- | --- |
+| Claude Code | `.claude/skills/agents-market-installer/SKILL.md` |
+| Codex | `.agents/skills/agents-market-installer/SKILL.md` |
+| OpenCode | `.opencode/commands/agents-market.md` |
+
+Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `diff`, asks for confirmation, installs with the CLI, and verifies with `status`.
+
 ## Repository Layout
 
 ```text
 registry/
   agents/     Standard agent source definitions
   packs/      Curated installable packs
+integrations/
+  claude-skill/       Claude Code installer skill source
+  codex-skill/        Codex installer skill source
+  opencode-command/   OpenCode installer command source
 src/
   adapters/   Claude Code, Codex, and OpenCode generators
   index.ts    CLI entrypoint

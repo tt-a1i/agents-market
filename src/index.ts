@@ -7,6 +7,7 @@ import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
 import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
+import { generateIntegrations } from "./integrations.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -308,6 +309,45 @@ registryCommand
       lockedAt: new Date().toISOString()
     });
     console.log(pc.green(`Locked registry ${loaded.source.value} in ${root}`));
+  });
+
+const integrationsCommand = program.command("integrations").description("Install agent-native installer integrations");
+
+integrationsCommand
+  .command("diff")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--cwd <path>", "project root to inspect")
+  .description("Preview agent-native integration files")
+  .action(async (options: { target: string; cwd?: string }) => {
+    const root = cwd(options.cwd);
+    const files = generateIntegrations(parseTarget(options.target));
+    for (const file of files) {
+      const existing = await readExisting(root, file);
+      const state = summarizeFileChange(existing, file.content);
+      const label = state === "create" ? pc.green("create") : state === "update" ? pc.yellow("update") : pc.dim("same");
+      console.log(`${label} ${file.path}`);
+    }
+  });
+
+integrationsCommand
+  .command("install")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--cwd <path>", "project root to install into")
+  .option("--dry-run", "preview without writing")
+  .description("Install agent-native integrations into the current project")
+  .action(async (options: { target: string; cwd?: string; dryRun?: boolean }) => {
+    const root = cwd(options.cwd);
+    const files = generateIntegrations(parseTarget(options.target));
+    if (options.dryRun) {
+      for (const file of files) {
+        const existing = await readExisting(root, file);
+        console.log(`${summarizeFileChange(existing, file.content)} ${file.path}`);
+      }
+      return;
+    }
+
+    await writeGeneratedFiles(root, files);
+    console.log(pc.green(`Installed ${files.length} agent-native integration files into ${root}`));
   });
 
 program.parseAsync().catch((error: unknown) => {

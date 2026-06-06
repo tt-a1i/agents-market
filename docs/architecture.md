@@ -28,6 +28,12 @@ Agents Market is built around one invariant: the registry is tool-neutral, and a
 
    Integrations should call the CLI or core library instead of rewriting generation logic. Their job is to provide a natural interaction inside Claude Code, Codex, OpenCode, and future coding agents.
 
+   Current generated integration files:
+
+   - `.claude/skills/agents-market-installer/SKILL.md`
+   - `.agents/skills/agents-market-installer/SKILL.md`
+   - `.opencode/commands/agents-market.md`
+
 ## Current Command Contract
 
 ```bash
@@ -41,6 +47,8 @@ agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
+agents-market integrations diff --target all
+agents-market integrations install --target all
 ```
 
 ## Manifest Lifecycle
@@ -90,11 +98,10 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 
 ## Future Production Requirements
 
-- Remote registry download and lockfile support.
 - Pack version constraints and update checks.
 - Registry signature verification.
 - Manifest conflict resolution and richer drift reports.
 - Registry linting and prompt quality scoring.
 - Signature or checksum verification for third-party packs.
-- Agent-native integrations for Claude Code, Codex, and OpenCode.
+- Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Web catalog backed by the same registry metadata.
