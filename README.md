@@ -43,6 +43,8 @@ Install the preview CLI from the GitHub Release with checksum verification:
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
 ```
 
+The installer verifies checksums before installation and installs the tarball with `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed.
+
 For workflow-produced releases, install GitHub CLI and require release asset attestations:
 
 ```bash

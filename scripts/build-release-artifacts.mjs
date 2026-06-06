@@ -308,7 +308,7 @@ if [ "\${EXPECTED_SHA}" != "\${ACTUAL_SHA}" ]; then
   exit 1
 fi
 
-npm install -g "\${TMP_DIR}/\${TARBALL}"
+npm install -g --ignore-scripts "\${TMP_DIR}/\${TARBALL}"
 agents-market --version
 `;
 }

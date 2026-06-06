@@ -58,7 +58,7 @@ gh attestation verify ./release-artifacts/npm/agents-market-cli-0.1.0.tgz --repo
 gh attestation verify ./release-artifacts/agents-market-release-artifacts-0.1.0.tgz --repo tt-a1i/agents-market
 ```
 
-`install.sh` requires `curl`, `npm`, and either `sha256sum` or `shasum`. It always verifies the npm tarball against `SHA256SUMS` before installing. Set `AGENTS_MARKET_REQUIRE_ATTESTATION=1` to require GitHub CLI attestation verification for both `SHA256SUMS` and the npm tarball before checksum validation:
+`install.sh` requires `curl`, `npm`, and either `sha256sum` or `shasum`. It always verifies the npm tarball against `SHA256SUMS` before installing, then runs `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed. Set `AGENTS_MARKET_REQUIRE_ATTESTATION=1` to require GitHub CLI attestation verification for both `SHA256SUMS` and the npm tarball before checksum validation:
 
 ```bash
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/v0.1.0/install.sh | AGENTS_MARKET_REQUIRE_ATTESTATION=1 sh

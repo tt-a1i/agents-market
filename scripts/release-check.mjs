@@ -816,7 +816,7 @@ async function runReleaseArtifactsSmoke() {
       installScript.indexOf("Install requires npm.") < installScript.indexOf("npm install -g"),
       "Release install script should check for npm before installing the tarball."
     );
-    assert(installScript.includes("npm install -g"), "Release install script should install the npm tarball.");
+    assert(installScript.includes("npm install -g --ignore-scripts"), "Release install script should install the npm tarball without running npm lifecycle scripts.");
     const sbom = JSON.parse(await readFile(join(dir, "sbom.spdx.json"), "utf8"));
     assert(sbom.spdxVersion === "SPDX-2.3", `Expected SPDX 2.3 SBOM, found ${sbom.spdxVersion}.`);
     assert(sbom.name === `@agents-market/cli@${packageVersion}`, `Expected SBOM package name @agents-market/cli@${packageVersion}, found ${sbom.name}.`);
