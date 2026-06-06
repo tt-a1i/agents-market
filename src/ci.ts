@@ -1,5 +1,6 @@
 import type { GeneratedFile } from "./types.js";
 import { assertSafePackageSpec } from "./catalog.js";
+import { CLI_VERSION } from "./constants.js";
 
 export type CiProvider = "github";
 
@@ -9,7 +10,7 @@ export interface CiWorkflowOptions {
   strict: boolean;
 }
 
-const DEFAULT_PACKAGE_SPEC = "github:tt-a1i/agents-market";
+const DEFAULT_PACKAGE_SPEC = `@agents-market/cli@${CLI_VERSION}`;
 
 export function defaultCiWorkflowOptions(): CiWorkflowOptions {
   return {
@@ -60,21 +61,32 @@ on:
       - ".github/workflows/agents-market.yml"
   workflow_dispatch:
 
+concurrency:
+  group: agents-market-${"${{ github.ref }}"}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   doctor:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Verify registry lock
+        run: npx --yes ${options.packageSpec} registry verify-lock --json
       - name: Check generated agent drift
         run: npx --yes ${options.packageSpec} status --diff --json
       - name: Check installed pack versions
-        run: npx --yes ${options.packageSpec} outdated --json
+        run: npx --yes ${options.packageSpec} outdated --fail-on-outdated --json
+      - name: Preview safe pack updates
+        run: npx --yes ${options.packageSpec} update --dry-run --fail-on-skipped --json
       - name: Run Agents Market doctor
         run: npx --yes ${options.packageSpec} doctor${doctorStrict} --json
 `;

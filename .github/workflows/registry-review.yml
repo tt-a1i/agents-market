@@ -5,13 +5,10 @@ env:
 
 on:
   pull_request:
-    paths:
-      - "registry/**"
-      - "scripts/registry-submission-check.mjs"
-      - "docs/contributing-agents.md"
-      - ".github/workflows/registry-review.yml"
-      - ".github/pull_request_template.md"
-      - ".github/ISSUE_TEMPLATE/agent_pack_submission.yml"
+
+concurrency:
+  group: registry-review-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,8 +18,11 @@ permissions:
 jobs:
   registry-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24

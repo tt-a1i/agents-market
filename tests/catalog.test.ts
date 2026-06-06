@@ -1,9 +1,13 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { generateKeyPairSync } from "node:crypto";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCatalog, verifyCatalog } from "../src/catalog.js";
-import { loadRegistry } from "../src/registry.js";
+import { buildCatalog, readCatalogManifestUrl, verifyCatalog, verifyCatalogUrl } from "../src/catalog.js";
+import { loadRegistry, verifyRegistryBundleSignature } from "../src/registry.js";
+import type { RegistryBundle } from "../src/types.js";
 
 let cleanupPath: string | undefined;
 
@@ -29,9 +33,14 @@ describe("catalog", () => {
     });
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
+      "agents-market.json",
       "catalog.json",
+      "favicon.svg",
       "index.html",
-      "registry.bundle.json"
+      "registry.bundle.json",
+      "robots.txt",
+      "site.webmanifest",
+      "sitemap.xml"
     ]);
 
     const html = await readFile(join(cleanupPath, "index.html"), "utf8");
@@ -68,9 +77,31 @@ describe("catalog", () => {
     );
     expect(html).toContain("data-copy=");
     expect(html).toContain("navigator.clipboard.writeText");
+    expect(html).toContain("document.execCommand(\"copy\")");
+    expect(html).toContain("Copy failed");
+    expect(html).toContain('rel="manifest" href="site.webmanifest"');
+    expect(html).toContain('rel="icon" href="favicon.svg"');
+    expect(html).toContain('rel="sitemap" type="application/xml" href="sitemap.xml"');
+    expect(html).toContain('rel="canonical" href="https://example.com/agents-market"');
+    expect(html).toContain('property="og:title" content="Agents Market Test"');
+    expect(html).toContain('property="og:url" content="https://example.com/agents-market"');
+    expect(html).toContain('name="twitter:card" content="summary"');
     expect(html).toContain("href=\"https://github.com/example/agents-market\"");
     expect(html).toContain("href=\"https://github.com/example/agents-market/releases/tag/v0.1.0\"");
     expect(html).toContain("commit <code>abcdef123456</code>");
+    const robots = await readFile(join(cleanupPath, "robots.txt"), "utf8");
+    expect(robots).toContain("Allow: /");
+    expect(robots).toContain("Sitemap: https://example.com/agents-market/sitemap.xml");
+    expect(await readFile(join(cleanupPath, "sitemap.xml"), "utf8")).toContain("<loc>https://example.com/agents-market</loc>");
+    expect(await readFile(join(cleanupPath, "favicon.svg"), "utf8")).toContain("<svg");
+    const webManifest = JSON.parse(await readFile(join(cleanupPath, "site.webmanifest"), "utf8")) as {
+      name: string;
+      start_url: string;
+      icons: Array<{ src: string }>;
+    };
+    expect(webManifest.name).toBe("Agents Market Test");
+    expect(webManifest.start_url).toBe("https://example.com/agents-market");
+    expect(webManifest.icons.map((icon) => icon.src)).toContain("favicon.svg");
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
@@ -172,10 +203,139 @@ describe("catalog", () => {
     expect(starterPack?.targetCoverage).toEqual(["claude", "codex", "opencode"]);
     expect(starterPack?.provenance.withChecksum).toBe(0);
     expect(catalog.agents.find((agent) => agent.id === "code-reviewer")?.quality.grade).toBe("excellent");
+    const siteManifest = JSON.parse(await readFile(join(cleanupPath, "agents-market.json"), "utf8")) as {
+      schemaVersion: number;
+      title: string;
+      packageSpec: string;
+      registryBundleUrl: string;
+      commands: {
+        trust: Array<{ label: string; command: string }>;
+        install: Array<{ label: string; command: string }>;
+        automation: Array<{ label: string; command: string }>;
+      };
+      packs: Array<{ id: string; targets: string[]; previewCommand: string; installCommand: string }>;
+    };
+    expect(siteManifest.schemaVersion).toBe(1);
+    expect(siteManifest.title).toBe("Agents Market Test");
+    expect(siteManifest.packageSpec).toBe("github:tt-a1i/agents-market");
+    expect(siteManifest.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
+    expect(siteManifest.commands.trust.map((command) => command.label)).toEqual(catalog.registryWorkflows.map((workflow) => workflow.label));
+    expect(siteManifest.commands.install.map((command) => command.command).join("\n")).toContain("integrations install --target all");
+    expect(siteManifest.commands.install.map((command) => command.command).join("\n")).toContain("apply --target all --registry");
+    expect(siteManifest.commands.automation.map((command) => command.command).join("\n")).toContain("ci init --provider github");
+    expect(siteManifest.packs.find((pack) => pack.id === "starter-dev-pack")?.targets).toEqual(["claude", "codex", "opencode"]);
+    expect(siteManifest.packs.find((pack) => pack.id === "starter-dev-pack")?.previewCommand).toContain("--json");
 
     const validReport = await verifyCatalog(cleanupPath);
     expect(validReport.ok).toBe(true);
     expect(validReport.findings).toEqual([]);
+  });
+
+  it("verifies a hosted signed catalog URL", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-hosted-"));
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+    const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
+    const server = await serveDirectory(cleanupPath);
+    try {
+      const { port } = server.address() as AddressInfo;
+      const baseUrl = `http://127.0.0.1:${port}`;
+      await buildCatalog(registry, {
+        outDir: cleanupPath,
+        version: "0.1.0",
+        title: "Agents Market Hosted Test",
+        baseUrl,
+        signingPrivateKeyPem: privateKeyPem,
+        signingPublicKeyPem: publicKeyPem,
+        signingKeyId: "hosted-test"
+      });
+
+      const report = await verifyCatalogUrl(`${baseUrl}/catalog.json`);
+      expect(report.ok).toBe(true);
+      expect(report.source).toEqual({ kind: "url", value: `${baseUrl}/` });
+      expect(report.findings).toEqual([]);
+      expect(report.signatures?.registry).toMatchObject({
+        ok: true,
+        keyId: "hosted-test",
+        algorithm: "ed25519"
+      });
+      const manifestReport = await readCatalogManifestUrl(`${baseUrl}/agents-market.json`);
+      expect(manifestReport.source).toEqual({ kind: "url", value: `${baseUrl}/` });
+      expect(manifestReport.manifest.schemaVersion).toBe(1);
+      expect(manifestReport.manifest.registryBundleUrl).toBe(`${baseUrl}/registry.bundle.json`);
+      const commands = manifestReport.manifest.commands as {
+        install?: Array<{ command: string }>;
+        automation?: Array<{ command: string }>;
+      };
+      expect(commands.install?.some((command) => command.command.includes("integrations install --target all"))).toBe(true);
+      expect(commands.automation?.some((command) => command.command.includes("ci init --provider github"))).toBe(true);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it("can sign the hosted registry bundle and publish the public key", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-signed-"));
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+    const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
+
+    const files = await buildCatalog(registry, {
+      outDir: cleanupPath,
+      version: "0.1.0",
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market",
+      signingPrivateKeyPem: privateKeyPem,
+      signingPublicKeyPem: publicKeyPem,
+      signingKeyId: "catalog-test"
+    });
+
+    expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
+      "agents-market.json",
+      "catalog.json",
+      "favicon.svg",
+      "index.html",
+      "registry-public.pem",
+      "registry.bundle.json",
+      "robots.txt",
+      "site.webmanifest",
+      "sitemap.xml"
+    ]);
+    expect(await readFile(join(cleanupPath, "registry-public.pem"), "utf8")).toBe(publicKeyPem);
+
+    const bundle = JSON.parse(await readFile(join(cleanupPath, "registry.bundle.json"), "utf8")) as RegistryBundle;
+    expect(bundle.signatures?.map((signature) => signature.keyId)).toContain("catalog-test");
+    expect(verifyRegistryBundleSignature(bundle, publicKeyPem, "catalog-test")).toEqual({
+      ok: true,
+      keyId: "catalog-test",
+      algorithm: "ed25519"
+    });
+    const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
+      registryWorkflows: Array<{ label: string; command: string }>;
+    };
+    expect(catalog.registryWorkflows.map((workflow) => workflow.label)).toEqual([
+      "Inspect Hosted Registry",
+      "Verify Hosted Registry Signature",
+      "Lock Registry In Project",
+      "Verify Project Lock"
+    ]);
+    expect(catalog.registryWorkflows.map((workflow) => workflow.command).join("\n")).toContain(
+      "registry verify --registry https://example.com/agents-market/registry.bundle.json --public-key https://example.com/agents-market/registry-public.pem --key-id catalog-test"
+    );
+    expect(catalog.registryWorkflows.map((workflow) => workflow.command).join("\n")).toContain(
+      "registry lock --registry https://example.com/agents-market/registry.bundle.json --public-key https://example.com/agents-market/registry-public.pem --key-id catalog-test"
+    );
+
+    const validReport = await verifyCatalog(cleanupPath);
+    expect(validReport.ok).toBe(true);
+    expect(validReport.findings).toEqual([]);
+    expect(validReport.signatures?.registry).toMatchObject({
+      ok: true,
+      keyId: "catalog-test",
+      algorithm: "ed25519"
+    });
   });
 
   it("fails verification when catalog commands drift from the bundle", async () => {
@@ -202,6 +362,34 @@ describe("catalog", () => {
     expect(report.findings.map((finding) => finding.code)).toContain("preview-command-mismatch");
   });
 
+  it("fails verification when catalog runtime fallbacks are missing", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
+    await buildCatalog(registry, {
+      outDir: cleanupPath,
+      version: "0.1.0",
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market"
+    });
+
+    const htmlPath = join(cleanupPath, "index.html");
+    const html = await readFile(htmlPath, "utf8");
+    await writeFile(
+      htmlPath,
+      html
+        .replace('const itemTargets = item.dataset.targets || "";', 'const itemTargets = item.dataset.targets;')
+        .replace('copied = document.execCommand("copy");', "copied = false;")
+        .replace('button.textContent = copied ? "Copied" : "Copy failed";', 'button.textContent = "Copied";'),
+      "utf8"
+    );
+
+    const report = await verifyCatalog(cleanupPath);
+    expect(report.ok).toBe(false);
+    expect(report.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining(["html-missing-target-filter-fallback", "html-missing-copy-fallback"])
+    );
+  });
+
   it("supports npm package command generation for production catalogs", async () => {
     const registry = await loadRegistry();
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
@@ -224,3 +412,37 @@ describe("catalog", () => {
     expect(report.ok).toBe(true);
   });
 });
+
+async function serveDirectory(root: string): Promise<Server> {
+  const server = createServer(async (request, response) => {
+    try {
+      const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+      const fileName = requestUrl.pathname.split("/").filter(Boolean).pop() ?? "index.html";
+      if (fileName.includes("..")) {
+        response.writeHead(400);
+        response.end("bad request");
+        return;
+      }
+      const content = await readFile(join(root, fileName));
+      response.writeHead(200);
+      response.end(content);
+    } catch {
+      response.writeHead(404);
+      response.end("not found");
+    }
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  return server;
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}

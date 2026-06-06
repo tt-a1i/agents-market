@@ -2,6 +2,10 @@
 
 Agents Market installs executable-adjacent agent instructions into developer repositories. Treat registry content, import tooling, generated files, and CLI lifecycle commands as security-sensitive.
 
+For local data and network access boundaries, see [PRIVACY.md](./PRIVACY.md). Agents Market does not include telemetry, analytics, or background reporting.
+
+For non-security usage questions, bug reports, release artifact issues, or registry proposals, use [SUPPORT.md](./SUPPORT.md).
+
 ## Supported Versions
 
 Security fixes are applied to the current `main` branch and the latest published npm package version.
@@ -43,4 +47,3 @@ Registry submissions are reviewed as supply-chain content. Maintainers should re
 - Duplicate existing agents in a way that makes routing less predictable.
 
 See [docs/contributing-agents.md](./docs/contributing-agents.md) for the full registry review process.
-

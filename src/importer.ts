@@ -46,6 +46,31 @@ export interface ImportDirectoryResult {
   pack?: PackDefinition;
 }
 
+export interface ImportedAgentSummary {
+  id: string;
+  name: string;
+  version: string;
+  category: string;
+  permission: PermissionMode;
+  recommendedTargets: Target[];
+  provenance?: AgentDefinition["provenance"];
+}
+
+export interface ImportedPackSummary {
+  id: string;
+  name: string;
+  version: string;
+  agents: string[];
+}
+
+export interface ImportReport {
+  importedCount: number;
+  skippedCount: number;
+  imported: ImportedAgentSummary[];
+  skipped: string[];
+  pack?: ImportedPackSummary;
+}
+
 export async function importMarkdownAgent(options: ImportMarkdownOptions): Promise<AgentDefinition> {
   const raw = await readFile(options.sourcePath, "utf8");
   const parsed = parseMarkdownAgent(raw);
@@ -134,6 +159,35 @@ export async function importMarkdownDirectory(options: ImportDirectoryOptions): 
   }
 
   return { imported, skipped, pack };
+}
+
+export function createImportReport(result: ImportDirectoryResult): ImportReport {
+  return {
+    importedCount: result.imported.length,
+    skippedCount: result.skipped.length,
+    imported: result.imported.map(summarizeImportedAgent),
+    skipped: result.skipped,
+    pack: result.pack
+      ? {
+          id: result.pack.id,
+          name: result.pack.name,
+          version: result.pack.version,
+          agents: result.pack.agents
+        }
+      : undefined
+  };
+}
+
+export function summarizeImportedAgent(agent: AgentDefinition): ImportedAgentSummary {
+  return {
+    id: agent.id,
+    name: agent.name,
+    version: agent.version,
+    category: agent.category,
+    permission: agent.permission,
+    recommendedTargets: agent.recommendedTargets,
+    provenance: agent.provenance
+  };
 }
 
 function inferFileProvenance(

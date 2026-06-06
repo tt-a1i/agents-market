@@ -12,7 +12,7 @@ import {
   verifyRegistryBundleSignature,
   verifyRegistryLock
 } from "./registry.js";
-import { buildCatalog, verifyCatalog } from "./catalog.js";
+import { buildCatalog, readCatalogManifestUrl, verifyCatalog, verifyCatalogUrl } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
@@ -21,7 +21,7 @@ import { runDoctor } from "./doctor.js";
 import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrationPackages, generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
-import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
+import { createImportReport, importMarkdownAgent, importMarkdownDirectory, summarizeImportedAgent } from "./importer.js";
 import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
@@ -34,17 +34,22 @@ import { checkPackCompatibility, type PackCompatibilityReport } from "./compatib
 import { planManifestResolution, type ResolveStrategy } from "./resolve.js";
 import { BUNDLED_REGISTRY_VERSION, CLI_VERSION } from "./constants.js";
 import { defaultCiWorkflowOptions, generateCiWorkflow, type CiProvider } from "./ci.js";
+import { verifyReleaseArtifactInput } from "./release-artifacts.js";
 import {
   loadManifest,
   loadRegistryLock,
+  appendInstallHistory,
+  createUpdateHistoryEntry,
+  popInstallHistory,
   removeInstall,
+  REGISTRY_LOCK_PATH,
   saveManifest,
   saveRegistryLock,
   upsertInstall,
   upsertInstallEntry
 } from "./manifest.js";
 import { sha256 } from "./hash.js";
-import type { ManifestFileEntry, ManifestInstallEntry, RegistryBundle, Target } from "./types.js";
+import type { ManifestFileEntry, ManifestInstallEntry, ManifestRollbackFileEntry, RegistryBundle, Target } from "./types.js";
 
 const program = new Command();
 
@@ -89,6 +94,10 @@ function collectOption(value: string, previous: string[] = []): string[] {
   return [...previous, value];
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function summarizeChanges(changes: Array<{ state: string }>): Record<"create" | "update" | "same", number> {
   return {
     create: changes.filter((change) => change.state === "create").length,
@@ -112,7 +121,7 @@ async function loadProjectRegistry(root: string, registryOption?: string) {
   if (registryOption) return loadRegistryWithInfo(registryOption);
   const lock = await loadRegistryLock(root);
   const loaded = await loadRegistryWithInfo(lock?.source);
-  if (lock) verifyRegistryLock(loaded, lock);
+  if (lock) await verifyRegistryLock(loaded, lock, { root });
   return loaded;
 }
 
@@ -121,7 +130,7 @@ async function loadRegistryForInstall(root: string, registryOption: string | und
   const lock = await loadRegistryLock(root);
   if (lock) {
     const loaded = await loadRegistryWithInfo(lock.source);
-    verifyRegistryLock(loaded, lock);
+    await verifyRegistryLock(loaded, lock, { root });
     return loaded;
   }
   const loaded = await loadRegistryWithInfo(installRegistry?.source);
@@ -258,6 +267,16 @@ program
         }
         await writeGeneratedFiles(root, integrationFiles);
       }
+      const initConfirmCommand = [
+        "agents-market init",
+        `--target ${target}`,
+        options.registry ? `--registry ${options.registry}` : undefined,
+        options.lock === false ? "--no-lock" : undefined
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const lockNextCommands =
+        options.lock === false ? [] : options.dryRun ? [`${initConfirmCommand}`] : ["agents-market registry verify-lock --json"];
 
       const result = {
         root,
@@ -278,6 +297,7 @@ program
         audit,
         diff,
         nextCommands: [
+          ...lockNextCommands,
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --json`,
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --yes`,
           "agents-market doctor --strict --json"
@@ -1106,8 +1126,9 @@ program
   .description("Check installed packs against their current registry versions")
   .option("--cwd <path>", "project root to inspect")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--fail-on-outdated", "exit non-zero when installed packs are outdated, missing, or registry checks fail")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { cwd?: string; registry?: string; json?: boolean }) => {
+  .action(async (options: { cwd?: string; registry?: string; failOnOutdated?: boolean; json?: boolean }) => {
     const root = cwd(options.cwd);
     const manifest = await loadManifest(root);
     const checks = [];
@@ -1139,14 +1160,16 @@ program
       root,
       installCount: manifest.installs.length,
       outdatedCount: checks.filter((check) => check.status === "outdated").length,
+      missingCount: checks.filter((check) => check.status === "missing").length,
       unknownCount: checks.filter((check) => check.status === "unknown").length,
       errorCount: checks.filter((check) => check.status === "error").length,
       checks
     };
+    const shouldFail = summary.errorCount > 0 || Boolean(options.failOnOutdated && (summary.outdatedCount > 0 || summary.missingCount > 0));
 
     if (options.json) {
       console.log(JSON.stringify(summary, null, 2));
-      if (summary.errorCount > 0) process.exitCode = 1;
+      if (shouldFail) process.exitCode = 1;
       return;
     }
 
@@ -1169,7 +1192,7 @@ program
       console.log(`${label} ${check.packId} (${check.target}) ${versions}`);
       if ("error" in check && check.error) console.log(`  ${check.error}`);
     }
-    if (summary.errorCount > 0) process.exitCode = 1;
+    if (shouldFail) process.exitCode = 1;
   });
 
 program
@@ -1314,10 +1337,11 @@ program
   .option("--cwd <path>", "project root to update")
   .option("--force", "overwrite modified generated files")
   .option("--dry-run", "preview without writing")
+  .option("--fail-on-skipped", "exit non-zero when updates are skipped or incompatible")
   .option("--json", "print machine-readable JSON")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Update installed packs from the current registry")
-  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; dryRun?: boolean; json?: boolean; registry?: string }) => {
+  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; dryRun?: boolean; failOnSkipped?: boolean; json?: boolean; registry?: string }) => {
     const root = cwd(options.cwd);
     const manifest = await loadManifest(root);
     const installs = manifest.installs.filter((entry) => !packId || entry.packId === packId);
@@ -1400,6 +1424,15 @@ program
 
       const writeCount = changes.filter((change) => change.action === "write-create" || change.action === "write-update").length;
       written += writeCount;
+      const rollbackFiles: ManifestRollbackFileEntry[] = [];
+      if (!options.dryRun && writeCount > 0) {
+        for (const previous of install.files) {
+          rollbackFiles.push({
+            ...previous,
+            content: await readExisting(root, { path: previous.path, content: "" })
+          });
+        }
+      }
       summaries.push({
         packId: install.packId,
         target: install.target,
@@ -1413,6 +1446,8 @@ program
 
       if (!options.dryRun) {
         await writeGeneratedFiles(root, safeFiles);
+        const historyEntry =
+          writeCount > 0 ? createUpdateHistoryEntry(install, rollbackFiles, pack.version) : undefined;
         nextManifest = upsertInstallEntry(nextManifest, {
           packId: install.packId,
           packVersion: pack.version,
@@ -1423,13 +1458,15 @@ program
             version: loaded.source.version,
             sha256: loaded.source.sha256
           },
-          files: manifestFiles
+          files: manifestFiles,
+          history: historyEntry ? appendInstallHistory(install, historyEntry) : install.history
         });
       }
     }
 
     if (options.json) {
       const incompatibleCount = summaries.filter((summary) => summary.compatibility && !summary.compatibility.ok).length;
+      const blockedCount = incompatibleCount + skipped;
       console.log(
         JSON.stringify(
           {
@@ -1437,20 +1474,191 @@ program
             written,
             skipped,
             incompatibleCount,
+            blockedCount,
             updates: summaries
           },
           null,
           2
         )
       );
-      if (incompatibleCount > 0) process.exitCode = 1;
+      if (incompatibleCount > 0 || (options.failOnSkipped && blockedCount > 0)) process.exitCode = 1;
     } else {
       console.log(pc.green(`${options.dryRun ? "Previewed" : "Updated"} packs: wrote ${written}, skipped ${skipped}.`));
-      if (summaries.some((summary) => summary.compatibility && !summary.compatibility.ok)) process.exitCode = 1;
+      if (summaries.some((summary) => summary.compatibility && !summary.compatibility.ok) || (options.failOnSkipped && skipped > 0)) process.exitCode = 1;
     }
 
     if (!options.dryRun) {
       await saveManifest(root, nextManifest);
+    }
+  });
+
+program
+  .command("rollback")
+  .argument("[pack]", "optional pack id to roll back; rolls back all installed packs with history when omitted")
+  .option("-t, --target <target>", "claude, codex, opencode, or all")
+  .option("--cwd <path>", "project root to roll back")
+  .option("--force", "overwrite modified generated files before restoring the previous snapshot")
+  .option("--yes", "write rollback changes; default is preview only")
+  .option("--dry-run", "preview without writing")
+  .option("--json", "print machine-readable JSON")
+  .description("Roll back the last Agents Market update for installed packs")
+  .action(async (packId: string | undefined, options: { target?: string; cwd?: string; force?: boolean; yes?: boolean; dryRun?: boolean; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const target = options.target ? parseTarget(options.target) : undefined;
+    const dryRun = options.dryRun || !options.yes;
+    const manifest = await loadManifest(root);
+    const installs = manifest.installs.filter((entry) => (!packId || entry.packId === packId) && (!target || entry.target === target));
+
+    if (installs.length === 0) {
+      if (options.json) {
+        console.log(JSON.stringify({ dryRun, restored: 0, removed: 0, skipped: 0, rollbacks: [] }, null, 2));
+      } else {
+        console.log(pc.yellow(packId ? `No matching install found for ${packId}.` : "No packs installed by Agents Market."));
+      }
+      return;
+    }
+
+    let restored = 0;
+    let removed = 0;
+    let skipped = 0;
+    let nextManifest = manifest;
+    const summaries = [];
+
+    for (const install of installs) {
+      const { entry: historyEntry, remaining } = popInstallHistory(install);
+      if (!historyEntry) {
+        summaries.push({
+          packId: install.packId,
+          target: install.target,
+          action: "no-history",
+          changes: []
+        });
+        continue;
+      }
+
+      const currentByPath = new Map(install.files.map((file) => [file.path, file]));
+      const previousByPath = new Map(historyEntry.previousInstall.files.map((file) => [file.path, file]));
+      const snapshotByPath = new Map(historyEntry.files.map((file) => [file.path, file]));
+      const paths = [...new Set([...currentByPath.keys(), ...previousByPath.keys()])].sort();
+      const blockers = [];
+
+      for (const file of install.files) {
+        const current = await readExisting(root, { path: file.path, content: "" });
+        if (current !== undefined && sha256(current) !== file.sha256) {
+          blockers.push(file);
+        }
+      }
+
+      if (blockers.length > 0 && !options.force) {
+        skipped += blockers.length;
+        summaries.push({
+          packId: install.packId,
+          target: install.target,
+          historyId: historyEntry.id,
+          fromVersion: install.packVersion,
+          toVersion: historyEntry.previousInstall.packVersion,
+          action: "skip-modified",
+          changes: blockers.map((file) => ({
+            path: file.path,
+            target: file.target,
+            agentId: file.agentId,
+            state: "modified",
+            action: "skip-modified"
+          }))
+        });
+        continue;
+      }
+
+      const changes = [];
+      const filesToWrite = [];
+      for (const path of paths) {
+        const currentFile = currentByPath.get(path);
+        const previousFile = previousByPath.get(path);
+        const snapshot = snapshotByPath.get(path);
+        if (previousFile) {
+          if (snapshot?.content === undefined) {
+            skipped += 1;
+            changes.push({
+              path,
+              target: previousFile.target,
+              agentId: previousFile.agentId,
+              state: "missing-snapshot",
+              action: "restore-missing-snapshot"
+            });
+            continue;
+          }
+          restored += 1;
+          filesToWrite.push({ path, content: snapshot.content });
+          changes.push({
+            path,
+            target: previousFile.target,
+            agentId: previousFile.agentId,
+            state: currentFile ? "update" : "create",
+            action: "restore"
+          });
+          continue;
+        }
+
+        if (currentFile) {
+          removed += 1;
+          changes.push({
+            path,
+            target: currentFile.target,
+            agentId: currentFile.agentId,
+            state: "current-only",
+            action: "remove-current"
+          });
+          if (!dryRun) await removeFile(root, path);
+        }
+      }
+
+      if (!dryRun) {
+        await writeGeneratedFiles(root, filesToWrite);
+        nextManifest = upsertInstallEntry(nextManifest, {
+          ...historyEntry.previousInstall,
+          history: remaining.length > 0 ? remaining : undefined
+        });
+      }
+
+      summaries.push({
+        packId: install.packId,
+        target: install.target,
+        historyId: historyEntry.id,
+        fromVersion: install.packVersion,
+        toVersion: historyEntry.previousInstall.packVersion,
+        action: dryRun ? "preview-rollback" : "rollback",
+        changes
+      });
+    }
+
+    if (!dryRun) {
+      await saveManifest(root, nextManifest);
+    }
+
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            dryRun,
+            restored,
+            removed,
+            skipped,
+            rollbacks: summaries
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
+
+    console.log(pc.green(`${dryRun ? "Previewed rollback" : "Rolled back"} packs: restored ${restored}, removed ${removed}, skipped ${skipped}.`));
+    for (const summary of summaries) {
+      if (summary.action === "no-history") {
+        console.log(`${pc.yellow("no history")} ${summary.packId} (${summary.target})`);
+      } else if (summary.action === "skip-modified") {
+        console.log(`${pc.yellow("skip modified")} ${summary.packId} (${summary.target})`);
+      }
     }
   });
 
@@ -1666,7 +1874,7 @@ registryCommand
 registryCommand
   .command("verify")
   .option("--registry <source>", "registry bundle source to verify", "bundled")
-  .option("--public-key <path>", "Ed25519 public key PEM used to verify a bundle signature")
+  .option("--public-key <source>", "Ed25519 public key PEM path or URL used to verify a bundle signature")
   .option("--key-id <id>", "signature key id to verify")
   .option("--json", "print machine-readable JSON")
   .description("Verify registry checksum and optional bundle signature")
@@ -1676,7 +1884,7 @@ registryCommand
       const bundle = loaded.registry as RegistryBundle;
       const signatures = bundle.signatures ?? [];
       const signature = options.publicKey
-        ? verifyRegistryBundleSignature(bundle, await readFile(resolve(options.publicKey), "utf8"), options.keyId)
+        ? verifyRegistryBundleSignature(bundle, await readTextSource(options.publicKey), options.keyId)
         : undefined;
       const checksumOk = Boolean(loaded.source.sha256 || loaded.source.kind === "bundled" || loaded.source.kind === "directory");
       const ok = checksumOk && (!signature || signature.ok);
@@ -1724,15 +1932,33 @@ registryCommand
   .command("lock")
   .option("--cwd <path>", "project root to write the lockfile")
   .option("--registry <source>", "registry source to lock", "bundled")
+  .option("--public-key <source>", "Ed25519 public key PEM path or URL used to verify a signed registry lock")
+  .option("--key-id <id>", "signature key id required with --public-key")
   .description("Lock a project to a registry source")
-  .action(async (options: { cwd?: string; registry: string }) => {
+  .action(async (options: { cwd?: string; registry: string; publicKey?: string; keyId?: string }) => {
     const root = cwd(options.cwd);
+    if (options.publicKey && !options.keyId) throw new Error("--key-id is required when --public-key is provided.");
     const loaded = await loadRegistryWithInfo(options.registry);
+    if (options.publicKey) {
+      const signature = verifyRegistryBundleSignature(
+        loaded.registry as RegistryBundle,
+        await readTextSource(options.publicKey),
+        options.keyId
+      );
+      if (!signature.ok) throw new Error(`Registry signature verification failed: ${signature.error ?? "unknown error"}`);
+    }
     await saveRegistryLock(root, {
       schemaVersion: 1,
       source: loaded.source.value,
       version: loaded.source.version,
       sha256: loaded.source.sha256,
+      signature: options.publicKey
+        ? {
+            publicKey: options.publicKey,
+            keyId: options.keyId,
+            algorithm: "ed25519"
+          }
+        : undefined,
       lockedAt: new Date().toISOString()
     });
     console.log(pc.green(`Locked registry ${loaded.source.value} in ${root}`));
@@ -1764,7 +1990,7 @@ registryCommand
 
     try {
       const loaded = await loadRegistryWithInfo(lock.source);
-      verifyRegistryLock(loaded, lock);
+      await verifyRegistryLock(loaded, lock, { root });
       const result = {
         ok: true,
         root,
@@ -1968,7 +2194,13 @@ ciCommand
       dryRun: !options.yes,
       written: options.yes ? 1 : 0,
       changes: [change],
-      nextCommands: ["agents-market status --diff --json", "agents-market outdated --json", `agents-market doctor${options.strict === false ? "" : " --strict"} --json`]
+      nextCommands: [
+        "agents-market registry verify-lock --json",
+        "agents-market status --diff --json",
+        "agents-market outdated --fail-on-outdated --json",
+        "agents-market update --dry-run --fail-on-skipped --json",
+        `agents-market doctor${options.strict === false ? "" : " --strict"} --json`
+      ]
     };
 
     if (options.yes) {
@@ -2007,6 +2239,9 @@ catalogCommand
   .option("--repository <url>", "source repository URL stored in catalog and registry bundle metadata")
   .option("--release-url <url>", "release URL stored in catalog and registry bundle metadata")
   .option("--commit <sha>", "source commit stored in catalog and registry bundle metadata")
+  .option("--private-key <path>", "Ed25519 private key PEM used to sign the catalog registry bundle")
+  .option("--public-key <source>", "Ed25519 public key PEM path or URL copied into the catalog output")
+  .option("--key-id <id>", "signature key id")
   .description("Build a static Web catalog for packs and agents")
   .action(async (options: {
     out: string;
@@ -2019,7 +2254,11 @@ catalogCommand
     repository?: string;
     releaseUrl?: string;
     commit?: string;
+    privateKey?: string;
+    publicKey?: string;
+    keyId?: string;
   }) => {
+    if (options.privateKey && !options.keyId) throw new Error("--key-id is required when --private-key is provided.");
     const { registry } = await loadRegistryWithInfo(options.registry);
     const files = await buildCatalog(registry, {
       outDir: resolve(options.out),
@@ -2030,18 +2269,212 @@ catalogCommand
       homepage: options.homepage,
       repository: options.repository,
       releaseUrl: options.releaseUrl,
-      commit: options.commit
+      commit: options.commit,
+      signingPrivateKeyPem: options.privateKey ? await readFile(resolve(options.privateKey), "utf8") : undefined,
+      signingPublicKeyPem: options.publicKey ? await readTextSource(options.publicKey) : undefined,
+      signingKeyId: options.keyId
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });
 
 catalogCommand
+  .command("info")
+  .requiredOption("--url <url>", "hosted catalog base URL, catalog.json URL, or agents-market.json URL")
+  .option("--json", "print machine-readable JSON")
+  .description("Read the hosted agent-readable marketplace manifest")
+  .action(async (options: { url: string; json?: boolean }) => {
+    const report = await readCatalogManifestUrl(options.url);
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+
+    const manifest = report.manifest;
+    const title = typeof manifest.title === "string" ? manifest.title : "Agents Market";
+    const packageSpec = typeof manifest.packageSpec === "string" ? manifest.packageSpec : "unknown";
+    const registryBundleUrl = typeof manifest.registryBundleUrl === "string" ? manifest.registryBundleUrl : "unknown";
+    const publicKeyUrl = typeof manifest.publicKeyUrl === "string" ? manifest.publicKeyUrl : undefined;
+    const packs = Array.isArray(manifest.packs) ? manifest.packs : [];
+    console.log(`${pc.bold(title)} ${pc.dim(report.source.value)}`);
+    console.log(`- package: ${packageSpec}`);
+    console.log(`- registry bundle: ${registryBundleUrl}`);
+    if (publicKeyUrl) console.log(`- public key: ${publicKeyUrl}`);
+    console.log(`- packs: ${packs.length}`);
+    const commands = isPlainRecord(manifest.commands) ? manifest.commands : {};
+    for (const group of ["trust", "install", "automation"] as const) {
+      const entries = Array.isArray(commands[group]) ? commands[group] : [];
+      if (entries.length === 0) continue;
+      console.log(`\n${pc.bold(group)}`);
+      for (const entry of entries) {
+        if (!isPlainRecord(entry)) continue;
+        const label = typeof entry.label === "string" ? entry.label : "Command";
+        const command = typeof entry.command === "string" ? entry.command : undefined;
+        if (command) console.log(`- ${label}: ${command}`);
+      }
+    }
+  });
+
+catalogCommand
+  .command("init")
+  .requiredOption("--url <url>", "hosted catalog base URL, catalog.json URL, or agents-market.json URL")
+  .option("--cwd <path>", "project root to initialize")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--pack <pack>", "pack to preview in the onboarding plan; default is the top project recommendation")
+  .option("--ci", "also install the generated Agents Market GitHub Actions workflow")
+  .option("--yes", "write files; default is preview only")
+  .option("--json", "print machine-readable JSON")
+  .description("Connect a project to a hosted marketplace catalog")
+  .action(async (options: { url: string; cwd?: string; target: string; pack?: string; ci?: boolean; yes?: boolean; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const target = parseTarget(options.target);
+    const manifestReport = await readCatalogManifestUrl(options.url);
+    const manifest = manifestReport.manifest;
+    const registryBundleUrl = typeof manifest.registryBundleUrl === "string" ? manifest.registryBundleUrl : undefined;
+    if (!registryBundleUrl) throw new Error("Catalog manifest does not include registryBundleUrl.");
+    const publicKeyUrl = typeof manifest.publicKeyUrl === "string" ? manifest.publicKeyUrl : undefined;
+    const packageSpec = typeof manifest.packageSpec === "string" ? manifest.packageSpec : defaultCiWorkflowOptions().packageSpec;
+    const loaded = await loadRegistryWithInfo(registryBundleUrl);
+    const bundle = loaded.registry as RegistryBundle;
+    const signature = publicKeyUrl ? verifyRegistryBundleSignature(bundle, await readTextSource(publicKeyUrl), bundle.signatures?.[0]?.keyId) : undefined;
+    if (publicKeyUrl && !signature?.ok) {
+      throw new Error(`Catalog registry signature verification failed: ${signature?.error ?? "unknown error"}`);
+    }
+    const signals = await detectProject(root);
+    const recommendations = recommendPackDetails(loaded.registry, signals);
+    const selectedPack = options.pack
+      ? getPack(loaded.registry, options.pack)
+      : recommendations[0]?.pack ?? loaded.registry.packs.find((pack) => pack.id === "starter-dev-pack") ?? loaded.registry.packs[0];
+    if (!selectedPack) throw new Error("Registry does not contain any packs.");
+    const selectedRecommendation = recommendations.find((recommendation) => recommendation.pack.id === selectedPack.id);
+    const plan = createInstallPlan(loaded.registry, selectedPack.id, target);
+    const audit = auditPack(loaded.registry, selectedPack.id, target);
+    const packFiles = generatePackFiles(loaded.registry, selectedPack.id, target);
+    const diff = [];
+    for (const file of packFiles) {
+      const existing = await readExisting(root, file);
+      diff.push({
+        path: file.path,
+        target: file.target,
+        agentId: file.agent.id,
+        state: summarizeFileChange(existing, file.content)
+      });
+    }
+    const registryLock = {
+      schemaVersion: 1 as const,
+      source: loaded.source.value,
+      version: loaded.source.version,
+      sha256: loaded.source.sha256,
+      signature:
+        publicKeyUrl && signature?.keyId
+          ? {
+              publicKey: publicKeyUrl,
+              keyId: signature.keyId,
+              algorithm: "ed25519" as const
+            }
+          : undefined,
+      lockedAt: new Date().toISOString()
+    };
+    const integrationFiles = generateIntegrations(target);
+    const changes = [
+      {
+        path: REGISTRY_LOCK_PATH,
+        state: summarizeFileChange(await readExisting(root, { path: REGISTRY_LOCK_PATH, content: `${JSON.stringify(registryLock, null, 2)}\n` }), `${JSON.stringify(registryLock, null, 2)}\n`)
+      }
+    ];
+    for (const file of integrationFiles) {
+      const existing = await readExisting(root, file);
+      changes.push({
+        path: file.path,
+        state: summarizeFileChange(existing, file.content)
+      });
+    }
+    const ciWorkflow = options.ci
+      ? generateCiWorkflow({
+          provider: "github",
+          packageSpec,
+          strict: true
+        })
+      : undefined;
+    if (ciWorkflow) {
+      const existing = await readExisting(root, ciWorkflow);
+      changes.push({
+        path: ciWorkflow.path,
+        state: summarizeFileChange(existing, ciWorkflow.content)
+      });
+    }
+    if (options.yes) {
+      await saveRegistryLock(root, registryLock);
+      await writeGeneratedFiles(root, ciWorkflow ? [...integrationFiles, ciWorkflow] : integrationFiles);
+    }
+    const registryArg = options.yes ? "" : ` --registry ${loaded.source.value}`;
+    const catalogInitConfirmCommand = [
+      "agents-market catalog init",
+      `--url ${options.url}`,
+      `--target ${target}`,
+      options.pack ? `--pack ${options.pack}` : undefined,
+      options.ci ? "--ci" : undefined,
+      "--yes"
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const result = {
+      root,
+      source: manifestReport.source,
+      dryRun: !options.yes,
+      registry: loaded.source,
+      signature,
+      target,
+      signals,
+      recommendation: {
+        packId: selectedPack.id,
+        name: selectedPack.name,
+        description: selectedPack.description,
+        score: selectedRecommendation?.score ?? 0,
+        reasons: selectedRecommendation?.reasons ?? (options.pack ? ["selected by --pack"] : ["baseline"])
+      },
+      plan,
+      audit,
+      diff,
+      ci: Boolean(options.ci),
+      lockWritten: Boolean(options.yes),
+      written: options.yes ? changes.length : 0,
+      changes,
+      nextCommands: [
+        ...(options.yes ? ["agents-market registry verify-lock --json"] : [catalogInitConfirmCommand]),
+        `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --json`,
+        `agents-market apply ${selectedPack.id} --target ${target}${registryArg} --policy-preset balanced --yes`,
+        ...(options.ci ? ["agents-market status --diff --json", "agents-market doctor --strict --json"] : ["agents-market ci init --provider github --yes"])
+      ]
+    };
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`${pc.bold(options.yes ? "Connected catalog" : "Catalog init preview")} ${pc.dim(manifestReport.source.value)}`);
+    console.log(`- root: ${root}`);
+    console.log(`- registry: ${loaded.source.value}`);
+    if (signature) console.log(`- signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red(signature.error ?? "failed")}`);
+    console.log(`- recommended pack: ${pc.cyan(selectedPack.id)} - ${selectedPack.description}`);
+    console.log(`- audit risk: ${audit.risk}`);
+    console.log(`- planned files: ${plan.fileCount}`);
+    for (const change of changes) {
+      const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+      console.log(`${label} ${change.path}`);
+    }
+    console.log(`\n${pc.bold("Next")}`);
+    for (const command of result.nextCommands) console.log(`- ${command}`);
+  });
+
+catalogCommand
   .command("verify")
-  .requiredOption("--dir <path>", "catalog directory containing index.html, catalog.json, and registry.bundle.json")
+  .option("--dir <path>", "catalog directory containing index.html, catalog.json, and registry.bundle.json")
+  .option("--url <url>", "hosted catalog base URL or catalog.json URL")
   .option("--json", "print machine-readable JSON")
   .description("Verify static catalog assets are internally consistent")
-  .action(async (options: { dir: string; json?: boolean }) => {
-    const report = await verifyCatalog(resolve(options.dir));
+  .action(async (options: { dir?: string; url?: string; json?: boolean }) => {
+    if (!options.dir && !options.url) throw new Error("catalog verify requires --dir or --url.");
+    if (options.dir && options.url) throw new Error("catalog verify accepts only one of --dir or --url.");
+    const report = options.url ? await verifyCatalogUrl(options.url) : await verifyCatalog(resolve(options.dir!));
     if (options.json) {
       console.log(JSON.stringify(report, null, 2));
       if (!report.ok) process.exitCode = 1;
@@ -2049,8 +2482,13 @@ catalogCommand
     }
     const state = report.ok ? pc.green("pass") : pc.red("fail");
     console.log(`${pc.bold("Catalog")} ${state}`);
-    console.log(`- dir: ${report.dir}`);
+    console.log(`- source: ${report.source.kind} ${report.source.value}`);
+    if (report.dir) console.log(`- dir: ${report.dir}`);
     console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
+    if (report.signatures?.registry) {
+      const signature = report.signatures.registry;
+      console.log(`- registry signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red("fail")}`);
+    }
     for (const finding of report.findings) {
       const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
       console.log(`- ${label} ${finding.code}: ${finding.message}${finding.detail ? ` (${finding.detail})` : ""}`);
@@ -2072,6 +2510,7 @@ importCommand
   .option("--source-repo <repo>", "original repository, for example owner/name")
   .option("--source-license <license>", "source template license")
   .option("--source-author <author>", "source template author")
+  .option("--json", "print machine-readable import summary")
   .description("Normalize a Markdown agent into registry/agents JSON")
   .action(
     async (
@@ -2086,6 +2525,7 @@ importCommand
         sourceRepo?: string;
         sourceLicense?: string;
         sourceAuthor?: string;
+        json?: boolean;
       }
     ) => {
       const target = parseTarget(options.target);
@@ -2099,6 +2539,21 @@ importCommand
         version: options.version,
         provenance: provenanceFromOptions(options)
       });
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            {
+              importedCount: 1,
+              skippedCount: 0,
+              imported: [summarizeImportedAgent(agent)],
+              skipped: []
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
       if (options.out) {
         console.log(pc.green(`Imported ${agent.id} into ${resolve(options.out)}`));
       } else {
@@ -2125,6 +2580,7 @@ importCommand
   .option("--pack-out <dir>", "registry/packs output directory for --pack")
   .option("--pack-name <name>", "pack display name")
   .option("--pack-description <description>", "pack description")
+  .option("--json", "print machine-readable import summary")
   .description("Normalize a directory of Markdown agents into registry/agents JSON")
   .action(
     async (
@@ -2145,6 +2601,7 @@ importCommand
         packOut?: string;
         packName?: string;
         packDescription?: string;
+        json?: boolean;
       }
     ) => {
       const target = parseTarget(options.target);
@@ -2169,6 +2626,10 @@ importCommand
             }
           : undefined
       });
+      if (options.json) {
+        console.log(JSON.stringify(createImportReport(result), null, 2));
+        return;
+      }
       console.log(pc.green(`Imported ${result.imported.length} agents into ${resolve(options.out)}`));
       if (result.skipped.length > 0) {
         console.log(pc.yellow(`Skipped ${result.skipped.length} files due to duplicate ids or existing outputs.`));
@@ -2198,6 +2659,7 @@ importCommand
   .option("--pack-out <dir>", "registry/packs output directory for --pack")
   .option("--pack-name <name>", "pack display name")
   .option("--pack-description <description>", "pack description")
+  .option("--json", "print machine-readable import summary")
   .description("Clone a GitHub repository and normalize Markdown agents into registry JSON")
   .action(
     async (
@@ -2219,6 +2681,7 @@ importCommand
         packOut?: string;
         packName?: string;
         packDescription?: string;
+        json?: boolean;
       }
     ) => {
       const target = parseTarget(options.target);
@@ -2232,7 +2695,8 @@ importCommand
         if (scanPath !== checkoutRoot && !scanPath.startsWith(`${checkoutRoot}${sep}`)) {
           throw new Error(`Import path escapes the cloned repository: ${options.path}`);
         }
-        const sourceUrl = options.sourceUrl ?? githubTreeUrl(cloned.repository, options.ref ?? "HEAD", options.path);
+        const sourceRef = cloned.commit;
+        const sourceUrl = options.sourceUrl ?? githubTreeUrl(cloned.repository, sourceRef, options.path);
         const result = await importMarkdownDirectory({
           sourceDir: scanPath,
           target,
@@ -2246,7 +2710,8 @@ importCommand
             sourceUrl,
             sourceRepo: cloned.repository.repository,
             sourceLicense: options.sourceLicense,
-            sourceAuthor: options.sourceAuthor
+            sourceAuthor: options.sourceAuthor,
+            sourceCommit: cloned.commit
           }),
           pack: options.pack
             ? {
@@ -2257,6 +2722,23 @@ importCommand
               }
             : undefined
         });
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              {
+                repository: cloned.repository.repository,
+                source: sourceUrl,
+                ref: options.ref,
+                commit: cloned.commit,
+                path: options.path,
+                ...createImportReport(result)
+              },
+              null,
+              2
+            )
+          );
+          return;
+        }
         console.log(pc.green(`Imported ${result.imported.length} agents from ${cloned.repository.repository} into ${resolve(options.out)}`));
         if (result.skipped.length > 0) {
           console.log(pc.yellow(`Skipped ${result.skipped.length} files due to duplicate ids or existing outputs.`));
@@ -2270,19 +2752,67 @@ importCommand
     }
   );
 
+const releaseCommand = program.command("release").description("Verify release artifacts and distribution metadata");
+
+releaseCommand
+  .command("verify-artifacts")
+  .option("--dir <path>", "release artifact directory", "release-artifacts")
+  .option("--archive <path>", "complete release artifact archive .tgz")
+  .option("--json", "print machine-readable JSON")
+  .description("Verify release artifacts, checksums, SBOM, catalog metadata, and registry signatures")
+  .action(async (options: { dir: string; archive?: string; json?: boolean }) => {
+    const input = options.archive ?? options.dir;
+    try {
+      const report = await verifyReleaseArtifactInput(resolve(input), { archive: Boolean(options.archive) });
+      if (options.json) {
+        console.log(JSON.stringify({ ...report, input }, null, 2));
+        return;
+      }
+      console.log(pc.bold("Release artifact verification"));
+      console.log(`- input: ${input}`);
+      console.log(`- version: ${report.version}`);
+      if (report.releaseTag) console.log(`- release tag: ${report.releaseTag}`);
+      console.log(`- artifacts: ${report.artifactCount}`);
+      if (report.signatures.registry) console.log(`- registry signature: ${pc.green(`ok (${report.signatures.registry.keyId})`)}`);
+      if (report.signatures.catalog) console.log(`- catalog signature: ${pc.green(`ok (${report.signatures.catalog.keyId})`)}`);
+      console.log(`- SBOM packages: ${report.sbom.packageCount}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (options.json) {
+        console.log(JSON.stringify({ ok: false, input, findings: [message] }, null, 2));
+      } else {
+        console.error(pc.red(`Release artifact verification failed: ${message}`));
+      }
+      process.exitCode = 1;
+    }
+  });
+
 function provenanceFromOptions(options: {
   sourceUrl?: string;
   sourceRepo?: string;
   sourceLicense?: string;
   sourceAuthor?: string;
+  sourceCommit?: string;
 }) {
-  if (!options.sourceUrl && !options.sourceRepo && !options.sourceLicense && !options.sourceAuthor) return undefined;
+  if (!options.sourceUrl && !options.sourceRepo && !options.sourceLicense && !options.sourceAuthor && !options.sourceCommit) return undefined;
   return {
     source: options.sourceUrl,
     repository: options.sourceRepo,
     license: options.sourceLicense,
-    author: options.sourceAuthor
+    author: options.sourceAuthor,
+    sourceCommit: options.sourceCommit
   };
+}
+
+async function readTextSource(source: string): Promise<string> {
+  if (source.startsWith("http://") || source.startsWith("https://")) {
+    const response = await fetch(source);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${source}: HTTP ${response.status}`);
+    }
+    return response.text();
+  }
+  return readFile(resolve(source), "utf8");
 }
 
 program.parseAsync().catch((error: unknown) => {

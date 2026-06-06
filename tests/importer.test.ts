@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { importMarkdownAgent, importMarkdownDirectory, parseMarkdownAgent } from "../src/importer.js";
+import { createImportReport, importMarkdownAgent, importMarkdownDirectory, parseMarkdownAgent, summarizeImportedAgent } from "../src/importer.js";
 import { sha256 } from "../src/hash.js";
 
 let cleanupPath: string | undefined;
@@ -50,7 +50,8 @@ You are a senior code reviewer. Return concise findings with file paths and sugg
       provenance: {
         source: "https://example.com/code-reviewer.md",
         repository: "example/agents",
-        license: "MIT"
+        license: "MIT",
+        sourceCommit: "abcdef1234567890"
       }
     });
     expect(agent.id).toBe("code-reviewer");
@@ -58,6 +59,7 @@ You are a senior code reviewer. Return concise findings with file paths and sugg
     expect(agent.model?.claude).toBe("inherit");
     expect(agent.recommendedTargets).toEqual(["claude"]);
     expect(agent.provenance?.repository).toBe("example/agents");
+    expect(agent.provenance?.sourceCommit).toBe("abcdef1234567890");
     expect(agent.provenance?.sourceSha256).toBe(sha256(sourceContent));
   });
 
@@ -121,7 +123,8 @@ You are a debugging specialist. Find the smallest credible root cause and explai
       outDir: agentsDir,
       provenance: {
         repository: "example/community-agents",
-        license: "MIT"
+        license: "MIT",
+        sourceCommit: "1234567890abcdef"
       },
       pack: {
         id: "imported-pack",
@@ -132,9 +135,39 @@ You are a debugging specialist. Find the smallest credible root cause and explai
     expect(result.imported.map((agent) => agent.id).sort()).toEqual(["code-reviewer", "debugger"]);
     expect(result.imported.every((agent) => agent.provenance?.sourceSha256?.length === 64)).toBe(true);
     expect(result.pack?.agents.sort()).toEqual(["code-reviewer", "debugger"]);
+    const report = createImportReport(result);
+    expect(report.importedCount).toBe(2);
+    expect(report.skippedCount).toBe(0);
+    expect(report.imported[0]).not.toHaveProperty("prompt");
+    expect(report.imported.every((agent) => agent.provenance?.sourceSha256?.length === 64)).toBe(true);
+    expect(report.imported.every((agent) => agent.provenance?.sourceCommit === "1234567890abcdef")).toBe(true);
+    expect(report.pack?.id).toBe("imported-pack");
     const pack = JSON.parse(await readFile(join(packsDir, "imported-pack.json"), "utf8")) as { agents: string[]; requires?: { agentsMarket?: string } };
     expect(pack.agents).toHaveLength(2);
     expect(pack.requires?.agentsMarket).toBe(">=0.1.0");
+  });
+
+  it("summarizes imported agents without prompt content", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-import-"));
+    const source = join(cleanupPath, "reviewer.md");
+    await writeFile(
+      source,
+      `---
+name: review-specialist
+description: Reviews code for regressions, maintainability, and tests.
+tools: Read
+---
+
+You are a reviewer with a long private prompt that should stay out of summary output.
+`,
+      "utf8"
+    );
+
+    const agent = await importMarkdownAgent({ sourcePath: source, target: "claude" });
+    const summary = summarizeImportedAgent(agent);
+    expect(summary.id).toBe("review-specialist");
+    expect(summary.recommendedTargets).toEqual(["claude"]);
+    expect(summary).not.toHaveProperty("prompt");
   });
 });
 

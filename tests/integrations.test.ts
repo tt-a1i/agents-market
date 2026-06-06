@@ -18,6 +18,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market apply <pack-id> --target all --json");
       expect(file.content).toContain("agents-market apply <pack-id> --target all --yes");
       expect(file.content).toContain("agents-market registry info --registry <source> --json");
+      expect(file.content).toContain("agents-market registry verify-lock --json");
       expect(file.content).toContain("agents-market pack create");
       expect(file.content).toContain("agents-market status --json");
       expect(file.content).toContain("agents-market status --diff --json");
@@ -25,6 +26,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market doctor --strict --json");
       expect(file.content).toContain("Treat policy failures as blockers");
       expect(file.content).toContain("Treat compatibility failures as blockers");
+      expect(file.content).toContain("Treat registry lock verification failures as blockers");
     }
   });
 

@@ -7,21 +7,34 @@ on:
   push:
     tags:
       - "v*"
+      - "preview-*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version tag to publish, for example v0.1.0"
+        description: "Version tag to publish, for example v0.1.0 or preview-0.1.0"
         required: true
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name || inputs.version }}
+  cancel-in-progress: false
 
 jobs:
-  publish:
+  release-artifacts:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -31,9 +44,11 @@ jobs:
       - name: Validate dispatch version
         if: github.event_name == 'workflow_dispatch'
         run: |
-          expected="v$(node -p "require('./package.json').version")"
-          if [ "${{ inputs.version }}" != "$expected" ]; then
-            echo "Workflow input version must match package.json: expected $expected, got ${{ inputs.version }}"
+          package_version="$(node -p "require('./package.json').version")"
+          expected_release="v${package_version}"
+          expected_preview="preview-${package_version}"
+          if [ "${{ inputs.version }}" != "$expected_release" ] && [ "${{ inputs.version }}" != "$expected_preview" ]; then
+            echo "Workflow input version must match package.json: expected ${expected_release} or ${expected_preview}, got ${{ inputs.version }}"
             exit 1
           fi
       - name: Resolve release tag
@@ -45,19 +60,101 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
       - run: npm run release:check
-      - run: npm run release:artifacts -- --out ./release-artifacts --catalog-base-url "https://tt-a1i.github.io/agents-market" --release-tag "${{ steps.release.outputs.tag }}" --package "@agents-market/cli"
+      - name: Build release artifacts
+        env:
+          REGISTRY_SIGNING_PRIVATE_KEY: ${{ secrets.REGISTRY_SIGNING_PRIVATE_KEY }}
+          REGISTRY_SIGNING_PUBLIC_KEY: ${{ secrets.REGISTRY_SIGNING_PUBLIC_KEY }}
+          REGISTRY_SIGNING_KEY_ID: ${{ secrets.REGISTRY_SIGNING_KEY_ID }}
+        run: |
+          package_spec="@agents-market/cli"
+          case "${{ steps.release.outputs.tag }}" in
+            v*) package_spec="@agents-market/cli" ;;
+            *) package_spec="github:tt-a1i/agents-market#${{ steps.release.outputs.tag }}" ;;
+          esac
+
+          args=(
+            --out ./release-artifacts
+            --catalog-base-url "https://tt-a1i.github.io/agents-market"
+            --release-tag "${{ steps.release.outputs.tag }}"
+            --package "${package_spec}"
+          )
+
+          if [ -n "${REGISTRY_SIGNING_PRIVATE_KEY}" ] || [ -n "${REGISTRY_SIGNING_PUBLIC_KEY}" ] || [ -n "${REGISTRY_SIGNING_KEY_ID}" ]; then
+            if [ -z "${REGISTRY_SIGNING_PRIVATE_KEY}" ] || [ -z "${REGISTRY_SIGNING_PUBLIC_KEY}" ] || [ -z "${REGISTRY_SIGNING_KEY_ID}" ]; then
+              echo "Registry signing requires REGISTRY_SIGNING_PRIVATE_KEY, REGISTRY_SIGNING_PUBLIC_KEY, and REGISTRY_SIGNING_KEY_ID." >&2
+              exit 1
+            fi
+            printf '%s\n' "${REGISTRY_SIGNING_PRIVATE_KEY}" > registry-private.pem
+            printf '%s\n' "${REGISTRY_SIGNING_PUBLIC_KEY}" > registry-public.pem
+            args+=(--private-key registry-private.pem --public-key registry-public.pem --key-id "${REGISTRY_SIGNING_KEY_ID}")
+          fi
+
+          npm run release:artifacts -- "${args[@]}"
+      - run: npm run release:verify-artifacts -- --dir ./release-artifacts
+      - name: Attest release artifacts
+        uses: actions/attest@v4
+        with:
+          subject-checksums: ./release-artifacts/SHA256SUMS
+      - name: Attest checksum manifest
+        uses: actions/attest@v4
+        with:
+          subject-path: ./release-artifacts/SHA256SUMS
+      - name: Attest complete release artifact archive
+        uses: actions/attest@v4
+        with:
+          subject-path: ./release-artifacts/agents-market-release-artifacts-*.tgz
       - uses: actions/upload-artifact@v4
         with:
           name: agents-market-release-artifacts
           path: ./release-artifacts
-      - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Attach artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           release_tag="${{ steps.release.outputs.tag }}"
-          gh release view "${release_tag}" >/dev/null 2>&1 || gh release create "${release_tag}" --title "${release_tag}" --notes "Agents Market ${release_tag}"
-          gh release upload "${release_tag}" release-artifacts/*.tgz release-artifacts/npm/*.tgz release-artifacts/install.sh release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json --clobber
+          release_title="Agents Market ${release_tag}"
+          release_flags=()
+          case "${release_tag}" in
+            preview-*) release_flags+=(--prerelease) ;;
+          esac
+          cat > release-notes.md <<EOF
+          Agents Market ${release_tag}
+
+          Built from ${GITHUB_SHA}.
+
+          This release includes signed registry artifacts, registry-public.pem when signing is configured, SPDX SBOM, SHA256SUMS, GitHub Artifact Attestations, a complete release artifact archive, and checksum-verified install.sh assets.
+          EOF
+
+          if gh release view "${release_tag}" >/dev/null 2>&1; then
+            gh release edit "${release_tag}" --target "${GITHUB_SHA}" --title "${release_title}" --notes-file release-notes.md "${release_flags[@]}"
+          else
+            gh release create "${release_tag}" --target "${GITHUB_SHA}" --title "${release_title}" --notes-file release-notes.md "${release_flags[@]}"
+          fi
+          assets=(release-artifacts/*.tgz release-artifacts/npm/*.tgz release-artifacts/install.sh release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json release-artifacts/sbom.spdx.json)
+          if [ -f release-artifacts/registry-public.pem ]; then
+            assets+=(release-artifacts/registry-public.pem)
+          fi
+          gh release upload "${release_tag}" "${assets[@]}" --clobber
+  publish-npm:
+    needs: release-artifacts
+    if: startsWith(needs.release-artifacts.outputs.tag, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

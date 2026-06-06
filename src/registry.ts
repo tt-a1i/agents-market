@@ -259,7 +259,7 @@ export function verifyRegistryBundleSignature(
   };
 }
 
-export function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock): void {
+export async function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock, options: { root?: string } = {}): Promise<void> {
   if (loaded.source.value !== lock.source) {
     throw new Error(`Registry lock source mismatch: expected ${lock.source}, loaded ${loaded.source.value}`);
   }
@@ -271,6 +271,28 @@ export function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock): 
       `Registry lock checksum mismatch: expected ${lock.sha256}, loaded ${loaded.source.sha256 ?? "none"}`
     );
   }
+  if (lock.signature) {
+    const publicKeyPem = await readTextSource(lock.signature.publicKey, options.root);
+    const result = verifyRegistryBundleSignature(loaded.registry as RegistryBundle, publicKeyPem, lock.signature.keyId);
+    if (!result.ok) {
+      throw new Error(`Registry lock signature mismatch: ${result.error ?? "verification failed"}`);
+    }
+    if (lock.signature.algorithm !== result.algorithm) {
+      throw new Error(`Registry lock signature algorithm mismatch: expected ${lock.signature.algorithm}, loaded ${result.algorithm ?? "none"}`);
+    }
+  }
+}
+
+async function readTextSource(source: string, root?: string): Promise<string> {
+  if (source.startsWith("http://") || source.startsWith("https://")) {
+    const response = await fetch(source);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${source}: HTTP ${response.status}`);
+    }
+    return response.text();
+  }
+  const path = root && !isAbsolute(source) ? resolve(root, source) : resolve(source);
+  return readFile(path, "utf8");
 }
 
 function registryBundleHash(bundle: RegistryBundle | Omit<RegistryBundle, "sha256">): string {

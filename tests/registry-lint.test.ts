@@ -113,6 +113,41 @@ describe("registry lint", () => {
     expect(report.findings.some((finding) => finding.code === "missing-source-checksum")).toBe(true);
   });
 
+  it("warns for GitHub provenance without source commits", () => {
+    const missing = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          provenance: {
+            source: "https://github.com/example/agents/tree/main/reviewer.md",
+            repository: "example/agents",
+            license: "MIT",
+            sourceSha256: "a".repeat(64)
+          }
+        }
+      ]
+    });
+    expect(missing.findings.some((finding) => finding.code === "missing-source-commit")).toBe(true);
+
+    const present = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          provenance: {
+            source: "https://github.com/example/agents/tree/abcdef123456/reviewer.md",
+            repository: "example/agents",
+            license: "MIT",
+            sourceCommit: "abcdef123456",
+            sourceSha256: "a".repeat(64)
+          }
+        }
+      ]
+    });
+    expect(present.findings.some((finding) => finding.code === "missing-source-commit")).toBe(false);
+  });
+
   it("flags low-quality prompts with suggestions", () => {
     const report = lintRegistry({
       ...baseRegistry,

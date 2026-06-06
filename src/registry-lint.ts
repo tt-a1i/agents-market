@@ -145,7 +145,24 @@ function lintAgents(agents: AgentDefinition[], findings: LintFinding[]): void {
         message: "Agent provenance does not include sourceSha256 for the imported source content."
       });
     }
+
+    if (agent.provenance && isGitHubProvenance(agent.provenance) && !agent.provenance.sourceCommit) {
+      findings.push({
+        severity: "warning",
+        code: "missing-source-commit",
+        subject: `agent:${agent.id}`,
+        message: "GitHub provenance does not include sourceCommit for an immutable source tree review."
+      });
+    }
   }
+}
+
+function isGitHubProvenance(provenance: NonNullable<AgentDefinition["provenance"]>): boolean {
+  return Boolean(
+    provenance.source?.startsWith("https://github.com/") ||
+      provenance.source?.startsWith("http://github.com/") ||
+      provenance.repository?.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)
+  );
 }
 
 function lintPromptQuality(promptQuality: PromptQualityReport, findings: LintFinding[]): void {

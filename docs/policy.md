@@ -82,7 +82,7 @@ Use this in CI after installation. It catches policy drift when a policy is tigh
 ## Recommended Flow
 
 ```bash
-agents-market registry lock --registry https://tt-a1i.github.io/agents-market/registry.bundle.json
+agents-market registry lock --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --public-key https://tt-a1i.github.io/agents-market/registry-public.pem --key-id main
 agents-market policy init --preset balanced
 agents-market audit frontend-pack --target all --json
 agents-market policy check frontend-pack --target all --json

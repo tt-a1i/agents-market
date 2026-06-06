@@ -2,10 +2,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { sha256 } from "./hash.js";
 import type { GeneratedPackFile } from "./install.js";
-import type { InstallManifest, ManifestInstallEntry, RegistryLock, Target } from "./types.js";
+import type { InstallManifest, ManifestHistoryEntry, ManifestInstallEntry, ManifestRollbackFileEntry, RegistryLock, Target } from "./types.js";
 
 export const MANIFEST_PATH = ".agents-market/manifest.json";
 export const REGISTRY_LOCK_PATH = ".agents-market/registry-lock.json";
+const MAX_HISTORY_ENTRIES = 5;
 
 export async function loadManifest(root: string): Promise<InstallManifest> {
   try {
@@ -77,6 +78,33 @@ export function upsertInstallEntry(manifest: InstallManifest, entry: ManifestIns
       entry
     ]
   };
+}
+
+export function createUpdateHistoryEntry(
+  install: ManifestInstallEntry,
+  files: ManifestRollbackFileEntry[],
+  toVersion?: string,
+  now = new Date()
+): ManifestHistoryEntry {
+  const { history: _history, ...previousInstall } = install;
+  return {
+    id: `update-${now.toISOString().replace(/[:.]/g, "-")}`,
+    createdAt: now.toISOString(),
+    reason: "update",
+    fromVersion: install.packVersion,
+    toVersion,
+    previousInstall,
+    files
+  };
+}
+
+export function appendInstallHistory(install: ManifestInstallEntry, historyEntry: ManifestHistoryEntry): ManifestHistoryEntry[] {
+  return [historyEntry, ...(install.history ?? [])].slice(0, MAX_HISTORY_ENTRIES);
+}
+
+export function popInstallHistory(install: ManifestInstallEntry): { entry?: ManifestHistoryEntry; remaining: ManifestHistoryEntry[] } {
+  const [entry, ...remaining] = install.history ?? [];
+  return { entry, remaining };
 }
 
 export function removeInstall(manifest: InstallManifest, packId: string, target?: Target | "all"): InstallManifest {

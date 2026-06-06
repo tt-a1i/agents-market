@@ -120,7 +120,7 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
         const activePolicy = policy;
         policyChecks = [];
         for (const install of manifest.installs) {
-          const loaded = await loadRegistryForInstall(registryLock, install.registry);
+          const loaded = await loadRegistryForInstall(root, registryLock, install.registry);
           policyChecks.push(checkPackPolicy(loaded.registry, install.packId, install.target, activePolicy));
         }
         const violations = policyChecks.filter((report) => !report.ok);
@@ -159,10 +159,10 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
   };
 }
 
-async function loadRegistryForInstall(registryLock: RegistryLock | undefined, installRegistry: ManifestInstallEntry["registry"] | undefined) {
+async function loadRegistryForInstall(root: string, registryLock: RegistryLock | undefined, installRegistry: ManifestInstallEntry["registry"] | undefined) {
   if (registryLock) {
     const loaded = await loadRegistryWithInfo(registryLock.source);
-    verifyRegistryLock(loaded, registryLock);
+    await verifyRegistryLock(loaded, registryLock, { root });
     return loaded;
   }
   const loaded = await loadRegistryWithInfo(installRegistry?.source);

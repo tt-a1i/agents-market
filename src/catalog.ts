@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
 import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
-import { createRegistryBundle, validateRegistry } from "./registry.js";
+import { createRegistryBundle, signRegistryBundle, validateRegistry, verifyRegistryBundleSignature } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
 import type { AgentDefinition, Registry, RegistryBundle, RegistryMetadata, Target } from "./types.js";
 
@@ -16,6 +17,9 @@ export interface CatalogOptions {
   repository?: string;
   releaseUrl?: string;
   commit?: string;
+  signingPrivateKeyPem?: string;
+  signingPublicKeyPem?: string;
+  signingKeyId?: string;
 }
 
 export interface CatalogVerificationFinding {
@@ -28,9 +32,29 @@ export interface CatalogVerificationFinding {
 export interface CatalogVerificationReport {
   ok: boolean;
   dir: string;
+  source: {
+    kind: "directory" | "url";
+    value: string;
+  };
   errorCount: number;
   warningCount: number;
   findings: CatalogVerificationFinding[];
+  signatures?: {
+    registry?: {
+      ok: boolean;
+      keyId?: string;
+      algorithm?: string;
+      error?: string;
+    };
+  };
+}
+
+export interface CatalogManifestReport {
+  source: {
+    kind: "url";
+    value: string;
+  };
+  manifest: Record<string, unknown>;
 }
 
 export async function buildCatalog(registry: Registry, options: CatalogOptions): Promise<string[]> {
@@ -38,14 +62,20 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   await mkdir(options.outDir, { recursive: true });
 
   const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
+  const publicKeyUrl = options.signingPublicKeyPem ? assetUrl("registry-public.pem", options.baseUrl) : undefined;
   const packageSpec = options.packageSpec ?? "github:tt-a1i/agents-market";
   assertSafePackageSpec(packageSpec);
   const metadata = catalogMetadata(options, packageSpec);
-  const bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
+  let bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
+  if (options.signingPrivateKeyPem) {
+    if (!options.signingKeyId) throw new Error("signingKeyId is required when signingPrivateKeyPem is provided.");
+    bundle = signRegistryBundle(bundle, options.signingPrivateKeyPem, options.signingKeyId);
+  }
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
-  const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
+  const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl, publicKeyUrl, options.signingKeyId);
   const importWorkflows = importWorkflowCommands(packageSpec);
+  const siteManifest = agentsMarketManifest(registry, title, bundleUrl, publicKeyUrl, packageSpec, metadata, registryWorkflows, importWorkflows);
   const catalog = {
     title,
     generatedAt: new Date().toISOString(),
@@ -69,13 +99,41 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
       name: "registry.bundle.json",
       content: `${JSON.stringify(bundle, null, 2)}\n`
     },
+    ...(options.signingPublicKeyPem
+      ? [
+          {
+            name: "registry-public.pem",
+            content: options.signingPublicKeyPem
+          }
+        ]
+      : []),
     {
       name: "catalog.json",
       content: `${JSON.stringify(catalog, null, 2)}\n`
     },
     {
+      name: "agents-market.json",
+      content: `${JSON.stringify(siteManifest, null, 2)}\n`
+    },
+    {
       name: "index.html",
       content: renderHtml(title, registry, bundleUrl, packageSpec, metadata)
+    },
+    {
+      name: "site.webmanifest",
+      content: `${JSON.stringify(webManifest(title, options.baseUrl), null, 2)}\n`
+    },
+    {
+      name: "robots.txt",
+      content: robotsTxt(options.baseUrl)
+    },
+    {
+      name: "sitemap.xml",
+      content: sitemapXml(options.baseUrl)
+    },
+    {
+      name: "favicon.svg",
+      content: renderFavicon()
     }
   ];
 
@@ -88,15 +146,35 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
 
 export async function verifyCatalog(dir: string): Promise<CatalogVerificationReport> {
   const findings: CatalogVerificationFinding[] = [];
+  const signatures: CatalogVerificationReport["signatures"] = {};
   const catalog = await readJson(join(dir, "catalog.json"), findings, "catalog.json");
+  const siteManifest = await readJson(join(dir, "agents-market.json"), findings, "agents-market.json");
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
+  const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
   const html = await readText(join(dir, "index.html"), findings, "index.html");
+  const robots = await readText(join(dir, "robots.txt"), findings, "robots.txt");
+  const sitemap = await readText(join(dir, "sitemap.xml"), findings, "sitemap.xml");
+  await readText(join(dir, "favicon.svg"), findings, "favicon.svg");
 
   let registryBundle: RegistryBundle | undefined;
   if (bundle) {
     try {
       registryBundle = registryBundleSchema.parse(bundle);
       validateRegistry(registryBundle);
+      if ((registryBundle.signatures?.length ?? 0) > 0) {
+        const publicKeyPem = await readText(join(dir, "registry-public.pem"), findings, "registry-public.pem");
+        if (publicKeyPem) {
+          signatures.registry = verifyRegistryBundleSignature(registryBundle, publicKeyPem, registryBundle.signatures?.[0]?.keyId);
+          if (!signatures.registry.ok) {
+            findings.push({
+              severity: "error",
+              code: "registry-signature-invalid",
+              message: "registry.bundle.json signature could not be verified with registry-public.pem.",
+              detail: signatures.registry.error
+            });
+          }
+        }
+      }
     } catch (error) {
       findings.push({
         severity: "error",
@@ -109,6 +187,10 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
 
   if (catalog && registryBundle) {
     verifyCatalogAgainstBundle(catalog, registryBundle, findings);
+  }
+
+  if (catalog && siteManifest && registryBundle) {
+    verifyAgentsMarketManifest(catalog, siteManifest, registryBundle, findings);
   }
 
   if (catalog && html) {
@@ -128,6 +210,104 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         message: "index.html does not include copy controls for workflow commands."
       });
     }
+    if (!html.includes('const itemTargets = item.dataset.targets || "";')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-target-filter-fallback",
+        message: "index.html target filter does not tolerate searchable entries without target metadata."
+      });
+    }
+    if (!html.includes('document.execCommand("copy")') || !html.includes("Copy failed")) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-copy-fallback",
+        message: "index.html copy controls do not include a fallback for restricted Clipboard API contexts."
+      });
+    }
+    if (!html.includes('rel="manifest"') || !html.includes('href="site.webmanifest"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-webmanifest",
+        message: "index.html does not reference site.webmanifest."
+      });
+    }
+    if (!html.includes('rel="icon"') || !html.includes('href="favicon.svg"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-favicon",
+        message: "index.html does not reference favicon.svg."
+      });
+    }
+    if (!html.includes('rel="sitemap"') || !html.includes('href="sitemap.xml"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-sitemap",
+        message: "index.html does not reference sitemap.xml."
+      });
+    }
+    for (const required of ['property="og:title"', 'property="og:description"', 'property="og:type"', 'name="twitter:card"', 'name="twitter:title"', 'name="twitter:description"']) {
+      if (!html.includes(required)) {
+        findings.push({
+          severity: "error",
+          code: "html-missing-social-metadata",
+          message: "index.html is missing social preview metadata.",
+          detail: required
+        });
+      }
+    }
+    const catalogUrl = stringValue(catalog.baseUrl) ?? (isRecord(catalog.metadata) ? stringValue(catalog.metadata.catalogUrl) : undefined);
+    if (catalogUrl && !html.includes(`property="og:url" content="${escapeAttribute(normalizeSiteUrl(catalogUrl))}"`)) {
+      findings.push({
+        severity: "error",
+        code: "html-og-url-mismatch",
+        message: "index.html Open Graph URL does not match the catalog base URL.",
+        detail: normalizeSiteUrl(catalogUrl)
+      });
+    }
+  }
+
+  if (catalog && robots && sitemap) {
+    const catalogUrl = stringValue(catalog.baseUrl) ?? (isRecord(catalog.metadata) ? stringValue(catalog.metadata.catalogUrl) : undefined);
+    if (catalogUrl) {
+      const siteUrl = normalizeSiteUrl(catalogUrl);
+      const sitemapUrl = assetUrl("sitemap.xml", siteUrl);
+      if (!robots.includes(`Sitemap: ${sitemapUrl}`)) {
+        findings.push({
+          severity: "error",
+          code: "robots-missing-sitemap",
+          message: "robots.txt does not advertise sitemap.xml.",
+          detail: sitemapUrl
+        });
+      }
+      if (!sitemap.includes(`<loc>${escapeXml(siteUrl)}</loc>`)) {
+        findings.push({
+          severity: "error",
+          code: "sitemap-missing-catalog-url",
+          message: "sitemap.xml does not include the catalog base URL.",
+          detail: siteUrl
+        });
+      }
+    }
+  }
+
+  if (catalog && webManifestFile) {
+    const manifestName = stringValue(webManifestFile.name);
+    if (manifestName !== catalog.title) {
+      findings.push({
+        severity: "error",
+        code: "webmanifest-name-mismatch",
+        message: "site.webmanifest name does not match catalog title.",
+        detail: `${manifestName ?? "missing"} !== ${String(catalog.title ?? "missing")}`
+      });
+    }
+    const icons = Array.isArray(webManifestFile.icons) ? webManifestFile.icons : [];
+    if (!icons.some((icon) => isRecord(icon) && icon.src === "favicon.svg")) {
+      findings.push({
+        severity: "error",
+        code: "webmanifest-missing-favicon",
+        message: "site.webmanifest does not include favicon.svg as an icon."
+      });
+    }
   }
 
   const errorCount = findings.filter((finding) => finding.severity === "error").length;
@@ -135,9 +315,54 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   return {
     ok: errorCount === 0,
     dir,
+    source: { kind: "directory", value: dir },
     errorCount,
     warningCount,
-    findings
+    findings,
+    ...(Object.keys(signatures).length > 0 ? { signatures } : {})
+  };
+}
+
+export async function verifyCatalogUrl(url: string): Promise<CatalogVerificationReport> {
+  const baseUrl = normalizeCatalogBaseUrl(url);
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-catalog-url-"));
+  try {
+    const bundleText = await fetchCatalogAsset(baseUrl, "registry.bundle.json");
+    await Promise.all([
+      writeFile(join(dir, "registry.bundle.json"), bundleText, "utf8"),
+      fetchCatalogAsset(baseUrl, "catalog.json").then((content) => writeFile(join(dir, "catalog.json"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "agents-market.json").then((content) => writeFile(join(dir, "agents-market.json"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "index.html").then((content) => writeFile(join(dir, "index.html"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "robots.txt").then((content) => writeFile(join(dir, "robots.txt"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "sitemap.xml").then((content) => writeFile(join(dir, "sitemap.xml"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "favicon.svg").then((content) => writeFile(join(dir, "favicon.svg"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "site.webmanifest").then((content) => writeFile(join(dir, "site.webmanifest"), content, "utf8"))
+    ]);
+
+    const publicKeyPem = await fetchCatalogAssetOptional(baseUrl, "registry-public.pem");
+    if (publicKeyPem) {
+      await writeFile(join(dir, "registry-public.pem"), publicKeyPem, "utf8");
+    }
+
+    const report = await verifyCatalog(dir);
+    await rm(dir, { recursive: true, force: true });
+    return {
+      ...report,
+      dir: "",
+      source: { kind: "url", value: baseUrl }
+    };
+  } catch (error) {
+    await rm(dir, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function readCatalogManifestUrl(url: string): Promise<CatalogManifestReport> {
+  const baseUrl = normalizeCatalogBaseUrl(url);
+  const manifest = JSON.parse(await fetchCatalogAsset(baseUrl, "agents-market.json")) as Record<string, unknown>;
+  return {
+    source: { kind: "url", value: baseUrl },
+    manifest
   };
 }
 
@@ -285,13 +510,115 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
   }
   const registryWorkflows = Array.isArray(catalog.registryWorkflows) ? catalog.registryWorkflows : [];
   const packageSpec = stringValue(catalog.packageSpec) ?? "github:tt-a1i/agents-market";
-  const expectedRegistryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
+  const expectedRegistryWorkflows = registryWorkflowCommands(
+    packageSpec,
+    bundleUrl,
+    bundle.signatures?.length ? publicKeyUrlForBundle(bundleUrl) : undefined,
+    bundle.signatures?.[0]?.keyId
+  );
   if (JSON.stringify(registryWorkflows) !== JSON.stringify(expectedRegistryWorkflows)) {
     findings.push({
       severity: "error",
       code: "registry-workflows-mismatch",
       message: "catalog.json registry workflow commands do not match the registry bundle URL."
     });
+  }
+}
+
+function verifyAgentsMarketManifest(
+  catalog: Record<string, unknown>,
+  siteManifest: Record<string, unknown>,
+  bundle: RegistryBundle,
+  findings: CatalogVerificationFinding[]
+): void {
+  if (siteManifest.schemaVersion !== 1) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-schema-mismatch",
+      message: "agents-market.json schemaVersion must be 1."
+    });
+  }
+  if (siteManifest.title !== catalog.title) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-title-mismatch",
+      message: "agents-market.json title does not match catalog.json."
+    });
+  }
+  if (siteManifest.packageSpec !== catalog.packageSpec) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-package-mismatch",
+      message: "agents-market.json packageSpec does not match catalog.json."
+    });
+  }
+  if (siteManifest.registryBundleUrl !== catalog.registryBundleUrl) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-registry-url-mismatch",
+      message: "agents-market.json registryBundleUrl does not match catalog.json."
+    });
+  }
+  const publicKeyUrl = stringValue(siteManifest.publicKeyUrl);
+  if ((bundle.signatures?.length ?? 0) > 0 && publicKeyUrl !== publicKeyUrlForBundle(stringValue(catalog.registryBundleUrl) ?? "registry.bundle.json")) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-public-key-mismatch",
+      message: "agents-market.json publicKeyUrl does not match the signed registry bundle."
+    });
+  }
+  const commands = isRecord(siteManifest.commands) ? siteManifest.commands : undefined;
+  if (!commands) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-commands-missing",
+      message: "agents-market.json does not include agent-readable commands."
+    });
+  } else {
+    const trust = Array.isArray(commands.trust) ? commands.trust : [];
+    const install = Array.isArray(commands.install) ? commands.install : [];
+    const automation = Array.isArray(commands.automation) ? commands.automation : [];
+    if (JSON.stringify(trust) !== JSON.stringify(catalog.registryWorkflows)) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-trust-commands-mismatch",
+        message: "agents-market.json trust commands do not match catalog.json registry workflows."
+      });
+    }
+    if (!install.some((command) => isRecord(command) && String(command.command ?? "").includes("integrations install --target all"))) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-install-commands-missing",
+        message: "agents-market.json does not include the agent-native integration install command."
+      });
+    }
+    if (!automation.some((command) => isRecord(command) && String(command.command ?? "").includes("ci init --provider github"))) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-automation-commands-missing",
+        message: "agents-market.json does not include the CI setup command."
+      });
+    }
+  }
+  const packs = Array.isArray(siteManifest.packs) ? siteManifest.packs : [];
+  if (packs.length !== bundle.packs.length) {
+    findings.push({
+      severity: "error",
+      code: "site-manifest-pack-count-mismatch",
+      message: "agents-market.json pack count does not match registry.bundle.json.",
+      detail: `${packs.length} !== ${bundle.packs.length}`
+    });
+  }
+  for (const pack of bundle.packs) {
+    const manifestPack = packs.find((candidate) => isRecord(candidate) && candidate.id === pack.id);
+    if (!isRecord(manifestPack)) {
+      findings.push({
+        severity: "error",
+        code: "site-manifest-pack-missing",
+        message: "agents-market.json is missing a pack from registry.bundle.json.",
+        detail: pack.id
+      });
+    }
   }
 }
 
@@ -331,9 +658,111 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function agentsMarketManifest(
+  registry: Registry,
+  title: string,
+  bundleUrl: string,
+  publicKeyUrl: string | undefined,
+  packageSpec: string,
+  metadata: RegistryMetadata | undefined,
+  registryWorkflows: Array<{ label: string; command: string }>,
+  importWorkflows: Array<{ label: string; command: string }>
+) {
+  const npx = `npx ${packageSpec}`;
+  return {
+    schemaVersion: 1,
+    title,
+    generatedAt: new Date().toISOString(),
+    packageSpec,
+    metadata,
+    registryBundleUrl: bundleUrl,
+    publicKeyUrl,
+    commands: {
+      trust: registryWorkflows,
+      install: [
+        {
+          label: "Install Agent-Native Integrations",
+          command: `${npx} integrations install --target all`
+        },
+        {
+          label: "Preview Recommended Pack",
+          command: `${npx} apply --target all --registry ${bundleUrl} --policy-preset balanced --json`
+        },
+        {
+          label: "Install Recommended Pack",
+          command: `${npx} apply --target all --registry ${bundleUrl} --policy-preset balanced --yes`
+        }
+      ],
+      automation: [
+        {
+          label: "Install GitHub Maintenance Workflow",
+          command: `${npx} ci init --provider github --package ${packageSpec} --yes`
+        },
+        {
+          label: "Verify Project Health",
+          command: `${npx} doctor --strict --json`
+        }
+      ],
+      import: importWorkflows
+    },
+    packs: registry.packs.map((pack) => {
+      const agents = pack.agents.flatMap((id) => {
+        const agent = registry.agents.find((candidate) => candidate.id === id);
+        return agent ? [agent] : [];
+      });
+      return {
+        id: pack.id,
+        name: pack.name,
+        version: pack.version,
+        description: pack.description,
+        tags: pack.tags,
+        agents: pack.agents,
+        targets: targetCoverage(agents),
+        previewCommand: `${npx} apply ${pack.id} --target all --registry ${bundleUrl} --policy-preset balanced --json`,
+        installCommand: `${npx} apply ${pack.id} --target all --registry ${bundleUrl} --policy-preset balanced --yes`
+      };
+    })
+  };
+}
+
 function assetUrl(path: string, baseUrl?: string): string {
   if (!baseUrl) return path;
   return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+function normalizeCatalogBaseUrl(value: string): string {
+  const parsed = new URL(value);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Catalog URL must use http or https: ${value}`);
+  }
+  for (const fileName of ["catalog.json", "agents-market.json"]) {
+    if (parsed.pathname.endsWith(`/${fileName}`) || parsed.pathname.endsWith(fileName)) {
+      parsed.pathname = parsed.pathname.slice(0, -fileName.length);
+      break;
+    }
+  }
+  if (!parsed.pathname.endsWith("/")) {
+    parsed.pathname = `${parsed.pathname}/`;
+  }
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.toString();
+}
+
+async function fetchCatalogAsset(baseUrl: string, asset: string): Promise<string> {
+  const url = new URL(asset, baseUrl).toString();
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch catalog asset ${url}: HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
+async function fetchCatalogAssetOptional(baseUrl: string, asset: string): Promise<string | undefined> {
+  const url = new URL(asset, baseUrl).toString();
+  const response = await fetch(url);
+  if (!response.ok) return undefined;
+  return response.text();
 }
 
 export function assertSafePackageSpec(packageSpec: string): void {
@@ -349,6 +778,8 @@ function renderHtml(
   packageSpec: string,
   metadata?: RegistryMetadata
 ): string {
+  const description = "Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode.";
+  const catalogUrl = metadata?.catalogUrl ? normalizeSiteUrl(metadata.catalogUrl) : undefined;
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const registryWorkflows = registryWorkflowCommands(packageSpec, bundlePath);
@@ -450,7 +881,20 @@ function renderHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="${escapeAttribute(description)}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeAttribute(title)}">
+  <meta property="og:description" content="${escapeAttribute(description)}">
+  <meta property="og:site_name" content="${escapeAttribute(title)}">
+  ${catalogUrl ? `<meta property="og:url" content="${escapeAttribute(catalogUrl)}">` : ""}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeAttribute(title)}">
+  <meta name="twitter:description" content="${escapeAttribute(description)}">
   <title>${escapeHtml(title)}</title>
+  ${catalogUrl ? `<link rel="canonical" href="${escapeAttribute(catalogUrl)}">` : ""}
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="sitemap" type="application/xml" href="sitemap.xml">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: light; --ink: #172026; --muted: #5f6b76; --line: #d7dde3; --fill: #f6f8fa; --accent: #0f766e; --good: #166534; --warn: #b45309; }
     * { box-sizing: border-box; }
@@ -483,6 +927,7 @@ function renderHtml(
     pre { overflow-x: auto; margin: 0; padding: 12px; border-radius: 6px; background: var(--fill); border: 1px solid var(--line); font-size: 13px; }
     button { height: 40px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); padding: 0 12px; font: inherit; cursor: pointer; }
     button.copied { border-color: var(--accent); color: var(--accent); }
+    button.copy-failed { border-color: var(--warn); color: var(--warn); }
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
     .warnings { border-left: 3px solid var(--warn); padding-left: 16px; }
@@ -562,26 +1007,99 @@ function renderHtml(
       const selectedTarget = target.value;
       for (const item of searchable) {
         const textMatches = !query || item.dataset.search.toLowerCase().includes(query);
-        const targetMatches = selectedTarget === "all" || item.dataset.targets.split(" ").includes(selectedTarget);
+        const itemTargets = item.dataset.targets || "";
+        const targetMatches = selectedTarget === "all" || itemTargets.split(" ").includes(selectedTarget);
         item.style.display = textMatches && targetMatches ? "" : "none";
       }
     }
     input.addEventListener("input", applyFilters);
     target.addEventListener("change", applyFilters);
+    async function copyCommand(command) {
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(command);
+          return true;
+        } catch {
+          // Fall through to the textarea fallback for non-secure contexts or denied clipboard permissions.
+        }
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = command;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } finally {
+        document.body.removeChild(textarea);
+      }
+      return copied;
+    }
     document.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-copy]");
       if (!button) return;
-      await navigator.clipboard.writeText(button.dataset.copy);
-      button.textContent = "Copied";
-      button.classList.add("copied");
+      const copied = await copyCommand(button.dataset.copy);
+      button.textContent = copied ? "Copied" : "Copy failed";
+      button.classList.toggle("copied", copied);
+      button.classList.toggle("copy-failed", !copied);
       setTimeout(() => {
         button.textContent = "Copy";
         button.classList.remove("copied");
+        button.classList.remove("copy-failed");
       }, 1400);
     });
   </script>
 </body>
 </html>
+`;
+}
+
+function webManifest(title: string, baseUrl?: string) {
+  return {
+    name: title,
+    short_name: "Agents Market",
+    description: "Curated subagent packs for Claude Code, Codex, and OpenCode.",
+    start_url: baseUrl ? baseUrl.replace(/\/+$/, "") : ".",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#0f766e",
+    icons: [
+      {
+        src: "favicon.svg",
+        sizes: "any",
+        type: "image/svg+xml"
+      }
+    ]
+  };
+}
+
+function robotsTxt(baseUrl?: string): string {
+  const lines = ["User-agent: *", "Allow: /"];
+  if (baseUrl) {
+    lines.push(`Sitemap: ${assetUrl("sitemap.xml", normalizeSiteUrl(baseUrl))}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function sitemapXml(baseUrl?: string): string {
+  const siteUrl = baseUrl ? normalizeSiteUrl(baseUrl) : undefined;
+  const urls = siteUrl ? `  <url>\n    <loc>${escapeXml(siteUrl)}</loc>\n  </url>\n` : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}</urlset>\n`;
+}
+
+function normalizeSiteUrl(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function renderFavicon(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0f766e"/>
+  <path d="M18 20h28v6H18zM18 30h20v6H18zM18 40h28v6H18z" fill="#fff"/>
+  <path d="M43 29l5 4-5 4v-8z" fill="#a7f3d0"/>
+</svg>
 `;
 }
 
@@ -625,16 +1143,23 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value);
 }
 
+function escapeXml(value: string): string {
+  return escapeHtml(value);
+}
+
 function renderProvenance(
-  provenance: { source?: string; repository?: string; license?: string; author?: string; sourceSha256?: string } | undefined
+  provenance:
+    | { source?: string; repository?: string; license?: string; author?: string; sourceCommit?: string; sourceSha256?: string }
+    | undefined
 ): string {
   if (!provenance) return "Bundled";
   const label = provenance.repository ?? provenance.author ?? provenance.license ?? provenance.source ?? "Imported";
+  const commit = provenance.sourceCommit ? ` <span title="source commit">commit:${escapeHtml(provenance.sourceCommit.slice(0, 12))}</span>` : "";
   const checksum = provenance.sourceSha256 ? ` <span title="source SHA-256">sha256:${escapeHtml(provenance.sourceSha256.slice(0, 12))}</span>` : "";
   if (provenance.source?.startsWith("http://") || provenance.source?.startsWith("https://")) {
-    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>${checksum}`;
+    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>${commit}${checksum}`;
   }
-  return `${escapeHtml(label)}${checksum}`;
+  return `${escapeHtml(label)}${commit}${checksum}`;
 }
 
 function packCatalogSummary(registry: Registry, packId: string, bundlePath: string, packageSpec: string) {
@@ -730,22 +1255,37 @@ function summarizeProvenance(agents: AgentDefinition[]) {
   };
 }
 
-function registryWorkflowCommands(packageSpec: string, bundlePath: string) {
+function registryWorkflowCommands(packageSpec: string, bundlePath: string, publicKeyPath?: string, keyId?: string) {
   const npx = `npx ${packageSpec}`;
-  return [
+  const commands = [
     {
       label: "Inspect Hosted Registry",
       command: `${npx} registry info --registry ${bundlePath} --json`
-    },
+    }
+  ];
+  if (publicKeyPath && keyId) {
+    commands.push({
+      label: "Verify Hosted Registry Signature",
+      command: `${npx} registry verify --registry ${bundlePath} --public-key ${publicKeyPath} --key-id ${keyId}`
+    });
+  }
+  commands.push(
     {
       label: "Lock Registry In Project",
-      command: `${npx} registry lock --registry ${bundlePath}`
+      command: `${npx} registry lock --registry ${bundlePath}${publicKeyPath && keyId ? ` --public-key ${publicKeyPath} --key-id ${keyId}` : ""}`
     },
     {
       label: "Verify Project Lock",
       command: `${npx} registry verify-lock --json`
     }
-  ];
+  );
+  return commands;
+}
+
+function publicKeyUrlForBundle(bundlePath: string): string {
+  return bundlePath.endsWith("registry.bundle.json")
+    ? `${bundlePath.slice(0, -"registry.bundle.json".length)}registry-public.pem`
+    : "registry-public.pem";
 }
 
 function importWorkflowCommands(packageSpec = "github:tt-a1i/agents-market") {

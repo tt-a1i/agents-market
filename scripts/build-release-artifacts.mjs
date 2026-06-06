@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,6 +14,9 @@ const repositoryUrl = args.repository ?? normalizeRepositoryUrl(packageJson.repo
 const homepageUrl = args.homepage ?? packageJson.homepage ?? catalogBaseUrl;
 const releaseUrl = args.releaseUrl ?? `${repositoryUrl.replace(/\/+$/, "")}/releases/tag/${defaultReleaseTag}`;
 const commit = args.commit ?? gitCommit();
+const signingPrivateKey = args.privateKey;
+const signingPublicKey = args.publicKey;
+const signingKeyId = args.keyId;
 const artifactManifest = {
   version,
   catalogBaseUrl,
@@ -50,11 +53,27 @@ run(
     releaseUrl,
     "--package",
     packageSpec,
-    ...(commit ? ["--commit", commit] : [])
+    ...(commit ? ["--commit", commit] : []),
+    ...(signingPrivateKey ? ["--private-key", signingPrivateKey, "--key-id", requireKeyId(signingKeyId)] : [])
   ],
   "Export registry bundle"
 );
-run("node", ["dist/index.js", "registry", "verify", "--registry", join(outDir, "registry.bundle.json"), "--json"], "Verify registry bundle");
+if (signingPublicKey) {
+  await copyFile(signingPublicKey, join(outDir, "registry-public.pem"));
+}
+run(
+  "node",
+  [
+    "dist/index.js",
+    "registry",
+    "verify",
+    "--registry",
+    join(outDir, "registry.bundle.json"),
+    ...(signingPublicKey ? ["--public-key", signingPublicKey, ...(signingKeyId ? ["--key-id", signingKeyId] : [])] : []),
+    "--json"
+  ],
+  "Verify registry bundle"
+);
 run(
   "node",
   [
@@ -75,7 +94,9 @@ run(
     repositoryUrl,
     "--release-url",
     releaseUrl,
-    ...(commit ? ["--commit", commit] : [])
+    ...(commit ? ["--commit", commit] : []),
+    ...(signingPrivateKey ? ["--private-key", signingPrivateKey, "--key-id", requireKeyId(signingKeyId)] : []),
+    ...(signingPublicKey ? ["--public-key", signingPublicKey] : [])
   ],
   "Build catalog"
 );
@@ -97,6 +118,8 @@ for (const packageDir of ["agents-market-claude", "agents-market-codex", "agents
 
 await mkdir(join(outDir, "npm"), { recursive: true });
 run("npm", ["pack", "--pack-destination", join(outDir, "npm"), "--json"], "Pack npm tarball");
+const sbom = capture("npm", ["sbom", "--sbom-format", "spdx", "--json"], "Generate SPDX SBOM");
+await writeFile(join(outDir, "sbom.spdx.json"), `${JSON.stringify(JSON.parse(sbom.stdout), null, 2)}\n`, "utf8");
 await writeFile(join(outDir, "install.sh"), installScript(version, defaultReleaseTag), { encoding: "utf8", mode: 0o755 });
 
 const files = await listFiles(outDir);
@@ -112,6 +135,11 @@ await writeFile(
   "utf8"
 );
 await writeFile(join(outDir, "release-artifacts.json"), `${JSON.stringify(artifactManifest, null, 2)}\n`, "utf8");
+run(
+  "tar",
+  ["-czf", join(outDir, `agents-market-release-artifacts-${version}.tgz`), "-C", outDir, ...releaseArchiveEntries(signingPublicKey)],
+  "Archive complete release artifacts"
+);
 console.log(`Built ${artifactManifest.artifacts.length} release artifact files in ${outDir}`);
 
 function run(command, commandArgs, label) {
@@ -125,6 +153,21 @@ function run(command, commandArgs, label) {
   if (result.status !== 0) {
     throw new Error(`${label} failed with exit code ${result.status ?? "unknown"}`);
   }
+  return result;
+}
+
+function capture(command, commandArgs, label) {
+  process.stdout.write(`\n==> ${label}\n`);
+  const result = spawnSync(command, commandArgs, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.status !== 0) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    throw new Error(`${label} failed with exit code ${result.status ?? "unknown"}`);
+  }
+  return result;
 }
 
 async function listFiles(dir) {
@@ -158,11 +201,22 @@ function parseArgs(values) {
       parsed.releaseUrl = values[++index];
     } else if (value === "--commit") {
       parsed.commit = values[++index];
+    } else if (value === "--private-key") {
+      parsed.privateKey = values[++index];
+    } else if (value === "--public-key") {
+      parsed.publicKey = values[++index];
+    } else if (value === "--key-id") {
+      parsed.keyId = values[++index];
     } else {
       throw new Error(`Unknown argument: ${value}`);
     }
   }
   return parsed;
+}
+
+function requireKeyId(value) {
+  if (!value) throw new Error("--key-id is required when --private-key is provided.");
+  return value;
 }
 
 function gitCommit() {
@@ -176,6 +230,24 @@ function normalizeRepositoryUrl(value) {
   return value.replace(/^git\+/, "").replace(/\.git$/, "");
 }
 
+function releaseArchiveEntries(includePublicKey) {
+  return [
+    "registry.bundle.json",
+    ...(includePublicKey ? ["registry-public.pem"] : []),
+    "catalog",
+    "integration-packages",
+    "npm",
+    "sbom.spdx.json",
+    "install.sh",
+    "SHA256SUMS",
+    "release-artifacts.json",
+    `agents-market-catalog-${version}.tgz`,
+    `agents-market-claude-${version}.tgz`,
+    `agents-market-codex-${version}.tgz`,
+    `agents-market-opencode-${version}.tgz`
+  ];
+}
+
 function installScript(version, releaseTag) {
   return `#!/usr/bin/env sh
 set -eu
@@ -185,16 +257,51 @@ TAG="\${AGENTS_MARKET_TAG:-${releaseTag}}"
 REPO="\${AGENTS_MARKET_REPO:-tt-a1i/agents-market}"
 BASE_URL="https://github.com/\${REPO}/releases/download/\${TAG}"
 TARBALL="agents-market-cli-\${VERSION}.tgz"
-TMP_DIR="\${TMPDIR:-/tmp}/agents-market-install-\$\$"
+TMP_PARENT="\${TMPDIR:-/tmp}"
+TMP_DIR=""
 
 cleanup() {
-  rm -rf "\${TMP_DIR}"
+  if [ -n "\${TMP_DIR}" ]; then
+    rm -rf "\${TMP_DIR}"
+  fi
 }
-trap cleanup EXIT INT TERM
+on_interrupt() {
+  cleanup
+  exit 130
+}
+on_terminate() {
+  cleanup
+  exit 143
+}
+trap cleanup EXIT
+trap on_interrupt INT
+trap on_terminate TERM
 
-mkdir -p "\${TMP_DIR}"
+if ! command -v curl >/dev/null 2>&1; then
+  echo "Install requires curl." >&2
+  exit 1
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "Install requires npm." >&2
+  exit 1
+fi
+if ! command -v mktemp >/dev/null 2>&1; then
+  echo "Install requires mktemp." >&2
+  exit 1
+fi
+
+TMP_DIR="$(mktemp -d "\${TMP_PARENT}/agents-market-install.XXXXXX")"
 curl -fsSL "\${BASE_URL}/SHA256SUMS" -o "\${TMP_DIR}/SHA256SUMS"
 curl -fsSL "\${BASE_URL}/\${TARBALL}" -o "\${TMP_DIR}/\${TARBALL}"
+
+if [ "\${AGENTS_MARKET_REQUIRE_ATTESTATION:-0}" = "1" ]; then
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "AGENTS_MARKET_REQUIRE_ATTESTATION=1 requires GitHub CLI (gh)." >&2
+    exit 1
+  fi
+  gh attestation verify "\${TMP_DIR}/SHA256SUMS" --repo "\${REPO}"
+  gh attestation verify "\${TMP_DIR}/\${TARBALL}" --repo "\${REPO}"
+fi
 
 EXPECTED_SHA="$(awk -v file="npm/\${TARBALL}" '$2 == file { print $1 }' "\${TMP_DIR}/SHA256SUMS")"
 if [ -z "\${EXPECTED_SHA}" ]; then
@@ -204,8 +311,11 @@ fi
 
 if command -v sha256sum >/dev/null 2>&1; then
   ACTUAL_SHA="$(sha256sum "\${TMP_DIR}/\${TARBALL}" | awk '{ print $1 }')"
-else
+elif command -v shasum >/dev/null 2>&1; then
   ACTUAL_SHA="$(shasum -a 256 "\${TMP_DIR}/\${TARBALL}" | awk '{ print $1 }')"
+else
+  echo "Install requires sha256sum or shasum." >&2
+  exit 1
 fi
 
 if [ "\${EXPECTED_SHA}" != "\${ACTUAL_SHA}" ]; then
@@ -215,7 +325,7 @@ if [ "\${EXPECTED_SHA}" != "\${ACTUAL_SHA}" ]; then
   exit 1
 fi
 
-npm install -g "\${TMP_DIR}/\${TARBALL}"
+npm install -g --ignore-scripts "\${TMP_DIR}/\${TARBALL}"
 agents-market --version
 `;
 }

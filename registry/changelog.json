@@ -15,6 +15,7 @@
       "Published packs declare Agents Market CLI compatibility constraints before installation",
       "Manifest drift can be reconciled with resolve strategies for registry content, local edits, or forgotten tracked files",
       "Registry lint reports explainable prompt quality scores for every agent",
+      "Accessibility, frontend verification, and test runner prompts include stronger context-gathering and scope guardrails",
       "Registry-related pull requests get an automated review summary artifact",
       "Imported third-party agents record source SHA-256 checksums for supply-chain review",
       "Agent-native installer integrations can be packaged for Claude Code, Codex, and OpenCode distribution",

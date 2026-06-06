@@ -15,6 +15,7 @@ export interface GitHubRepository {
 export interface ClonedRepository {
   repository: GitHubRepository;
   checkoutDir: string;
+  commit: string;
   cleanup: () => Promise<void>;
 }
 
@@ -73,14 +74,49 @@ export async function cloneGitHubRepository(input: string, ref?: string): Promis
   try {
     await execFileAsync("git", args, { maxBuffer: 10 * 1024 * 1024 });
   } catch (error) {
-    await rm(tempRoot, { recursive: true, force: true });
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to clone ${repository.repository}: ${message}`);
+    if (!ref || !isCommitLike(ref)) {
+      await rm(tempRoot, { recursive: true, force: true });
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to clone ${repository.repository}: ${message}`);
+    }
+    try {
+      await rm(checkoutDir, { recursive: true, force: true });
+      await cloneCommit(repository.cloneUrl, checkoutDir, ref);
+    } catch (fallbackError) {
+      await rm(tempRoot, { recursive: true, force: true });
+      const message = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(`Failed to clone ${repository.repository} at ${ref}: ${message}`);
+    }
   }
 
+  const commit = await gitCommit(checkoutDir);
   return {
     repository,
     checkoutDir,
+    commit,
     cleanup: () => rm(tempRoot, { recursive: true, force: true })
   };
+}
+
+export function isCommitLike(ref: string): boolean {
+  return /^[a-f0-9]{7,40}$/i.test(ref);
+}
+
+async function cloneCommit(cloneUrl: string, checkoutDir: string, ref: string): Promise<void> {
+  await execFileAsync("git", ["clone", "--filter=blob:none", "--no-checkout", cloneUrl, checkoutDir], {
+    maxBuffer: 10 * 1024 * 1024
+  });
+  await execFileAsync("git", ["-C", checkoutDir, "fetch", "--depth", "1", "origin", ref], {
+    maxBuffer: 10 * 1024 * 1024
+  });
+  await execFileAsync("git", ["-C", checkoutDir, "checkout", "--detach", "FETCH_HEAD"], {
+    maxBuffer: 10 * 1024 * 1024
+  });
+}
+
+async function gitCommit(checkoutDir: string): Promise<string> {
+  const result = await execFileAsync("git", ["-C", checkoutDir, "rev-parse", "HEAD"], {
+    maxBuffer: 1024 * 1024
+  });
+  return result.stdout.trim();
 }
