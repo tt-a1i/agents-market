@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createRegistryBundle, loadRegistry } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
+import { auditPack } from "../src/audit.js";
 import { createInstallPlan } from "../src/install.js";
 import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
 import { searchRegistry } from "../src/search.js";
@@ -42,6 +43,17 @@ describe("registry", () => {
     expect(plan.agentCount).toBe(4);
     expect(plan.fileCount).toBe(12);
     expect(plan.files[0]).toHaveProperty("agentId");
+  });
+
+  it("audits pack permissions and provenance", async () => {
+    const registry = await loadRegistry();
+    const audit = auditPack(registry, "frontend-pack", "all");
+    expect(audit.agentCount).toBe(5);
+    expect(audit.fileCount).toBe(15);
+    expect(audit.permissions.readonly).toBeGreaterThan(0);
+    expect(audit.tools.bashSafe).toBeGreaterThan(0);
+    expect(audit.provenance.bundled).toBe(5);
+    expect(audit.risk).toBe("high");
   });
 
   it("searches marketplace packs and agents", async () => {

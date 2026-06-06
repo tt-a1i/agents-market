@@ -50,6 +50,7 @@ agents-market search --type agents --category frontend --json
 agents-market recommend
 agents-market recommend --json
 agents-market plan starter-dev-pack --target all
+agents-market audit starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all --json
 agents-market install starter-dev-pack --target claude
@@ -155,8 +156,11 @@ Agent-native wrappers can use structured output:
 ```bash
 agents-market recommend --json
 agents-market plan nextjs-pack --target all
+agents-market audit nextjs-pack --target all --json
 agents-market diff nextjs-pack --target all --json
 ```
+
+Use `audit` before installation to summarize permissions, tool access, target support, provenance, and source license coverage.
 
 ## Web Catalog
 

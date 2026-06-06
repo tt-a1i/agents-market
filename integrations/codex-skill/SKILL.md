@@ -23,26 +23,38 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
    agents-market registry lock --registry <source>
    ```
 
-5. Preview changes before writing:
+5. Create a structured install plan:
+
+   ```bash
+   agents-market plan <pack-id> --target all
+   ```
+
+6. Audit permissions and provenance:
+
+   ```bash
+   agents-market audit <pack-id> --target all --json
+   ```
+
+7. Preview changes before writing:
 
    ```bash
    agents-market diff <pack-id> --target all --json
    ```
 
-6. Explain the target files and permission implications.
-7. After user confirmation, install:
+8. Explain the target files, permission implications, warnings, and source/license status.
+9. After user confirmation, install:
 
    ```bash
    agents-market install <pack-id> --target all
    ```
 
-8. Verify install state:
+10. Verify install state:
 
    ```bash
    agents-market status
    ```
 
-9. Summarize installed files and how the user can invoke the new agents.
+11. Summarize installed files and how the user can invoke the new agents.
 
 ## Target Selection
 
@@ -53,6 +65,6 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 
 ## Safety
 
-Always run `diff` before `install`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
+Always run `audit` and `diff` before `install`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
 
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.

@@ -8,6 +8,7 @@ import { buildCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
+import { auditPack } from "./audit.js";
 import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
@@ -314,6 +315,43 @@ program
     console.log(`${plan.packId} -> ${plan.fileCount} files for ${plan.agentCount} agents`);
     for (const file of plan.files) {
       console.log(`${file.path} (${file.target}, ${file.agentId})`);
+    }
+  });
+
+program
+  .command("audit")
+  .argument("<pack>", "pack id to audit")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--json", "print machine-readable JSON")
+  .description("Summarize permissions, tools, target support, and provenance for a pack")
+  .action(async (packId: string, options: { target: string; registry?: string; json?: boolean }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
+    const audit = auditPack(registry, packId, parseTarget(options.target));
+    if (options.json) {
+      console.log(JSON.stringify(audit, null, 2));
+      return;
+    }
+
+    const riskColor = audit.risk === "high" ? pc.red : audit.risk === "medium" ? pc.yellow : pc.green;
+    console.log(`${pc.bold(audit.packId)} ${riskColor(`risk:${audit.risk}`)}`);
+    console.log(`- agents: ${audit.agentCount}`);
+    console.log(`- files for ${audit.target}: ${audit.fileCount}`);
+    console.log(
+      `- permissions: readonly ${audit.permissions.readonly}, safe-write ${audit.permissions["safe-write"]}, write ${audit.permissions.write}, command ${audit.permissions.command}`
+    );
+    console.log(
+      `- tools: read ${audit.tools.read}, edit ${audit.tools.edit}, write ${audit.tools.write}, bash-safe ${audit.tools.bashSafe}, bash-full ${audit.tools.bashFull}, web ${audit.tools.web}`
+    );
+    console.log(`- provenance: bundled ${audit.provenance.bundled}, imported ${audit.provenance.imported}, licensed ${audit.provenance.withLicense}`);
+    if (audit.provenance.repositories.length > 0) {
+      console.log(`- repositories: ${audit.provenance.repositories.join(", ")}`);
+    }
+    if (audit.warnings.length > 0) {
+      console.log(`\n${pc.bold("Warnings")}`);
+      for (const warning of audit.warnings) {
+        console.log(`- ${pc.yellow(warning)}`);
+      }
     }
   });
 

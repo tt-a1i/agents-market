@@ -30,12 +30,14 @@ For agent-native integrations, prefer structured output where available:
 agents-market recommend --json
 agents-market search <query> --json
 agents-market plan <pack> --target <target>
+agents-market audit <pack> --target <target> --json
 agents-market diff <pack> --target <target> --json
 ```
 
 Use the JSON output for parsing, and translate it into concise human-facing summaries before asking for confirmation.
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
+Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 
 ## Integration Strategy
 
