@@ -9,6 +9,7 @@ import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
 import { auditPack } from "./audit.js";
+import { runDoctor } from "./doctor.js";
 import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
@@ -376,6 +377,34 @@ program
           current === undefined ? pc.red("missing") : sha256(current) === file.sha256 ? pc.green("clean") : pc.yellow("modified");
         console.log(`  ${state} ${file.path}`);
       }
+    }
+  });
+
+program
+  .command("doctor")
+  .description("Run project health checks for Agents Market installs")
+  .option("--cwd <path>", "project root to inspect")
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { cwd?: string; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const report = await runDoctor(root);
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+
+    const healthColor = report.health === "error" ? pc.red : report.health === "warning" ? pc.yellow : pc.green;
+    console.log(`${pc.bold("Agents Market Doctor")} ${healthColor(report.health)}`);
+    console.log(`- root: ${report.root}`);
+    console.log(`- installs: ${report.installCount}`);
+    console.log(
+      `- files: ${report.fileCounts.clean} clean, ${report.fileCounts.modified} modified, ${report.fileCounts.missing} missing, ${report.fileCounts.total} total`
+    );
+    console.log(`- targets: claude ${report.targets.claude}, codex ${report.targets.codex}, opencode ${report.targets.opencode}`);
+    console.log(`\n${pc.bold("Checks")}`);
+    for (const check of report.checks) {
+      const label = check.severity === "error" ? pc.red("error") : check.severity === "warn" ? pc.yellow("warn") : pc.green("pass");
+      console.log(`- ${label} ${check.message}${check.detail ? ` (${check.detail})` : ""}`);
     }
   });
 

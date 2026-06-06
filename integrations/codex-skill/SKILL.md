@@ -52,9 +52,10 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 
    ```bash
    agents-market status
+   agents-market doctor --json
    ```
 
-11. Summarize installed files and how the user can invoke the new agents.
+11. Summarize installed files, health warnings, and how the user can invoke the new agents.
 
 ## Target Selection
 

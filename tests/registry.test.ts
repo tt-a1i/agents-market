@@ -1,10 +1,16 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createRegistryBundle, loadRegistry } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { auditPack } from "../src/audit.js";
-import { createInstallPlan } from "../src/install.js";
+import { runDoctor } from "../src/doctor.js";
+import { createInstallPlan, generatePackFiles } from "../src/install.js";
 import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
+import { saveManifest, upsertInstall } from "../src/manifest.js";
 import { searchRegistry } from "../src/search.js";
+import { writeGeneratedFiles } from "../src/files.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -54,6 +60,29 @@ describe("registry", () => {
     expect(audit.tools.bashSafe).toBeGreaterThan(0);
     expect(audit.provenance.bundled).toBe(5);
     expect(audit.risk).toBe("high");
+  });
+
+  it("reports doctor health for empty and installed projects", async () => {
+    const registry = await loadRegistry();
+    const root = await mkdtemp(join(tmpdir(), "agents-market-doctor-"));
+    try {
+      const empty = await runDoctor(root);
+      expect(empty.health).toBe("warning");
+      expect(empty.installCount).toBe(0);
+
+      const files = generatePackFiles(registry, "starter-dev-pack", "claude");
+      await writeGeneratedFiles(root, files);
+      await saveManifest(root, upsertInstall({ schemaVersion: 1, installs: [] }, "starter-dev-pack", "claude", files));
+
+      const installed = await runDoctor(root);
+      expect(installed.health).toBe("warning");
+      expect(installed.installCount).toBe(1);
+      expect(installed.fileCounts.clean).toBe(4);
+      expect(installed.targets.claude).toBe(4);
+      expect(installed.checks.some((check) => check.id === "registry-lock" && check.severity === "warn")).toBe(true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("searches marketplace packs and agents", async () => {
