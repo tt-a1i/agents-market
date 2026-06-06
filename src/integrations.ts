@@ -14,7 +14,7 @@ Workflow:
 8. If the project has \`.agents-market/policy.json\`, run \`agents-market policy check <pack-id> --target all --json\`.
 9. Run \`agents-market diff <pack-id> --target all --json\` before writing files.
 10. Explain target files, permission implications, policy findings, warnings, and source/license status.
-11. After user confirmation, run \`agents-market install <pack-id> --target all\`.
+11. After user confirmation, run \`agents-market install <pack-id> --target all --enforce-policy\` when policy exists, otherwise run \`agents-market install <pack-id> --target all\`.
 12. Run \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
 13. Summarize installed files, health warnings, and how to invoke the new agents.
 

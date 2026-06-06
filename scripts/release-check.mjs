@@ -78,7 +78,22 @@ async function runLifecycleSmoke() {
     );
     assert(policyCheck.ok === true, "Lifecycle policy check failed for starter-dev-pack under balanced policy.");
 
-    run("node", ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir], "Lifecycle install");
+    const policyInstallPreview = runJson(
+      "node",
+      ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--dry-run", "--enforce-policy", "--json"],
+      "Lifecycle policy install dry run"
+    );
+    assert(policyInstallPreview.policy?.ok === true, "Lifecycle policy install dry run did not include a passing policy report.");
+
+    const blockedInstallPreview = runJsonAllowFailure(
+      "node",
+      ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--dry-run", "--policy-preset", "strict", "--json"],
+      "Lifecycle blocked policy install dry run"
+    );
+    assert(blockedInstallPreview.status === 1, `Expected strict policy install dry run to exit 1, found ${blockedInstallPreview.status}.`);
+    assert(blockedInstallPreview.json.policy?.ok === false, "Expected strict policy install dry run to include a failing policy report.");
+
+    run("node", ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--enforce-policy"], "Lifecycle install");
 
     const cleanStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle clean status");
     assert(cleanStatus.installCount === 1, `Expected one install after lifecycle install, found ${cleanStatus.installCount}.`);
@@ -143,6 +158,26 @@ function runJson(command, args, label) {
   const result = run(command, args, label);
   try {
     return JSON.parse(result.stdout);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${label} did not return valid JSON: ${message}`);
+  }
+}
+
+function runJsonAllowFailure(command, args, label) {
+  process.stdout.write(`\n==> ${label}\n`);
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  try {
+    checks.push(label);
+    return {
+      status: result.status,
+      json: JSON.parse(result.stdout)
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${label} did not return valid JSON: ${message}`);

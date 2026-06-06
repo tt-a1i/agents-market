@@ -16,7 +16,7 @@ import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
-import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyPreset } from "./policy.js";
+import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -70,6 +70,25 @@ async function loadProjectRegistry(root: string, registryOption?: string) {
   const loaded = await loadRegistryWithInfo(lock?.source);
   if (lock) verifyRegistryLock(loaded, lock);
   return loaded;
+}
+
+async function resolvePolicyForCommand(root: string, options: { enforcePolicy?: boolean; policy?: string; policyPreset?: string }) {
+  if (options.policyPreset) return createPolicyPreset(parsePolicyPreset(options.policyPreset));
+  if (options.policy) return loadPolicy(resolve(options.policy));
+  if (options.enforcePolicy) return loadPolicy(policyPath(root));
+  return undefined;
+}
+
+function printPolicyReport(report: PolicyCheckReport): void {
+  const state = report.ok ? pc.green("pass") : pc.red("fail");
+  console.log(`${pc.bold(report.packId)} policy:${state}`);
+  console.log(`- target: ${report.target}`);
+  console.log(`- max permission: ${report.policy.maxPermission}`);
+  console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
+  for (const finding of report.findings) {
+    const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
+    console.log(`- ${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+  }
 }
 
 program
@@ -376,14 +395,32 @@ program
   .option("--cwd <path>", "project root to install into")
   .option("--dry-run", "preview without writing")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
-  .option("--json", "print machine-readable JSON for dry-run output")
+  .option("--enforce-policy", "require the pack to satisfy .agents-market/policy.json before installing")
+  .option("--policy <path>", "policy file path to enforce before installing")
+  .option("--policy-preset <preset>", "enforce a built-in policy preset: open, balanced, or strict")
+  .option("--json", "print machine-readable JSON for dry-run and policy output")
   .description("Install a pack into the current project")
-  .action(async (packId: string, options: { target: string; cwd?: string; dryRun?: boolean; registry?: string; json?: boolean }) => {
+  .action(
+    async (
+      packId: string,
+      options: {
+        target: string;
+        cwd?: string;
+        dryRun?: boolean;
+        registry?: string;
+        enforcePolicy?: boolean;
+        policy?: string;
+        policyPreset?: string;
+        json?: boolean;
+      }
+    ) => {
     const root = cwd(options.cwd);
     const loaded = await loadProjectRegistry(root, options.registry);
     const registry = loaded.registry;
     const target = parseTarget(options.target);
     const files = generatePackFiles(registry, packId, target);
+    const policy = await resolvePolicyForCommand(root, options);
+    const policyReport = policy ? checkPackPolicy(registry, packId, target, policy) : undefined;
 
     if (options.dryRun) {
       if (options.json) {
@@ -397,13 +434,31 @@ program
             state: summarizeFileChange(existing, file.content)
           });
         }
-        console.log(JSON.stringify({ packId, target, dryRun: true, changes }, null, 2));
+        console.log(JSON.stringify({ packId, target, dryRun: true, policy: policyReport, changes }, null, 2));
+        if (policyReport && !policyReport.ok) process.exitCode = 1;
         return;
+      }
+      if (policyReport) {
+        printPolicyReport(policyReport);
+        if (!policyReport.ok) {
+          process.exitCode = 1;
+          return;
+        }
       }
       for (const file of files) {
         const existing = await readExisting(root, file);
         console.log(`${summarizeFileChange(existing, file.content)} ${file.path}`);
       }
+      return;
+    }
+
+    if (policyReport && !policyReport.ok) {
+      if (options.json) {
+        console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: false }, null, 2));
+      } else {
+        printPolicyReport(policyReport);
+      }
+      process.exitCode = 1;
       return;
     }
 
@@ -417,8 +472,14 @@ program
         sha256: loaded.source.sha256
       })
     );
-    console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
-  });
+      if (options.json) {
+        console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
+        return;
+      }
+      if (policyReport) printPolicyReport(policyReport);
+      console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
+    }
+  );
 
 program
   .command("plan")
@@ -543,15 +604,7 @@ policyCommand
       return;
     }
 
-    const state = report.ok ? pc.green("pass") : pc.red("fail");
-    console.log(`${pc.bold(report.packId)} policy:${state}`);
-    console.log(`- target: ${report.target}`);
-    console.log(`- max permission: ${report.policy.maxPermission}`);
-    console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
-    for (const finding of report.findings) {
-      const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
-      console.log(`- ${label} ${finding.code} ${finding.subject}: ${finding.message}`);
-    }
+    printPolicyReport(report);
     if (!report.ok) process.exitCode = 1;
   });
 

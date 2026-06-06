@@ -22,7 +22,7 @@ Shall I install it?
 6. If `.agents-market/policy.json` exists, run `agents-market policy check <pack> --target <target> --json`.
 7. Run `agents-market diff <pack> --target <target>`.
 8. Explain files, permissions, policy findings, and command-running risk.
-9. After confirmation, run `agents-market install <pack> --target <target>`.
+9. After confirmation, run `agents-market install <pack> --target <target> --enforce-policy` when policy exists, otherwise run `agents-market install <pack> --target <target>`.
 10. Run `agents-market status` and summarize the installed files.
 11. Tell the user how to invoke the installed agents.
 
@@ -50,6 +50,7 @@ Use `pack create` when the user wants a small custom set from individual search 
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
+Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.
 Use `status --json` and `doctor --json` after installation or updates to verify generated-file drift, manifest health, registry lock status, and target directories.
 Use `doctor --strict --json` when an automation should fail on warnings or errors.
 Use `update --dry-run --json` before updating installed packs, then ask for confirmation before running `update`.

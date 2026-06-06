@@ -30,6 +30,24 @@ agents-market policy check frontend-pack --target claude --registry https://exam
 
 `policy check` exits with a non-zero status when the pack violates policy, so it can be used in CI or agent-native install workflows.
 
+## Enforce During Install
+
+Use `install --enforce-policy` to make the install command itself read `.agents-market/policy.json` and block before writing files when a pack violates policy:
+
+```bash
+agents-market install starter-dev-pack --target all --dry-run --enforce-policy --json
+agents-market install starter-dev-pack --target all --enforce-policy
+```
+
+You can also enforce a specific file or built-in preset:
+
+```bash
+agents-market install frontend-pack --target all --policy ./.agents-market/policy.json
+agents-market install frontend-pack --target all --policy-preset strict --dry-run --json
+```
+
+Policy enforcement is explicit, so existing personal workflows keep working unless they opt into a policy gate.
+
 ## Policy Fields
 
 ```json
@@ -59,7 +77,7 @@ agents-market policy init --preset balanced
 agents-market audit frontend-pack --target all --json
 agents-market policy check frontend-pack --target all --json
 agents-market diff frontend-pack --target all --json
-agents-market install frontend-pack --target all
+agents-market install frontend-pack --target all --enforce-policy
 ```
 
 Treat policy failures as blockers. If a team intentionally wants a broader pack, update `.agents-market/policy.json` in review instead of bypassing the check ad hoc.

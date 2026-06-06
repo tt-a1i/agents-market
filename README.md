@@ -61,6 +61,7 @@ agents-market policy check starter-dev-pack --target all --json
 agents-market diff starter-dev-pack --target all
 agents-market diff starter-dev-pack --target all --json
 agents-market install starter-dev-pack --target claude
+agents-market install starter-dev-pack --target all --enforce-policy
 agents-market pack create frontend-lite --agent code-reviewer accessibility-auditor --out ./registry/packs
 agents-market status
 agents-market status --json
@@ -221,6 +222,8 @@ agents-market policy check frontend-pack --target all --json
 This writes `.agents-market/policy.json` and lets CI or agent-native workflows block packs that exceed project rules for max permission, full bash, web access, allowed targets, blocked agents, or blocked packs.
 
 Use `policy check` after `audit` and before `diff`/`install`. It exits non-zero on policy violations, so it is safe to run in CI.
+
+Use `install --enforce-policy` when a project has `.agents-market/policy.json`; the CLI will block installation before writing files if the pack violates policy.
 
 See [docs/policy.md](./docs/policy.md).
 

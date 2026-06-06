@@ -48,10 +48,10 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
    ```
 
 9. Explain the target files, permission implications, policy findings, warnings, and source/license status.
-10. After user confirmation, install:
+10. After user confirmation, install with policy enforcement when policy exists:
 
    ```bash
-   agents-market install <pack-id> --target all
+   agents-market install <pack-id> --target all --enforce-policy
    ```
 
 11. Verify install state:
