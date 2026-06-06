@@ -47,6 +47,7 @@ agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
+agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
@@ -109,12 +110,31 @@ Outputs:
 
 The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
 
+## Registry Quality Gate
+
+`agents-market registry lint` checks registry content before publication.
+
+Current checks include:
+
+- duplicate agent and pack IDs
+- missing pack agent references
+- weak routing metadata
+- short descriptions
+- missing prompt role framing
+- readonly agents requesting write tools
+- unsafe full bash on readonly or safe-write agents
+- command agents without command capability
+- packs with too many agents
+- packs without recommendation signals
+
+CI runs `node dist/index.js registry lint --strict`, which treats warnings as failures for the bundled registry.
+
 ## Future Production Requirements
 
 - Pack version constraints and update checks.
 - Registry signature verification.
 - Manifest conflict resolution and richer drift reports.
-- Registry linting and prompt quality scoring.
+- Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.

@@ -54,6 +54,7 @@ agents-market uninstall starter-dev-pack --target claude
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
+agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
@@ -95,6 +96,14 @@ agents-market registry lock --registry ./registry.bundle.json
 ```
 
 This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted.
+
+Lint a registry before publishing:
+
+```bash
+agents-market registry lint --strict
+```
+
+The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt structure, pack size, and recommendation signals.
 
 ## Built-In Packs
 
@@ -163,5 +172,6 @@ tests/        Adapter and registry tests
 - The install manifest protects user edits and gives the CLI a real lifecycle, not just one-way file generation.
 - Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
 - Static catalog generation provides a first Web discovery surface without adding a heavy frontend stack.
+- Registry linting keeps marketplace content safe enough to publish and useful enough to recommend.
 
 See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.

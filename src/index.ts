@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
 import { buildCatalog } from "./catalog.js";
+import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
@@ -310,6 +311,24 @@ registryCommand
       lockedAt: new Date().toISOString()
     });
     console.log(pc.green(`Locked registry ${loaded.source.value} in ${root}`));
+  });
+
+registryCommand
+  .command("lint")
+  .option("--registry <source>", "registry source to lint", "bundled")
+  .option("--strict", "treat warnings as failures")
+  .description("Lint registry quality, safety, and pack references")
+  .action(async (options: { registry: string; strict?: boolean }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
+    const report = lintRegistry(registry);
+    for (const finding of report.findings) {
+      const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warning");
+      console.log(`${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+    }
+    console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings)`);
+    if (report.errorCount > 0 || (options.strict && report.warningCount > 0)) {
+      process.exitCode = 1;
+    }
   });
 
 const integrationsCommand = program.command("integrations").description("Install agent-native installer integrations");
