@@ -1492,7 +1492,7 @@ registryCommand
   .requiredOption("-o, --out <path>", "output registry bundle path")
   .option("--registry <source>", "registry source to bundle", "bundled")
   .option("--name <name>", "bundle name", "agents-market")
-  .option("--version <version>", "bundle version", BUNDLED_REGISTRY_VERSION)
+  .option("--bundle-version <version>", "bundle version", BUNDLED_REGISTRY_VERSION)
   .option("--private-key <path>", "Ed25519 private key PEM used to sign the exported bundle")
   .option("--key-id <id>", "signature key id")
   .description("Export a registry source as a single portable JSON bundle")
@@ -1501,12 +1501,12 @@ registryCommand
       out: string;
       registry: string;
       name: string;
-      version: string;
+      bundleVersion: string;
       privateKey?: string;
       keyId?: string;
     }) => {
       const { registry } = await loadRegistryWithInfo(options.registry);
-      let bundle = createRegistryBundle(registry, options.version, options.name);
+      let bundle = createRegistryBundle(registry, options.bundleVersion, options.name);
       if (options.privateKey) {
         if (!options.keyId) throw new Error("--key-id is required when --private-key is provided.");
         const privateKey = await readFile(resolve(options.privateKey), "utf8");

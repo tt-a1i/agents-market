@@ -28,6 +28,7 @@ async function main() {
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
   await runIntegrationPackageSmoke();
+  await runReleaseArtifactsSmoke();
   run("npm", ["test"], "Unit tests");
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));
@@ -341,6 +342,37 @@ async function runIntegrationPackageSmoke() {
     assert(manifest.name === "agents-market-installer", `Expected Codex plugin name agents-market-installer, found ${manifest.name}.`);
     assert(manifest.skills === "./skills/", `Expected Codex plugin skills path ./skills/, found ${manifest.skills}.`);
     checks.push("Integration package contents");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function runReleaseArtifactsSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-"));
+  try {
+    const packageVersion = JSON.parse(await readFile("package.json", "utf8")).version;
+    run(
+      "node",
+      ["scripts/build-release-artifacts.mjs", "--out", dir, "--catalog-base-url", "https://example.com/agents-market"],
+      "Release artifact build"
+    );
+    const manifest = JSON.parse(await readFile(join(dir, "release-artifacts.json"), "utf8"));
+    const artifactPaths = new Set(manifest.artifacts?.map((artifact) => artifact.path));
+    for (const required of [
+      "registry.bundle.json",
+      "catalog/index.html",
+      "catalog/catalog.json",
+      "catalog/registry.bundle.json",
+      `agents-market-claude-${packageVersion}.tgz`,
+      `agents-market-codex-${packageVersion}.tgz`,
+      `agents-market-opencode-${packageVersion}.tgz`,
+      `npm/agents-market-cli-${packageVersion}.tgz`
+    ]) {
+      assert(artifactPaths.has(required), `Release artifacts are missing ${required}.`);
+    }
+    const checksums = await readFile(join(dir, "SHA256SUMS"), "utf8");
+    assert(checksums.includes("registry.bundle.json"), "Release artifact checksums do not include registry.bundle.json.");
+    checks.push("Release artifact contents");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -408,9 +408,10 @@ npm run lint
 npm run build
 node dist/index.js registry lint --strict --json
 npm test
+npm run release:artifacts -- --out ./release-artifacts
 npm pack --dry-run
 ```
 
-Publishing is handled by the Release GitHub Actions workflow on `v*` tags. See [docs/release.md](./docs/release.md).
+Publishing is handled by the Release GitHub Actions workflow on `v*` tags. It publishes the npm package, uploads release artifacts, and attaches the registry bundle plus Claude Code, Codex, and OpenCode installer archives to the GitHub Release. See [docs/release.md](./docs/release.md).
 
 See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.

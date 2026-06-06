@@ -17,6 +17,16 @@ npm run release:check
 
 `release:check` runs typecheck, build, registry strict lint with JSON assertions, registry changelog assertions, a signed registry export/verify smoke test, the registry submission gate, tests, catalog build, a full CLI lifecycle smoke test, npm package dry run, and required tarball content checks.
 
+`release:artifacts` builds production release artifacts into `./release-artifacts`:
+
+- `registry.bundle.json`
+- `catalog/` with `index.html`, `catalog.json`, and `registry.bundle.json`
+- `agents-market-claude-<version>.tgz`
+- `agents-market-codex-<version>.tgz`
+- `agents-market-opencode-<version>.tgz`
+- `npm/agents-market-cli-<version>.tgz`
+- `SHA256SUMS` and `release-artifacts.json`
+
 GitHub Actions workflows run on Node.js 24 and set `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` so hosted actions use the current JavaScript runtime. The Pages workflow also runs `agents-market catalog verify --dir ./site` before uploading the static catalog artifact.
 
 ## Release Flow
@@ -30,11 +40,11 @@ GitHub Actions workflows run on Node.js 24 and set `FORCE_JAVASCRIPT_ACTIONS_TO_
    git push origin v0.1.0
    ```
 
-4. The Release workflow runs `npm run release:check` and publishes to npm with provenance.
+4. The Release workflow runs `npm run release:check`, builds release artifacts, uploads them to the workflow run, publishes to npm with provenance, and attaches distributable artifacts to the GitHub Release.
 
 ## Manual Dispatch
 
-The workflow can also be started manually from GitHub Actions. It still publishes the package version from `package.json`; the workflow input is only a human-readable release label.
+The workflow can also be started manually from GitHub Actions. The input must match `v<package.json version>` so manual releases cannot publish a mismatched package version by accident.
 
 ## Post-Release Checks
 

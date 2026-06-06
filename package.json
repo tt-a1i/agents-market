@@ -24,6 +24,7 @@
     "test": "vitest run",
     "lint": "tsc --noEmit",
     "registry:check": "npm run build && node scripts/registry-submission-check.mjs",
+    "release:artifacts": "node scripts/build-release-artifacts.mjs",
     "release:check": "node scripts/release-check.mjs",
     "prepack": "npm run build && node dist/index.js registry lint --strict"
   },
