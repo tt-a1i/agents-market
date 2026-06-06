@@ -42,6 +42,7 @@ import {
   createUpdateHistoryEntry,
   popInstallHistory,
   removeInstall,
+  REGISTRY_LOCK_PATH,
   saveManifest,
   saveRegistryLock,
   upsertInstall,
@@ -2301,6 +2302,111 @@ catalogCommand
         if (command) console.log(`- ${label}: ${command}`);
       }
     }
+  });
+
+catalogCommand
+  .command("init")
+  .requiredOption("--url <url>", "hosted catalog base URL, catalog.json URL, or agents-market.json URL")
+  .option("--cwd <path>", "project root to initialize")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--ci", "also install the generated Agents Market GitHub Actions workflow")
+  .option("--yes", "write files; default is preview only")
+  .option("--json", "print machine-readable JSON")
+  .description("Connect a project to a hosted marketplace catalog")
+  .action(async (options: { url: string; cwd?: string; target: string; ci?: boolean; yes?: boolean; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const target = parseTarget(options.target);
+    const manifestReport = await readCatalogManifestUrl(options.url);
+    const manifest = manifestReport.manifest;
+    const registryBundleUrl = typeof manifest.registryBundleUrl === "string" ? manifest.registryBundleUrl : undefined;
+    if (!registryBundleUrl) throw new Error("Catalog manifest does not include registryBundleUrl.");
+    const publicKeyUrl = typeof manifest.publicKeyUrl === "string" ? manifest.publicKeyUrl : undefined;
+    const packageSpec = typeof manifest.packageSpec === "string" ? manifest.packageSpec : defaultCiWorkflowOptions().packageSpec;
+    const loaded = await loadRegistryWithInfo(registryBundleUrl);
+    const bundle = loaded.registry as RegistryBundle;
+    const signature = publicKeyUrl ? verifyRegistryBundleSignature(bundle, await readTextSource(publicKeyUrl), bundle.signatures?.[0]?.keyId) : undefined;
+    if (publicKeyUrl && !signature?.ok) {
+      throw new Error(`Catalog registry signature verification failed: ${signature?.error ?? "unknown error"}`);
+    }
+    const registryLock = {
+      schemaVersion: 1 as const,
+      source: loaded.source.value,
+      version: loaded.source.version,
+      sha256: loaded.source.sha256,
+      signature:
+        publicKeyUrl && signature?.keyId
+          ? {
+              publicKey: publicKeyUrl,
+              keyId: signature.keyId,
+              algorithm: "ed25519" as const
+            }
+          : undefined,
+      lockedAt: new Date().toISOString()
+    };
+    const integrationFiles = generateIntegrations(target);
+    const changes = [
+      {
+        path: REGISTRY_LOCK_PATH,
+        state: summarizeFileChange(await readExisting(root, { path: REGISTRY_LOCK_PATH, content: `${JSON.stringify(registryLock, null, 2)}\n` }), `${JSON.stringify(registryLock, null, 2)}\n`)
+      }
+    ];
+    for (const file of integrationFiles) {
+      const existing = await readExisting(root, file);
+      changes.push({
+        path: file.path,
+        state: summarizeFileChange(existing, file.content)
+      });
+    }
+    const ciWorkflow = options.ci
+      ? generateCiWorkflow({
+          provider: "github",
+          packageSpec,
+          strict: true
+        })
+      : undefined;
+    if (ciWorkflow) {
+      const existing = await readExisting(root, ciWorkflow);
+      changes.push({
+        path: ciWorkflow.path,
+        state: summarizeFileChange(existing, ciWorkflow.content)
+      });
+    }
+    if (options.yes) {
+      await saveRegistryLock(root, registryLock);
+      await writeGeneratedFiles(root, ciWorkflow ? [...integrationFiles, ciWorkflow] : integrationFiles);
+    }
+    const result = {
+      root,
+      source: manifestReport.source,
+      dryRun: !options.yes,
+      registry: loaded.source,
+      signature,
+      target,
+      ci: Boolean(options.ci),
+      lockWritten: Boolean(options.yes),
+      written: options.yes ? changes.length : 0,
+      changes,
+      nextCommands: [
+        "agents-market registry verify-lock --json",
+        `agents-market apply --target ${target} --json`,
+        `agents-market apply --target ${target} --yes`,
+        ...(options.ci ? ["agents-market status --diff --json", "agents-market doctor --strict --json"] : ["agents-market ci init --provider github --yes"])
+      ]
+    };
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`${pc.bold(options.yes ? "Connected catalog" : "Catalog init preview")} ${pc.dim(manifestReport.source.value)}`);
+    console.log(`- root: ${root}`);
+    console.log(`- registry: ${loaded.source.value}`);
+    if (signature) console.log(`- signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red(signature.error ?? "failed")}`);
+    for (const change of changes) {
+      const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+      console.log(`${label} ${change.path}`);
+    }
+    console.log(`\n${pc.bold("Next")}`);
+    for (const command of result.nextCommands) console.log(`- ${command}`);
   });
 
 catalogCommand

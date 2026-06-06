@@ -90,6 +90,28 @@ async function main() {
         catalogInfo.manifest?.commands?.automation?.some((command) => command.command?.includes("ci init --provider github")),
         "Catalog info should expose the CI setup command."
       );
+      const catalogProjectDir = await mkdtemp(join(tmpdir(), "agents-market-catalog-init-"));
+      try {
+        const catalogInitPreview = runJson(
+          "node",
+          ["dist/index.js", "catalog", "init", "--url", `${baseUrl}/agents-market.json`, "--cwd", catalogProjectDir, "--target", "all", "--json"],
+          "Catalog init preview"
+        );
+        assert(catalogInitPreview.dryRun === true, "Catalog init should preview by default.");
+        assert(catalogInitPreview.changes?.some((change) => change.path === ".agents-market/registry-lock.json"), "Catalog init preview should include the registry lock.");
+        assert(catalogInitPreview.changes?.some((change) => change.path === ".claude/skills/agents-market-installer/SKILL.md"), "Catalog init preview should include Claude integration.");
+        const catalogInitInstall = runJson(
+          "node",
+          ["dist/index.js", "catalog", "init", "--url", `${baseUrl}/agents-market.json`, "--cwd", catalogProjectDir, "--target", "all", "--ci", "--yes", "--json"],
+          "Catalog init install"
+        );
+        assert(catalogInitInstall.lockWritten === true, "Catalog init --yes should write the registry lock.");
+        assert(catalogInitInstall.changes?.some((change) => change.path === ".github/workflows/agents-market.yml"), "Catalog init --ci should include the CI workflow.");
+        const catalogInitLock = JSON.parse(await readFile(join(catalogProjectDir, ".agents-market", "registry-lock.json"), "utf8"));
+        assert(catalogInitLock.source === `${baseUrl}/registry.bundle.json`, `Catalog init lock source mismatch: ${catalogInitLock.source}.`);
+      } finally {
+        await rm(catalogProjectDir, { recursive: true, force: true });
+      }
     });
     const catalogHtml = await readFile(join(siteDir, "index.html"), "utf8");
     assert(
