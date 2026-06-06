@@ -60,6 +60,7 @@ async function main() {
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
   await runCiWorkflowSmoke();
+  await runRepositoryAutomationSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
   await runReleaseWorkflowSmoke();
@@ -414,6 +415,16 @@ async function runCiWorkflowSmoke() {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function runRepositoryAutomationSmoke() {
+  const dependabot = await readFile(".github/dependabot.yml", "utf8");
+  assert(dependabot.includes("package-ecosystem: npm"), "Dependabot should monitor npm dependencies.");
+  assert(dependabot.includes("package-ecosystem: github-actions"), "Dependabot should monitor GitHub Actions.");
+  assert(dependabot.includes("interval: weekly"), "Dependabot should run on a weekly schedule.");
+  assert(dependabot.includes("npm-minor-patch"), "Dependabot should group npm minor and patch updates.");
+  assert(dependabot.includes("github-actions-minor-patch"), "Dependabot should group GitHub Actions minor and patch updates.");
+  checks.push("Repository automation config");
 }
 
 async function runReleaseArtifactsSmoke() {
