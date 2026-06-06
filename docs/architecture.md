@@ -158,9 +158,9 @@ Current checks include:
 - packs with too many agents
 - packs without recommendation signals
 
-CI runs `npm run registry:check` through the release gate. This treats warnings as failures for the published registry, verifies all agents support Claude Code, Codex, and OpenCode, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
+CI runs `npm run registry:check` through the release gate. This delegates to `agents-market registry review`, treats warnings as failures for the published registry, verifies all agents support Claude Code, Codex, and OpenCode, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
 
-Registry-related pull requests also run the `Registry Review` workflow. It builds the CLI, runs `scripts/registry-submission-check.mjs --summary-json --summary-markdown`, writes a pack-by-pack Markdown review summary to the GitHub Actions job summary, maintains a sticky PR comment, and uploads JSON/Markdown artifacts for maintainers and agent-native reviewers.
+Registry-related pull requests also run the `Registry Review` workflow. It builds the CLI, runs the compatibility wrapper `scripts/registry-submission-check.mjs --summary-json --summary-markdown`, writes a pack-by-pack Markdown review summary to the GitHub Actions job summary, maintains a sticky PR comment, and uploads JSON/Markdown artifacts for maintainers and agent-native reviewers.
 
 Deterministic prompt quality scoring gives reviewers a comparable baseline before publication. Static scoring is still not sufficient on its own: new or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
 
