@@ -25,6 +25,7 @@ const baseRegistry: Registry = {
       version: "0.1.0",
       tags: ["starter"],
       agents: ["reviewer"],
+      requires: { agentsMarket: ">=0.1.0" },
       recommendedFor: { languages: ["typescript"] }
     }
   ]
@@ -64,6 +65,20 @@ describe("registry lint", () => {
     });
     expect(report.findings.some((finding) => finding.code === "no-recommendation-signals")).toBe(true);
     expect(report.warningCount).toBe(1);
+  });
+
+  it("requires packs to declare valid Agents Market version constraints", () => {
+    const missing = lintRegistry({
+      ...baseRegistry,
+      packs: [{ ...baseRegistry.packs[0]!, requires: undefined }]
+    });
+    expect(missing.findings.some((finding) => finding.code === "missing-agents-market-version-constraint")).toBe(true);
+
+    const invalid = lintRegistry({
+      ...baseRegistry,
+      packs: [{ ...baseRegistry.packs[0]!, requires: { agentsMarket: "latest" } }]
+    });
+    expect(invalid.findings.some((finding) => finding.code === "invalid-agents-market-version-constraint")).toBe(true);
   });
 
   it("warns for imported agents without provenance", () => {

@@ -5,6 +5,9 @@
   "version": "0.1.0",
   "tags": ["nextjs", "react", "performance"],
   "agents": ["nextjs-performance-reviewer", "frontend-verifier", "accessibility-auditor", "code-reviewer", "test-runner"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
   "recommendedFor": {
     "frameworks": ["nextjs", "react", "tailwind", "playwright"],
     "languages": ["typescript", "javascript"],

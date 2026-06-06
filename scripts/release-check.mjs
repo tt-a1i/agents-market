@@ -16,6 +16,10 @@ async function main() {
   assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);
   assert(registryInfo.changelog?.count >= 1, "Expected registry info to report at least one changelog entry.");
+  assert(
+    registryInfo.packs?.every((pack) => pack.requires?.agentsMarket),
+    "Expected every registry info pack to include an Agents Market version requirement."
+  );
   const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
@@ -111,6 +115,7 @@ async function runLifecycleSmoke() {
     );
     assert(applyPreview.installed === false, "Lifecycle apply preview should not install without --yes.");
     assert(applyPreview.pack?.id === "starter-dev-pack", `Expected apply preview to recommend starter-dev-pack, found ${applyPreview.pack?.id}.`);
+    assert(applyPreview.compatibility?.ok === true, "Lifecycle apply preview did not include a passing compatibility report.");
     assert(applyPreview.policy?.ok === true, "Lifecycle apply preview did not include a passing policy report.");
     assert(applyPreview.changes?.length === 4, `Expected apply preview to include four changes, found ${applyPreview.changes?.length}.`);
 
@@ -129,6 +134,7 @@ async function runLifecycleSmoke() {
       "Lifecycle apply install"
     );
     assert(applyInstall.installed === true, "Expected apply --yes to install files after policy passed.");
+    assert(applyInstall.compatibility?.ok === true, "Expected apply install to include a passing compatibility report.");
     assert(applyInstall.policy?.ok === true, "Expected apply install to include a passing policy report.");
 
     const policyInstallPreview = runJson(
@@ -136,6 +142,7 @@ async function runLifecycleSmoke() {
       ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--dry-run", "--enforce-policy", "--json"],
       "Lifecycle policy install dry run"
     );
+    assert(policyInstallPreview.compatibility?.ok === true, "Lifecycle policy install dry run did not include a passing compatibility report.");
     assert(policyInstallPreview.policy?.ok === true, "Lifecycle policy install dry run did not include a passing policy report.");
 
     const blockedInstallPreview = runJsonAllowFailure(
@@ -339,6 +346,8 @@ function verifyTarball(packOutput) {
     "SECURITY.md",
     "LICENSE",
     "dist/index.js",
+    "dist/compatibility.js",
+    "dist/constants.js",
     "dist/catalog.js",
     "dist/audit.js",
     "dist/doctor.js",

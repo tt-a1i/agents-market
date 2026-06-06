@@ -1,4 +1,5 @@
 import { packSchema } from "./schema.js";
+import { CLI_VERSION } from "./constants.js";
 import type { PackDefinition, Registry } from "./types.js";
 
 export interface ComposePackOptions {
@@ -31,6 +32,9 @@ export function composePack(registry: Registry, options: ComposePackOptions): Pa
     version: options.version ?? "0.1.0",
     tags: options.tags ?? ["custom"],
     agents,
+    requires: {
+      agentsMarket: `>=${CLI_VERSION}`
+    },
     recommendedFor: {
       frameworks: options.frameworks,
       languages: options.languages,

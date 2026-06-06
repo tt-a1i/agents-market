@@ -194,6 +194,8 @@ agents-market registry lint --strict --json
 
 The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt structure, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings }`.
 
+Published packs declare `requires.agentsMarket`, for example `>=0.1.0`. `apply`, `install`, and `update` check this constraint before writing files so older CLIs reject incompatible registry content cleanly.
+
 ## Built-In Packs
 
 - `starter-dev-pack`: review, debugging, tests, and documentation research.
@@ -225,6 +227,8 @@ agents-market pack create frontend-lite \
 ```
 
 After creating the pack, run `agents-market registry lint --registry ./registry --json`, then preview it with `agents-market apply frontend-lite --registry ./registry --json`.
+
+`pack create` adds a default `requires.agentsMarket` constraint for the current CLI version. Keep that constraint accurate when manually editing pack JSON.
 
 ## Agent-Native Integrations
 
@@ -291,7 +295,7 @@ agents-market catalog verify --dir ./site
 The catalog generator writes:
 
 - `index.html`: searchable static catalog
-- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, changelog entries, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, pack compatibility requirements, changelog entries, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path.

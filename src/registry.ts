@@ -26,6 +26,7 @@ export interface RegistrySummary {
     version: string;
     agentCount: number;
     tags: string[];
+    requires?: PackDefinition["requires"];
   }>;
   changelog: {
     count: number;
@@ -162,7 +163,8 @@ export function summarizeRegistry(loaded: LoadedRegistry): RegistrySummary {
       name: pack.name,
       version: pack.version,
       agentCount: pack.agents.length,
-      tags: pack.tags
+      tags: pack.tags,
+      requires: pack.requires
     })),
     changelog: {
       count: loaded.registry.changelog?.length ?? 0,

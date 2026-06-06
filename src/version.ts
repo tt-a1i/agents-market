@@ -1,4 +1,5 @@
 export type VersionComparison = -1 | 0 | 1;
+export type VersionRangeOperator = ">" | ">=" | "<" | "<=" | "=";
 
 export function compareVersions(left: string | undefined, right: string | undefined): VersionComparison | undefined {
   if (!left || !right) return undefined;
@@ -32,6 +33,25 @@ export function versionStatus(
   return "current";
 }
 
+export function satisfiesVersionRange(version: string, range: string | undefined): boolean | undefined {
+  if (!range) return true;
+  const constraints = range
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (constraints.length === 0) return true;
+
+  for (const constraint of constraints) {
+    const match = constraint.match(/^(>=|<=|>|<|=)?\s*(v?\d+(?:\.\d+)*(?:-[0-9A-Za-z.-]+)?)$/);
+    if (!match) return undefined;
+    const operator = (match[1] ?? "=") as VersionRangeOperator;
+    const comparison = compareVersions(version, match[2]);
+    if (comparison === undefined) return undefined;
+    if (!satisfiesComparison(comparison, operator)) return false;
+  }
+  return true;
+}
+
 function parseVersion(version: string): { parts: number[]; prerelease?: string } | undefined {
   const match = version.match(/^v?(\d+(?:\.\d+)*)(?:-([0-9A-Za-z.-]+))?$/);
   if (!match) return undefined;
@@ -45,4 +65,12 @@ function normalizeComparison(value: number): VersionComparison {
   if (value < 0) return -1;
   if (value > 0) return 1;
   return 0;
+}
+
+function satisfiesComparison(comparison: VersionComparison, operator: VersionRangeOperator): boolean {
+  if (operator === ">") return comparison > 0;
+  if (operator === ">=") return comparison >= 0;
+  if (operator === "<") return comparison < 0;
+  if (operator === "<=") return comparison <= 0;
+  return comparison === 0;
 }

@@ -5,6 +5,9 @@
   "version": "0.1.0",
   "tags": ["starter", "development"],
   "agents": ["code-reviewer", "debugger", "test-runner", "docs-researcher"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
   "recommendedFor": {
     "languages": ["javascript", "typescript", "python", "go", "rust"],
     "files": ["package.json", "pyproject.toml", "go.mod", "Cargo.toml"]

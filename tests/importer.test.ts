@@ -132,8 +132,9 @@ You are a debugging specialist. Find the smallest credible root cause and explai
 
     expect(result.imported.map((agent) => agent.id).sort()).toEqual(["code-reviewer", "debugger"]);
     expect(result.pack?.agents.sort()).toEqual(["code-reviewer", "debugger"]);
-    const pack = JSON.parse(await readFile(join(packsDir, "imported-pack.json"), "utf8")) as { agents: string[] };
+    const pack = JSON.parse(await readFile(join(packsDir, "imported-pack.json"), "utf8")) as { agents: string[]; requires?: { agentsMarket?: string } };
     expect(pack.agents).toHaveLength(2);
+    expect(pack.requires?.agentsMarket).toBe(">=0.1.0");
   });
 });
 

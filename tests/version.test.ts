@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareVersions, versionStatus } from "../src/version.js";
+import { compareVersions, satisfiesVersionRange, versionStatus } from "../src/version.js";
 
 describe("version utilities", () => {
   it("compares semver-like versions", () => {
@@ -15,5 +15,12 @@ describe("version utilities", () => {
     expect(versionStatus("0.3.0", "0.2.0")).toBe("newer");
     expect(versionStatus(undefined, "0.2.0")).toBe("unknown");
     expect(versionStatus("0.1.0", undefined)).toBe("missing");
+  });
+
+  it("checks simple version ranges", () => {
+    expect(satisfiesVersionRange("0.2.0", ">=0.1.0")).toBe(true);
+    expect(satisfiesVersionRange("0.1.0", ">0.1.0")).toBe(false);
+    expect(satisfiesVersionRange("0.1.0", ">=0.1.0 <1.0.0")).toBe(true);
+    expect(satisfiesVersionRange("0.1.0", "not-a-range")).toBeUndefined();
   });
 });

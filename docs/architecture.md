@@ -78,6 +78,7 @@ The manifest records:
 This gives the installer a lifecycle:
 
 - `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
+- `apply`, `install`, and `update` check pack compatibility requirements such as `requires.agentsMarket` before writing files.
 - `status` compares current files with stored hashes. With `--diff`, it reloads expected generated content from the registry and returns line-level drift summaries for modified or missing files.
 - `outdated` compares installed pack versions with the current registry source and reports current, outdated, newer, unknown, or missing state.
 - `update` regenerates installed packs and skips user-modified files unless `--force` is set.
@@ -123,7 +124,7 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 Outputs:
 
 - `index.html`: searchable catalog for humans
-- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, changelog entries, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, compatibility requirements, changelog entries, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
 The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
@@ -184,7 +185,6 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 
 ## Future Production Requirements
 
-- Pack version constraints.
 - Manifest conflict resolution.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.

@@ -49,6 +49,7 @@ Use the JSON output for parsing, and translate it into concise human-facing summ
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
 Use `apply --json` as the default preview path because it combines recommendation, audit, policy, and diff into one agent-friendly response.
+Treat `apply --json` compatibility failures as blockers; ask the user to upgrade `@agents-market/cli` before installing incompatible packs.
 Use `apply --yes` after explicit user confirmation to install the selected pack.
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.

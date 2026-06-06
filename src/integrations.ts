@@ -19,6 +19,7 @@ Safety:
 - Prefer \`apply\` because it combines recommendation, audit, policy, diff, and guarded install.
 - Use \`recommend\`, \`audit\`, \`policy check\`, \`diff\`, and \`install\` directly only when the user needs a lower-level workflow.
 - Treat policy failures as blockers unless the user explicitly updates the project policy.
+- Treat compatibility failures as blockers and ask the user to upgrade \`@agents-market/cli\`.
 - Prefer curated packs over installing many individual agents.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
 - Use \`outdated --json\` before update workflows, then \`update --dry-run --json\` before asking for confirmation.

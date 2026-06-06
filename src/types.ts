@@ -45,6 +45,9 @@ export interface PackDefinition {
     languages?: string[];
     files?: string[];
   };
+  requires?: {
+    agentsMarket?: string;
+  };
 }
 
 export interface RegistryChangelogEntry {

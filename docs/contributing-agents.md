@@ -68,6 +68,7 @@ Every pack should be:
 - Small enough for a user to understand before installing.
 - Backed by recommendation signals in `recommendedFor`.
 - Compatible with all first-class targets when practical.
+- Explicit about CLI compatibility with `requires.agentsMarket`, for example `>=0.1.0`.
 - Auditable with `agents-market audit <pack> --target all --json`.
 
 Good pack examples:

@@ -29,6 +29,8 @@ import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import { summarizeTextDrift } from "./drift.js";
 import { versionStatus } from "./version.js";
+import { checkPackCompatibility, type PackCompatibilityReport } from "./compatibility.js";
+import { BUNDLED_REGISTRY_VERSION, CLI_VERSION } from "./constants.js";
 import {
   loadManifest,
   loadRegistryLock,
@@ -42,7 +44,6 @@ import { sha256 } from "./hash.js";
 import type { ManifestFileEntry, ManifestInstallEntry, RegistryBundle, Target } from "./types.js";
 
 const program = new Command();
-const BUNDLED_REGISTRY_VERSION = "0.1.0";
 
 function cwd(value?: string): string {
   return resolve(value ?? process.cwd());
@@ -154,10 +155,21 @@ function printPolicyReport(report: PolicyCheckReport): void {
   }
 }
 
+function printCompatibilityReport(report: PackCompatibilityReport): void {
+  const state = report.ok ? pc.green("pass") : pc.red("fail");
+  console.log(`${pc.bold(report.packId)} compatibility:${state}`);
+  console.log(`- cli: ${report.cliVersion}`);
+  if (report.requirements?.agentsMarket) console.log(`- requires agents-market: ${report.requirements.agentsMarket}`);
+  for (const finding of report.findings) {
+    const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
+    console.log(`- ${label} ${finding.code} ${finding.subject}: ${finding.message}`);
+  }
+}
+
 program
   .name("agents-market")
   .description("Agent-native marketplace and installer for specialized coding subagents")
-  .version("0.1.0");
+  .version(CLI_VERSION);
 
 program
   .command("init")
@@ -466,6 +478,7 @@ program
 
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
+        if (!result.compatibility.ok) process.exitCode = 1;
         if (result.policy && !result.policy.ok) process.exitCode = 1;
         return;
       }
@@ -477,7 +490,12 @@ program
       if (result.pack.reasons.length > 0) console.log(`- reasons: ${result.pack.reasons.join(", ")}`);
       console.log(`- target: ${result.target}`);
       console.log(`- audit risk: ${result.audit.risk}`);
+      printCompatibilityReport(result.compatibility);
       console.log(`- files: ${result.changes.length}`);
+      if (!result.compatibility.ok) {
+        process.exitCode = 1;
+        return;
+      }
       if (result.policy) printPolicyReport(result.policy);
       if (result.policy && !result.policy.ok) {
         process.exitCode = 1;
@@ -562,6 +580,8 @@ program
     const registry = loaded.registry;
     const target = parseTarget(options.target);
     const files = generatePackFiles(registry, packId, target);
+    const pack = getPack(registry, packId);
+    const compatibility = checkPackCompatibility(pack, CLI_VERSION);
     const policy = await resolvePolicyForCommand(root, options);
     const policyReport = policy ? checkPackPolicy(registry, packId, target, policy) : undefined;
 
@@ -577,8 +597,14 @@ program
             state: summarizeFileChange(existing, file.content)
           });
         }
-        console.log(JSON.stringify({ packId, target, dryRun: true, policy: policyReport, changes }, null, 2));
+        console.log(JSON.stringify({ packId, target, dryRun: true, compatibility, policy: policyReport, changes }, null, 2));
+        if (!compatibility.ok) process.exitCode = 1;
         if (policyReport && !policyReport.ok) process.exitCode = 1;
+        return;
+      }
+      printCompatibilityReport(compatibility);
+      if (!compatibility.ok) {
+        process.exitCode = 1;
         return;
       }
       if (policyReport) {
@@ -595,6 +621,16 @@ program
       return;
     }
 
+    if (!compatibility.ok) {
+      if (options.json) {
+        console.log(JSON.stringify({ packId, target, dryRun: false, compatibility, installed: false }, null, 2));
+      } else {
+        printCompatibilityReport(compatibility);
+      }
+      process.exitCode = 1;
+      return;
+    }
+
     if (policyReport && !policyReport.ok) {
       if (options.json) {
         console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: false }, null, 2));
@@ -607,7 +643,6 @@ program
 
     await writeGeneratedFiles(root, files);
     const manifest = await loadManifest(root);
-    const pack = getPack(registry, packId);
     await saveManifest(
       root,
       upsertInstall(
@@ -625,7 +660,7 @@ program
       )
     );
     if (options.json) {
-      console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
+      console.log(JSON.stringify({ packId, target, dryRun: false, compatibility, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
       return;
     }
     if (policyReport) printPolicyReport(policyReport);
@@ -1088,6 +1123,28 @@ program
       const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
       const registry = loaded.registry;
       const pack = getPack(registry, install.packId);
+      const compatibility = checkPackCompatibility(pack, CLI_VERSION);
+      if (!compatibility.ok) {
+        skipped += install.files.length;
+        summaries.push({
+          packId: install.packId,
+          target: install.target,
+          fromVersion: install.packVersion,
+          toVersion: pack.version,
+          versionStatus: versionStatus(install.packVersion, pack.version),
+          registry: loaded.source,
+          compatibility,
+          changes: install.files.map((file) => ({
+            path: file.path,
+            target: file.target,
+            agentId: file.agentId,
+            state: "blocked",
+            action: "skip-incompatible"
+          }))
+        });
+        if (!options.json) printCompatibilityReport(compatibility);
+        continue;
+      }
       const files = generatePackFiles(registry, install.packId, install.target);
       const safeFiles = [];
       const manifestFiles: ManifestFileEntry[] = [];
@@ -1138,6 +1195,7 @@ program
         toVersion: pack.version,
         versionStatus: versionStatus(install.packVersion, pack.version),
         registry: loaded.source,
+        compatibility,
         changes
       });
 
@@ -1159,20 +1217,24 @@ program
     }
 
     if (options.json) {
+      const incompatibleCount = summaries.filter((summary) => summary.compatibility && !summary.compatibility.ok).length;
       console.log(
         JSON.stringify(
           {
             dryRun: Boolean(options.dryRun),
             written,
             skipped,
+            incompatibleCount,
             updates: summaries
           },
           null,
           2
         )
       );
+      if (incompatibleCount > 0) process.exitCode = 1;
     } else {
       console.log(pc.green(`${options.dryRun ? "Previewed" : "Updated"} packs: wrote ${written}, skipped ${skipped}.`));
+      if (summaries.some((summary) => summary.compatibility && !summary.compatibility.ok)) process.exitCode = 1;
     }
 
     if (!options.dryRun) {
@@ -1290,6 +1352,7 @@ registryCommand
     console.log(`- target support: claude ${summary.targets.claude}, codex ${summary.targets.codex}, opencode ${summary.targets.opencode}`);
     for (const pack of summary.packs) {
       console.log(`  ${pc.cyan(pack.id)} ${pack.version} - ${pack.agentCount} agents`);
+      if (pack.requires?.agentsMarket) console.log(`    requires Agents Market ${pack.requires.agentsMarket}`);
     }
   });
 

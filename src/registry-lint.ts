@@ -1,4 +1,6 @@
 import type { AgentDefinition, PackDefinition, Registry } from "./types.js";
+import { CLI_VERSION } from "./constants.js";
+import { satisfiesVersionRange } from "./version.js";
 
 export type LintSeverity = "error" | "warning";
 
@@ -165,6 +167,22 @@ function lintPacks(registry: Registry, findings: LintFinding[]): void {
         code: "no-recommendation-signals",
         subject: `pack:${pack.id}`,
         message: "Pack has no recommendation signals, so automatic recommendation will be weak."
+      });
+    }
+
+    if (!pack.requires?.agentsMarket) {
+      findings.push({
+        severity: "warning",
+        code: "missing-agents-market-version-constraint",
+        subject: `pack:${pack.id}`,
+        message: "Pack should declare requires.agentsMarket so older CLIs can reject incompatible packs before writing files."
+      });
+    } else if (satisfiesVersionRange(CLI_VERSION, pack.requires.agentsMarket) === undefined) {
+      findings.push({
+        severity: "error",
+        code: "invalid-agents-market-version-constraint",
+        subject: `pack:${pack.id}`,
+        message: `Pack declares an invalid requires.agentsMarket range: ${pack.requires.agentsMarket}.`
       });
     }
   }

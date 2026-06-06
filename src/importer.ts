@@ -1,6 +1,7 @@
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, parse } from "node:path";
 import { agentSchema, packSchema } from "./schema.js";
+import { CLI_VERSION } from "./constants.js";
 import type { AgentDefinition, PackDefinition, PermissionMode, Target } from "./types.js";
 
 type FrontmatterValue = string | string[] | Record<string, string>;
@@ -120,6 +121,9 @@ export async function importMarkdownDirectory(options: ImportDirectoryOptions): 
       version: options.version ?? "0.1.0",
       tags: options.tags ?? ["imported"],
       agents: imported.map((agent) => agent.id),
+      requires: {
+        agentsMarket: `>=${CLI_VERSION}`
+      },
       recommendedFor: {}
     });
     const packPath = join(options.pack.outDir, `${pack.id}.json`);

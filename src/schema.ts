@@ -54,7 +54,12 @@ export const packSchema = z.object({
       languages: z.array(z.string()).optional(),
       files: z.array(z.string()).optional()
     })
-    .default({})
+    .default({}),
+  requires: z
+    .object({
+      agentsMarket: z.string().min(1).optional()
+    })
+    .optional()
 });
 
 export const changelogEntrySchema = z.object({

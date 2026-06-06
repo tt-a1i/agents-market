@@ -6,6 +6,8 @@ import { loadManifest, saveManifest, upsertInstall } from "./manifest.js";
 import { checkPackPolicy, createPolicyPreset, type AgentPolicy, type PolicyCheckReport } from "./policy.js";
 import { getPack } from "./registry.js";
 import { recommendPackDetails } from "./recommend.js";
+import { checkPackCompatibility, type PackCompatibilityReport } from "./compatibility.js";
+import { CLI_VERSION } from "./constants.js";
 import type { PackDefinition, ProjectSignals, Registry, Target } from "./types.js";
 
 export type ApplyMode = "preview" | "install";
@@ -49,6 +51,7 @@ export interface ApplyWorkflowResult {
   target: Target | "all";
   signals: ProjectSignals;
   audit: PackAudit;
+  compatibility: PackCompatibilityReport;
   policySource: ApplyPolicySource;
   policy?: PolicyCheckReport;
   changes: ApplyWorkflowChange[];
@@ -59,6 +62,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
   const signals = await detectProject(options.root);
   const selected = selectPack(options.registry, options.packId, signals);
   const audit = auditPack(options.registry, selected.pack.id, options.target);
+  const compatibility = checkPackCompatibility(selected.pack, CLI_VERSION);
   const policy = options.policy ? checkPackPolicy(options.registry, selected.pack.id, options.target, options.policy) : undefined;
   const files = generatePackFiles(options.registry, selected.pack.id, options.target);
   const changes: ApplyWorkflowChange[] = [];
@@ -73,7 +77,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
     });
   }
 
-  const installed = options.mode === "install" && (!policy || policy.ok);
+  const installed = options.mode === "install" && compatibility.ok && (!policy || policy.ok);
   if (installed) {
     await writeGeneratedFiles(options.root, files);
     const manifest = await loadManifest(options.root);
@@ -102,6 +106,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
     target: options.target,
     signals,
     audit,
+    compatibility,
     policySource: options.policySource,
     policy,
     changes,

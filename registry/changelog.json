@@ -10,7 +10,8 @@
       "Portable registry bundle and static catalog support"
     ],
     "changed": [
-      "Registry content is validated by strict linting, pack audit, apply preview, and catalog verification gates"
+      "Registry content is validated by strict linting, pack audit, apply preview, and catalog verification gates",
+      "Published packs declare Agents Market CLI compatibility constraints before installation"
     ]
   }
 ]

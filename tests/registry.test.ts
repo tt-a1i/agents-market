@@ -73,6 +73,7 @@ describe("registry", () => {
     });
     expect(pack.id).toBe("frontend-lite");
     expect(pack.agents).toEqual(["code-reviewer", "accessibility-auditor"]);
+    expect(pack.requires?.agentsMarket).toBe(">=0.1.0");
     expect(pack.recommendedFor.frameworks).toEqual(["react"]);
     expect(pack.recommendedFor.languages).toEqual(["typescript"]);
   });
@@ -210,6 +211,7 @@ describe("registry", () => {
     expect(summary.packCount).toBe(registry.packs.length);
     expect(summary.agentCount).toBe(registry.agents.length);
     expect(summary.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
+    expect(summary.packs.find((pack) => pack.id === "starter-dev-pack")?.requires?.agentsMarket).toBe(">=0.1.0");
     expect(summary.changelog.count).toBeGreaterThan(0);
     expect(summary.changelog.latest?.version).toBe("0.1.0");
     expect(summary.targets.claude).toBeGreaterThan(0);

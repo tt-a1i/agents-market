@@ -24,6 +24,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market outdated --json");
       expect(file.content).toContain("agents-market doctor --strict --json");
       expect(file.content).toContain("Treat policy failures as blockers");
+      expect(file.content).toContain("Treat compatibility failures as blockers");
     }
   });
 });

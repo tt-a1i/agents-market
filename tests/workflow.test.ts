@@ -34,6 +34,7 @@ describe("apply workflow", () => {
     expect(result.installed).toBe(false);
     expect(result.pack.id).toBe("starter-dev-pack");
     expect(result.pack.explicit).toBe(false);
+    expect(result.compatibility.ok).toBe(true);
     expect(result.policy?.ok).toBe(true);
     expect(result.changes.length).toBe(4);
     expect(result.changes.every((change) => change.state === "create")).toBe(true);
@@ -63,6 +64,34 @@ describe("apply workflow", () => {
     await expect(readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")).rejects.toThrow();
   });
 
+  it("blocks installation when the selected pack requires a newer CLI", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-apply-incompatible-"));
+    const incompatibleRegistry = {
+      ...registry,
+      packs: registry.packs.map((pack) =>
+        pack.id === "starter-dev-pack" ? { ...pack, requires: { agentsMarket: ">=9.0.0" } } : pack
+      )
+    };
+
+    const result = await runApplyWorkflow({
+      root: cleanupPath,
+      registry: incompatibleRegistry,
+      registrySource: { value: "bundled" },
+      packId: "starter-dev-pack",
+      target: "claude",
+      mode: "install",
+      policy: defaultApplyPolicy(),
+      policySource: "preset",
+      policyCommandArg: " --policy-preset balanced"
+    });
+
+    expect(result.installed).toBe(false);
+    expect(result.compatibility.ok).toBe(false);
+    expect(result.compatibility.findings[0]?.code).toBe("agents-market-version-not-supported");
+    await expect(readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")).rejects.toThrow();
+  });
+
   it("installs after the workflow passes with explicit confirmation", async () => {
     const registry = await loadRegistry();
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-apply-install-"));
@@ -80,6 +109,7 @@ describe("apply workflow", () => {
     });
 
     expect(result.installed).toBe(true);
+    expect(result.compatibility.ok).toBe(true);
     const manifest = JSON.parse(await readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")) as {
       installs: Array<{ packId: string; packVersion?: string; target: string; files: unknown[] }>;
     };

@@ -101,7 +101,7 @@ agents-market import directory ./community-agents \
   --tag imported community
 ```
 
-The generated pack is a starting point. Review it before publishing: add recommendation signals, split large packs, and remove low-quality or overlapping agents.
+The generated pack is a starting point. Review it before publishing: add recommendation signals, verify the generated `requires.agentsMarket` compatibility constraint, split large packs, and remove low-quality or overlapping agents.
 
 ## Validate Imported Content
 

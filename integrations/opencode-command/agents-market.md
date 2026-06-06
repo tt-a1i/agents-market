@@ -21,6 +21,7 @@ Safety:
 
 - Prefer `apply` because it combines recommendation, audit, policy, diff, and guarded install.
 - Treat policy failures as blockers unless the user explicitly updates the project policy.
+- Treat compatibility failures as blockers and ask the user to upgrade `@agents-market/cli`.
 - Prefer curated packs.
 - Do not use `--force` unless the user explicitly confirms overwriting or removing modified generated files.
 - Use `agents-market outdated --json` before update workflows, then use `agents-market update --dry-run --json` before asking for confirmation.

@@ -38,6 +38,7 @@ describe("catalog", () => {
     expect(html).toContain("Initial public registry");
     expect(html).toContain("Source");
     expect(html).toContain("risk:");
+    expect(html).toContain("requires Agents Market &gt;=0.1.0");
     expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
     expect(html).toContain(
       "npx @agents-market/cli apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
@@ -63,6 +64,7 @@ describe("catalog", () => {
         auditCommand: string;
         diffCommand: string;
         workflowCommands: Array<{ label: string; command: string }>;
+        requires?: { agentsMarket?: string };
         audit: {
           risk: string;
           fileCount: number;
@@ -86,6 +88,7 @@ describe("catalog", () => {
     );
     expect(starterPack?.diffCommand).toContain("--json");
     expect(starterPack?.workflowCommands.map((command) => command.label)).toEqual(["Preview", "Audit", "Diff", "Install"]);
+    expect(starterPack?.requires?.agentsMarket).toBe(">=0.1.0");
     expect(starterPack?.audit.risk).toBe("high");
     expect(starterPack?.audit.fileCount).toBe(12);
 

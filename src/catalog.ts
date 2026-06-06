@@ -292,6 +292,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
           <span>risk: <strong>${escapeHtml(summary.audit.risk)}</strong></span>
           <span>${summary.audit.agentCount} agents</span>
           <span>${summary.audit.fileCount} files</span>
+          ${pack.requires?.agentsMarket ? `<span>requires Agents Market ${escapeHtml(pack.requires.agentsMarket)}</span>` : ""}
         </div>
         <div class="commands">${commands}</div>
         ${warnings}

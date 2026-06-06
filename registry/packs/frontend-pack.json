@@ -5,6 +5,9 @@
   "version": "0.1.0",
   "tags": ["frontend", "ui", "accessibility"],
   "agents": ["code-reviewer", "frontend-verifier", "accessibility-auditor", "test-runner", "debugger"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
   "recommendedFor": {
     "frameworks": ["react", "vue", "svelte", "tailwind", "playwright"],
     "languages": ["javascript", "typescript"],
