@@ -224,10 +224,9 @@ program
         audit,
         diff,
         nextCommands: [
-          `agents-market audit ${selectedPack.id} --target ${target} --json`,
-          `agents-market diff ${selectedPack.id} --target ${target}`,
-          `agents-market install ${selectedPack.id} --target ${target}`,
-          "agents-market doctor"
+          `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --json`,
+          `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --yes`,
+          "agents-market doctor --strict --json"
         ]
       };
 
