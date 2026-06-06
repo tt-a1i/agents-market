@@ -25,6 +25,8 @@ npx github:tt-a1i/agents-market apply --target all
 npx github:tt-a1i/agents-market apply frontend-pack --target all --yes
 ```
 
+Preview release artifacts are available at [preview-0.1.0](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0), including the registry bundle, npm tarball, checksum manifest, and Claude Code, Codex, and OpenCode installer archives.
+
 For local development:
 
 ```bash

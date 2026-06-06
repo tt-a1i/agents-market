@@ -31,6 +31,8 @@ GitHub Actions workflows run on Node.js 24 and set `FORCE_JAVASCRIPT_ACTIONS_TO_
 
 ## Release Flow
 
+### npm Release
+
 1. Update `package.json` version.
 2. Commit the version change.
 3. Create and push a tag:
@@ -41,6 +43,17 @@ GitHub Actions workflows run on Node.js 24 and set `FORCE_JAVASCRIPT_ACTIONS_TO_
    ```
 
 4. The Release workflow runs `npm run release:check`, builds release artifacts, uploads them to the workflow run, publishes to npm with provenance, and attaches distributable artifacts to the GitHub Release.
+
+### Preview Release
+
+When npm credentials are not configured yet, publish a non-`v*` prerelease tag such as `preview-0.1.0` after running `npm run release:artifacts`. This does not trigger the npm publishing workflow, but it can distribute:
+
+- the registry bundle
+- Claude Code, Codex, and OpenCode installer archives
+- the npm tarball for manual inspection
+- `SHA256SUMS` and `release-artifacts.json`
+
+The current preview release is [preview-0.1.0](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0). The production npm release is still gated on the `NPM_TOKEN` secret.
 
 ## Manual Dispatch
 
