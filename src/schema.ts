@@ -52,3 +52,11 @@ export const registrySchema = z.object({
   agents: z.array(agentSchema),
   packs: z.array(packSchema)
 });
+
+export const registryBundleSchema = registrySchema.extend({
+  schemaVersion: z.literal(1),
+  name: z.string().min(1),
+  version: z.string().min(1),
+  exportedAt: z.string().min(1),
+  sha256: z.string().optional()
+});

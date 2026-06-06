@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadRegistry } from "../src/registry.js";
+import { createRegistryBundle, loadRegistry } from "../src/registry.js";
 import { recommendPacks } from "../src/recommend.js";
 
 describe("registry", () => {
@@ -18,5 +18,13 @@ describe("registry", () => {
       files: ["package.json", "next.config.mjs"]
     });
     expect(packs[0]?.id).toBe("nextjs-pack");
+  });
+
+  it("creates and parses portable registry bundles", async () => {
+    const registry = await loadRegistry();
+    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry");
+    expect(bundle.schemaVersion).toBe(1);
+    expect(bundle.sha256).toHaveLength(64);
+    expect(bundle.packs.length).toBe(registry.packs.length);
   });
 });

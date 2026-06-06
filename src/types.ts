@@ -45,6 +45,16 @@ export interface Registry {
   packs: PackDefinition[];
 }
 
+export interface RegistryBundle {
+  schemaVersion: 1;
+  name: string;
+  version: string;
+  exportedAt: string;
+  agents: AgentDefinition[];
+  packs: PackDefinition[];
+  sha256?: string;
+}
+
 export interface ProjectSignals {
   root: string;
   packageManager?: "npm" | "pnpm" | "yarn" | "bun";
@@ -69,10 +79,23 @@ export interface ManifestInstallEntry {
   packId: string;
   target: Target | "all";
   installedAt: string;
+  registry?: {
+    source: string;
+    version?: string;
+    sha256?: string;
+  };
   files: ManifestFileEntry[];
 }
 
 export interface InstallManifest {
   schemaVersion: 1;
   installs: ManifestInstallEntry[];
+}
+
+export interface RegistryLock {
+  schemaVersion: 1;
+  source: string;
+  version?: string;
+  sha256?: string;
+  lockedAt: string;
 }

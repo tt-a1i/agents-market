@@ -39,6 +39,8 @@ agents-market status
 agents-market update
 agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
+agents-market registry export --out ./registry.bundle.json
+agents-market registry lock --registry ./registry.bundle.json
 ```
 
 ## Manifest Lifecycle
@@ -63,10 +65,34 @@ This gives the installer a lifecycle:
 
 The manifest is intentionally not ignored. Teams can commit it when they want deterministic pack lifecycle tracking.
 
+## Registry Sources And Lockfiles
+
+The CLI supports multiple registry sources:
+
+- bundled registry included in the package
+- local registry directory
+- portable registry bundle file
+- HTTP(S) registry bundle URL
+
+`agents-market registry export` creates a single JSON bundle with:
+
+- schema version
+- registry name
+- registry version
+- export timestamp
+- agents
+- packs
+- sha256 checksum
+
+`agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands read that lockfile first and fall back to the bundled registry only when no lockfile exists.
+
+This is the foundation for a hosted marketplace: the Web catalog can publish versioned registry bundles, and agent-native integrations can lock a project before installation.
+
 ## Future Production Requirements
 
 - Remote registry download and lockfile support.
 - Pack version constraints and update checks.
+- Registry signature verification.
 - Manifest conflict resolution and richer drift reports.
 - Registry linting and prompt quality scoring.
 - Signature or checksum verification for third-party packs.

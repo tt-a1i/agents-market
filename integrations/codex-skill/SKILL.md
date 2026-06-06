@@ -17,26 +17,32 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
    ```
 
 3. Pick the most relevant pack, or ask the user to choose if the recommendation is ambiguous.
-4. Preview changes before writing:
+4. If the user provides a registry URL or bundle path, lock it first:
+
+   ```bash
+   agents-market registry lock --registry <source>
+   ```
+
+5. Preview changes before writing:
 
    ```bash
    agents-market diff <pack-id> --target all
    ```
 
-5. Explain the target files and permission implications.
-6. After user confirmation, install:
+6. Explain the target files and permission implications.
+7. After user confirmation, install:
 
    ```bash
    agents-market install <pack-id> --target all
    ```
-
-7. Summarize installed files and how the user can invoke the new agents.
 
 8. Verify install state:
 
    ```bash
    agents-market status
    ```
+
+9. Summarize installed files and how the user can invoke the new agents.
 
 ## Target Selection
 

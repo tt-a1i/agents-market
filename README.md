@@ -52,6 +52,8 @@ agents-market status
 agents-market update
 agents-market uninstall starter-dev-pack --target claude
 agents-market export frontend-pack --target all --out ./generated
+agents-market registry export --out ./registry.bundle.json
+agents-market registry lock --registry ./registry.bundle.json
 ```
 
 ## Install Manifest
@@ -65,6 +67,31 @@ This enables drift-aware operations:
 - `uninstall` removes generated files while skipping user-modified files by default.
 
 Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+
+## Registry Sources
+
+Commands that read packs support a registry source:
+
+```bash
+agents-market list --registry bundled
+agents-market diff starter-dev-pack --registry ./registry.bundle.json
+agents-market install starter-dev-pack --registry https://example.com/registry.bundle.json
+```
+
+Supported sources:
+
+- `bundled`: the registry shipped with the CLI.
+- Directory: a local registry directory with `agents/` and `packs/`.
+- Bundle file: a portable JSON bundle created by `agents-market registry export`.
+- URL: an HTTP(S) registry bundle.
+
+Lock a project to a registry source:
+
+```bash
+agents-market registry lock --registry ./registry.bundle.json
+```
+
+This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted.
 
 ## Built-In Packs
 
@@ -91,5 +118,6 @@ tests/        Adapter and registry tests
 - Packs are curated to avoid overloading users with too many subagents.
 - `recommend` scans local project signals and suggests packs rather than making the user browse a long catalog.
 - The install manifest protects user edits and gives the CLI a real lifecycle, not just one-way file generation.
+- Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
 
 See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.

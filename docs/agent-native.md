@@ -17,11 +17,12 @@ Shall I install it?
 1. Inspect the project.
 2. Run `agents-market recommend`.
 3. Pick the best pack or ask the user to choose when ambiguous.
-4. Run `agents-market diff <pack> --target <target>`.
-5. Explain files, permissions, and command-running risk.
-6. After confirmation, run `agents-market install <pack> --target <target>`.
-7. Run `agents-market status` and summarize the installed files.
-8. Tell the user how to invoke the installed agents.
+4. If the user or organization has a registry URL, run `agents-market registry lock --registry <source>`.
+5. Run `agents-market diff <pack> --target <target>`.
+6. Explain files, permissions, and command-running risk.
+7. After confirmation, run `agents-market install <pack> --target <target>`.
+8. Run `agents-market status` and summarize the installed files.
+9. Tell the user how to invoke the installed agents.
 
 ## Integration Strategy
 
@@ -35,6 +36,7 @@ The CLI remains the stable execution layer. Agent-native integrations should be 
 
 - Always run `diff` before `install`.
 - Run `status` after install/update.
+- Use `registry lock` for organization or hosted marketplace registries before installing.
 - Prefer curated packs over installing many individual agents.
 - Explain permissions for command-capable agents like `test-runner` and `frontend-verifier`.
 - Never overwrite unrelated user files silently.

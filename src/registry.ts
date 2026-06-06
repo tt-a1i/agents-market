@@ -1,8 +1,19 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { stat, readFile, readdir } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
 import { registryRoot } from "./paths.js";
-import { agentSchema, packSchema } from "./schema.js";
-import type { AgentDefinition, PackDefinition, Registry } from "./types.js";
+import { agentSchema, packSchema, registryBundleSchema } from "./schema.js";
+import { sha256 } from "./hash.js";
+import type { AgentDefinition, PackDefinition, Registry, RegistryBundle } from "./types.js";
+
+export interface LoadedRegistry {
+  registry: Registry;
+  source: {
+    kind: "bundled" | "directory" | "file" | "url";
+    value: string;
+    version?: string;
+    sha256?: string;
+  };
+}
 
 async function readJsonFiles<T>(dir: string, parse: (value: unknown) => T): Promise<T[]> {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -36,6 +47,100 @@ export async function loadRegistry(root = registryRoot()): Promise<Registry> {
   }
 
   return { agents, packs };
+}
+
+export function validateRegistry(registry: Registry): Registry {
+  const knownAgents = new Set(registry.agents.map((agent) => agent.id));
+  for (const pack of registry.packs) {
+    const missing = pack.agents.filter((id) => !knownAgents.has(id));
+    if (missing.length > 0) {
+      throw new Error(`Pack ${pack.id} references missing agents: ${missing.join(", ")}`);
+    }
+  }
+  return registry;
+}
+
+async function loadRegistryBundleFromFile(path: string): Promise<RegistryBundle> {
+  const raw = await readFile(path, "utf8");
+  const parsed = registryBundleSchema.parse(JSON.parse(raw));
+  if (parsed.sha256 && registryBundleHash(parsed) !== parsed.sha256) {
+    throw new Error(`Registry bundle checksum mismatch: ${path}`);
+  }
+  validateRegistry(parsed);
+  return parsed;
+}
+
+async function loadRegistryBundleFromUrl(url: string): Promise<RegistryBundle> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch registry bundle ${url}: ${response.status} ${response.statusText}`);
+  }
+  const raw = await response.text();
+  const parsed = registryBundleSchema.parse(JSON.parse(raw));
+  validateRegistry(parsed);
+  return parsed;
+}
+
+export async function loadRegistryFromSource(source?: string): Promise<Registry> {
+  return (await loadRegistryWithInfo(source)).registry;
+}
+
+export async function loadRegistryWithInfo(source?: string): Promise<LoadedRegistry> {
+  if (!source || source === "bundled") {
+    return {
+      registry: await loadRegistry(),
+      source: { kind: "bundled", value: "bundled" }
+    };
+  }
+  if (source.startsWith("http://") || source.startsWith("https://")) {
+    const bundle = await loadRegistryBundleFromUrl(source);
+    return {
+      registry: bundle,
+      source: { kind: "url", value: source, version: bundle.version, sha256: bundle.sha256 }
+    };
+  }
+
+  const path = isAbsolute(source) ? source : resolve(process.cwd(), source);
+  const info = await stat(path);
+  if (info.isDirectory()) {
+    return {
+      registry: await loadRegistry(path),
+      source: { kind: "directory", value: path }
+    };
+  }
+  const bundle = await loadRegistryBundleFromFile(path);
+  return {
+    registry: bundle,
+    source: { kind: "file", value: path, version: bundle.version, sha256: bundle.sha256 }
+  };
+}
+
+export function createRegistryBundle(registry: Registry, version: string, name = "agents-market"): RegistryBundle {
+  const bundleWithoutHash = {
+    schemaVersion: 1 as const,
+    name,
+    version,
+    exportedAt: new Date().toISOString(),
+    agents: registry.agents,
+    packs: registry.packs
+  };
+  return {
+    ...bundleWithoutHash,
+    sha256: registryBundleHash(bundleWithoutHash)
+  };
+}
+
+function registryBundleHash(bundle: Omit<RegistryBundle, "sha256">): string {
+  return sha256(
+    JSON.stringify({
+      schemaVersion: bundle.schemaVersion,
+      name: bundle.name,
+      version: bundle.version,
+      exportedAt: bundle.exportedAt,
+      agents: bundle.agents,
+      packs: bundle.packs
+    })
+  );
 }
 
 export function getPack(registry: Registry, id: string): PackDefinition {

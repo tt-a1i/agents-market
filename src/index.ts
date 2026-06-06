@@ -1,17 +1,26 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import pc from "picocolors";
-import { resolve } from "node:path";
-import { loadRegistry } from "./registry.js";
+import { dirname, resolve } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
 import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
-import { loadManifest, removeInstall, saveManifest, upsertInstall } from "./manifest.js";
+import {
+  loadManifest,
+  loadRegistryLock,
+  removeInstall,
+  saveManifest,
+  saveRegistryLock,
+  upsertInstall
+} from "./manifest.js";
 import { sha256 } from "./hash.js";
 import type { Target } from "./types.js";
 
 const program = new Command();
+const BUNDLED_REGISTRY_VERSION = "0.1.0";
 
 function cwd(value?: string): string {
   return resolve(value ?? process.cwd());
@@ -24,6 +33,12 @@ function parseTarget(value: string): Target | "all" {
   throw new Error(`Invalid target: ${value}. Use claude, codex, opencode, or all.`);
 }
 
+async function loadProjectRegistry(root: string, registryOption?: string) {
+  if (registryOption) return loadRegistryWithInfo(registryOption);
+  const lock = await loadRegistryLock(root);
+  return loadRegistryWithInfo(lock?.source);
+}
+
 program
   .name("agents-market")
   .description("Agent-native marketplace and installer for specialized coding subagents")
@@ -33,8 +48,9 @@ program
   .command("list")
   .description("List available agent packs and agents")
   .option("--agents", "show individual agents")
-  .action(async (options: { agents?: boolean }) => {
-    const registry = await loadRegistry();
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .action(async (options: { agents?: boolean; registry?: string }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
     console.log(pc.bold("Packs"));
     for (const pack of registry.packs) {
       console.log(`${pc.cyan(pack.id)} - ${pack.description}`);
@@ -51,9 +67,10 @@ program
   .command("recommend")
   .description("Recommend packs for the current project")
   .option("--cwd <path>", "project root to scan")
-  .action(async (options: { cwd?: string }) => {
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .action(async (options: { cwd?: string; registry?: string }) => {
     const root = cwd(options.cwd);
-    const registry = await loadRegistry();
+    const { registry } = await loadProjectRegistry(root, options.registry);
     const signals = await detectProject(root);
     const packs = recommendPacks(registry, signals);
 
@@ -78,10 +95,11 @@ program
   .argument("<pack>", "pack id to preview")
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
   .option("--cwd <path>", "project root to inspect")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Preview files that would be written")
-  .action(async (packId: string, options: { target: string; cwd?: string }) => {
+  .action(async (packId: string, options: { target: string; cwd?: string; registry?: string }) => {
     const root = cwd(options.cwd);
-    const registry = await loadRegistry();
+    const { registry } = await loadProjectRegistry(root, options.registry);
     const files = generatePackFiles(registry, packId, parseTarget(options.target));
 
     for (const file of files) {
@@ -98,10 +116,12 @@ program
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
   .option("--cwd <path>", "project root to install into")
   .option("--dry-run", "preview without writing")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Install a pack into the current project")
-  .action(async (packId: string, options: { target: string; cwd?: string; dryRun?: boolean }) => {
+  .action(async (packId: string, options: { target: string; cwd?: string; dryRun?: boolean; registry?: string }) => {
     const root = cwd(options.cwd);
-    const registry = await loadRegistry();
+    const loaded = await loadProjectRegistry(root, options.registry);
+    const registry = loaded.registry;
     const target = parseTarget(options.target);
     const files = generatePackFiles(registry, packId, target);
 
@@ -115,7 +135,14 @@ program
 
     await writeGeneratedFiles(root, files);
     const manifest = await loadManifest(root);
-    await saveManifest(root, upsertInstall(manifest, packId, target, files));
+    await saveManifest(
+      root,
+      upsertInstall(manifest, packId, target, files, new Date(), {
+        source: loaded.source.value,
+        version: loaded.source.version,
+        sha256: loaded.source.sha256
+      })
+    );
     console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
   });
 
@@ -188,10 +215,12 @@ program
   .argument("[pack]", "optional pack id to update; updates all installed packs when omitted")
   .option("--cwd <path>", "project root to update")
   .option("--force", "overwrite modified generated files")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Update installed packs from the current registry")
-  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean }) => {
+  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; registry?: string }) => {
     const root = cwd(options.cwd);
-    const registry = await loadRegistry();
+    const loaded = await loadProjectRegistry(root, options.registry);
+    const registry = loaded.registry;
     const manifest = await loadManifest(root);
     const installs = manifest.installs.filter((entry) => !packId || entry.packId === packId);
 
@@ -220,7 +249,11 @@ program
 
       await writeGeneratedFiles(root, safeFiles);
       written += safeFiles.length;
-      nextManifest = upsertInstall(nextManifest, install.packId, install.target, files);
+      nextManifest = upsertInstall(nextManifest, install.packId, install.target, files, new Date(), {
+        source: loaded.source.value,
+        version: loaded.source.version,
+        sha256: loaded.source.sha256
+      });
     }
 
     await saveManifest(root, nextManifest);
@@ -232,12 +265,49 @@ program
   .argument("<pack>", "pack id to export")
   .requiredOption("-o, --out <path>", "output directory")
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .description("Export generated agent files to a directory")
-  .action(async (packId: string, options: { out: string; target: string }) => {
-    const registry = await loadRegistry();
+  .action(async (packId: string, options: { out: string; target: string; registry?: string }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
     const files = generatePackFiles(registry, packId, parseTarget(options.target));
     await writeGeneratedFiles(resolve(options.out), files);
     console.log(pc.green(`Exported ${files.length} files to ${resolve(options.out)}`));
+  });
+
+const registryCommand = program.command("registry").description("Registry utilities");
+
+registryCommand
+  .command("export")
+  .requiredOption("-o, --out <path>", "output registry bundle path")
+  .option("--registry <source>", "registry source to bundle", "bundled")
+  .option("--name <name>", "bundle name", "agents-market")
+  .option("--version <version>", "bundle version", BUNDLED_REGISTRY_VERSION)
+  .description("Export a registry source as a single portable JSON bundle")
+  .action(async (options: { out: string; registry: string; name: string; version: string }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
+    const bundle = createRegistryBundle(registry, options.version, options.name);
+    const out = resolve(options.out);
+    await mkdir(dirname(out), { recursive: true });
+    await writeFile(out, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+    console.log(pc.green(`Wrote registry bundle to ${out}`));
+  });
+
+registryCommand
+  .command("lock")
+  .option("--cwd <path>", "project root to write the lockfile")
+  .option("--registry <source>", "registry source to lock", "bundled")
+  .description("Lock a project to a registry source")
+  .action(async (options: { cwd?: string; registry: string }) => {
+    const root = cwd(options.cwd);
+    const loaded = await loadRegistryWithInfo(options.registry);
+    await saveRegistryLock(root, {
+      schemaVersion: 1,
+      source: loaded.source.value,
+      version: loaded.source.version,
+      sha256: loaded.source.sha256,
+      lockedAt: new Date().toISOString()
+    });
+    console.log(pc.green(`Locked registry ${loaded.source.value} in ${root}`));
   });
 
 program.parseAsync().catch((error: unknown) => {

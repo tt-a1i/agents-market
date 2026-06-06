@@ -2,9 +2,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { sha256 } from "./hash.js";
 import type { GeneratedPackFile } from "./install.js";
-import type { InstallManifest, ManifestInstallEntry, Target } from "./types.js";
+import type { InstallManifest, ManifestInstallEntry, RegistryLock, Target } from "./types.js";
 
 export const MANIFEST_PATH = ".agents-market/manifest.json";
+export const REGISTRY_LOCK_PATH = ".agents-market/registry-lock.json";
 
 export async function loadManifest(root: string): Promise<InstallManifest> {
   try {
@@ -21,17 +22,34 @@ export async function saveManifest(root: string, manifest: InstallManifest): Pro
   await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
+export async function loadRegistryLock(root: string): Promise<RegistryLock | undefined> {
+  try {
+    const raw = await readFile(join(root, REGISTRY_LOCK_PATH), "utf8");
+    return JSON.parse(raw) as RegistryLock;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function saveRegistryLock(root: string, lock: RegistryLock): Promise<void> {
+  const path = join(root, REGISTRY_LOCK_PATH);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
+}
+
 export function upsertInstall(
   manifest: InstallManifest,
   packId: string,
   target: Target | "all",
   files: GeneratedPackFile[],
-  now = new Date()
+  now = new Date(),
+  registry?: ManifestInstallEntry["registry"]
 ): InstallManifest {
   const nextEntry: ManifestInstallEntry = {
     packId,
     target,
     installedAt: now.toISOString(),
+    registry,
     files: files.map((file) => ({
       path: file.path,
       target: file.target,
