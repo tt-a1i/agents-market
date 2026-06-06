@@ -31,7 +31,7 @@ Agents Market is built around one invariant: the registry is tool-neutral, and a
    Current generated integration files:
 
    - `.claude/skills/agents-market-installer/SKILL.md`
-   - `.agents/skills/agents-market-installer/SKILL.md`
+   - `.codex/skills/agents-market-installer/SKILL.md`
    - `.opencode/commands/agents-market.md`
 
 ## Current Command Contract

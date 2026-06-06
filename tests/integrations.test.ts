@@ -6,7 +6,7 @@ describe("agent-native integrations", () => {
     const files = generateIntegrations("all");
     expect(files.map((file) => file.path)).toEqual([
       ".claude/skills/agents-market-installer/SKILL.md",
-      ".agents/skills/agents-market-installer/SKILL.md",
+      ".codex/skills/agents-market-installer/SKILL.md",
       ".opencode/commands/agents-market.md"
     ]);
   });

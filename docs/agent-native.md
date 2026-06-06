@@ -90,7 +90,7 @@ agents-market integrations package --target all --out ./integration-packages
 Generated files:
 
 - Claude Code: `.claude/skills/agents-market-installer/SKILL.md`
-- Codex: `.agents/skills/agents-market-installer/SKILL.md`
+- Codex: `.codex/skills/agents-market-installer/SKILL.md`
 - OpenCode: `.opencode/commands/agents-market.md`
 
 After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `apply --json`, ask for confirmation, run `apply --yes`, then verify with `status` and `doctor`.

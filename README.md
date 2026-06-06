@@ -276,7 +276,7 @@ This writes:
 | Tool | Integration file |
 | --- | --- |
 | Claude Code | `.claude/skills/agents-market-installer/SKILL.md` |
-| Codex | `.agents/skills/agents-market-installer/SKILL.md` |
+| Codex | `.codex/skills/agents-market-installer/SKILL.md` |
 | OpenCode | `.opencode/commands/agents-market.md` |
 
 `integrations package` writes distributable bundles for release artifacts, team templates, or marketplace ingestion:

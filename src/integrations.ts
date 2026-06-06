@@ -65,7 +65,7 @@ ${INSTALLER_WORKFLOW}
 
 function generateCodexSkill(): GeneratedFile {
   return {
-    path: ".agents/skills/agents-market-installer/SKILL.md",
+    path: ".codex/skills/agents-market-installer/SKILL.md",
     content: `---
 name: agents-market-installer
 description: Use when a user asks Codex to recommend, install, update, or inspect specialized coding subagents for Claude Code, Codex, OpenCode, or multiple targets in the current repository.
