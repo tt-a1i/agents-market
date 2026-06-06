@@ -79,6 +79,11 @@ async function main() {
     );
     const catalogVerify = runJson("node", ["dist/index.js", "catalog", "verify", "--dir", siteDir, "--json"], "Catalog verify");
     assert(catalogVerify.ok === true, "Catalog verification failed after build.");
+    const catalogHtml = await readFile(join(siteDir, "index.html"), "utf8");
+    assert(
+      catalogHtml.includes('const itemTargets = item.dataset.targets || "";'),
+      "Catalog target filter should tolerate searchable entries without target metadata."
+    );
   } finally {
     await rm(siteDir, { recursive: true, force: true });
   }

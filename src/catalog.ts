@@ -729,7 +729,8 @@ function renderHtml(
       const selectedTarget = target.value;
       for (const item of searchable) {
         const textMatches = !query || item.dataset.search.toLowerCase().includes(query);
-        const targetMatches = selectedTarget === "all" || item.dataset.targets.split(" ").includes(selectedTarget);
+        const itemTargets = item.dataset.targets || "";
+        const targetMatches = selectedTarget === "all" || itemTargets.split(" ").includes(selectedTarget);
         item.style.display = textMatches && targetMatches ? "" : "none";
       }
     }
