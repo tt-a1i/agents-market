@@ -19,6 +19,7 @@ describe("agent-native integrations", () => {
       expect(file.content).toContain("agents-market audit");
       expect(file.content).toContain("agents-market diff <pack-id> --target all --json");
       expect(file.content).toContain("agents-market install");
+      expect(file.content).toContain("agents-market status --json");
       expect(file.content).toContain("agents-market doctor --json");
     }
   });

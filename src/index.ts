@@ -476,9 +476,47 @@ program
   .command("status")
   .description("Show installed packs and whether generated files drifted")
   .option("--cwd <path>", "project root to inspect")
-  .action(async (options: { cwd?: string }) => {
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { cwd?: string; json?: boolean }) => {
     const root = cwd(options.cwd);
     const manifest = await loadManifest(root);
+    const installs = [];
+
+    for (const install of manifest.installs) {
+      const files = [];
+      for (const file of install.files) {
+        const current = await readExisting(root, { path: file.path, content: "" });
+        const state = current === undefined ? "missing" : sha256(current) === file.sha256 ? "clean" : "modified";
+        files.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agentId,
+          state
+        });
+      }
+      installs.push({
+        packId: install.packId,
+        target: install.target,
+        installedAt: install.installedAt,
+        registry: install.registry,
+        files
+      });
+    }
+
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            root,
+            installCount: installs.length,
+            installs
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
 
     if (manifest.installs.length === 0) {
       console.log("No packs installed by Agents Market.");
@@ -487,10 +525,9 @@ program
 
     for (const install of manifest.installs) {
       console.log(`${pc.bold(install.packId)} (${install.target}) installed ${install.installedAt}`);
-      for (const file of install.files) {
-        const current = await readExisting(root, { path: file.path, content: "" });
-        const state =
-          current === undefined ? pc.red("missing") : sha256(current) === file.sha256 ? pc.green("clean") : pc.yellow("modified");
+      const status = installs.find((entry) => entry.packId === install.packId && entry.target === install.target);
+      for (const file of status?.files ?? []) {
+        const state = file.state === "missing" ? pc.red("missing") : file.state === "clean" ? pc.green("clean") : pc.yellow("modified");
         console.log(`  ${state} ${file.path}`);
       }
     }
