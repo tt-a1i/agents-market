@@ -163,6 +163,14 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
       continue;
     }
     const expected = packCatalogSummary(registry, pack.id, bundleUrl);
+    if (catalogPack.previewCommand !== expected.previewCommand) {
+      findings.push({
+        severity: "error",
+        code: "preview-command-mismatch",
+        message: "Catalog preview command does not match the registry bundle.",
+        detail: pack.id
+      });
+    }
     if (catalogPack.installCommand !== expected.installCommand) {
       findings.push({
         severity: "error",
@@ -393,19 +401,19 @@ function packCatalogSummary(registry: Registry, packId: string, bundlePath: stri
   const pack = registry.packs.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error(`Unknown pack: ${packId}`);
   const audit = auditPack(registry, pack.id, "all");
+  const previewCommand = `npx @agents-market/cli apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --json`;
   const auditCommand = `npx @agents-market/cli audit ${pack.id} --target all --registry ${bundlePath} --json`;
-  const policyCommand = `npx @agents-market/cli policy check ${pack.id} --target all --registry ${bundlePath} --preset balanced --json`;
   const diffCommand = `npx @agents-market/cli diff ${pack.id} --target all --registry ${bundlePath} --json`;
-  const installCommand = `npx @agents-market/cli install ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced`;
+  const installCommand = `npx @agents-market/cli apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --yes`;
   return {
     ...pack,
+    previewCommand,
     installCommand,
     auditCommand,
-    policyCommand,
     diffCommand,
     workflowCommands: [
+      { label: "Preview", command: previewCommand },
       { label: "Audit", command: auditCommand },
-      { label: "Policy Check", command: policyCommand },
       { label: "Diff", command: diffCommand },
       { label: "Install", command: installCommand }
     ],

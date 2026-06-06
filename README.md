@@ -254,12 +254,12 @@ agents-market catalog verify --dir ./site
 The catalog generator writes:
 
 - `index.html`: searchable static catalog
-- `catalog.json`: machine-readable catalog with pack audits, safety workflow commands, install commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
-Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable audit, policy check, diff, and install commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
+Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
 
-Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, workflow commands, and hosted bundle URLs.
+Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, `apply` workflow commands, and hosted bundle URLs.
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
 
