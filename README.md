@@ -309,7 +309,7 @@ agents-market audit nextjs-pack --target all --json
 agents-market diff nextjs-pack --target all --json
 ```
 
-Use `apply` as the high-level agent-native workflow. Without a pack id, it detects the project and selects the top recommendation. By default it previews the audit, policy check, and file diff without writing files. Add `--yes` only after confirmation to install the selected pack and record it in `.agents-market/manifest.json`.
+Use `apply` as the high-level agent-native workflow. Without a pack id, it detects the project and selects the top recommendation. By default it previews the audit, policy check, file diff, and `changeSummary` without writing files. Add `--yes` only after confirmation to install the selected pack and record it in `.agents-market/manifest.json`.
 
 Use `plan --json` before installation when you need a project-aware confirmation payload. It includes registry source, pack metadata, file changes, audit risk, compatibility, optional policy results, readiness, and next `apply`/`doctor` commands.
 

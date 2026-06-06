@@ -37,6 +37,7 @@ describe("apply workflow", () => {
     expect(result.compatibility.ok).toBe(true);
     expect(result.policy?.ok).toBe(true);
     expect(result.changes.length).toBe(4);
+    expect(result.changeSummary).toEqual({ create: 4, update: 0, unchanged: 0, total: 4 });
     expect(result.changes.every((change) => change.state === "create")).toBe(true);
     await expect(readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")).rejects.toThrow();
     expect(result.nextCommands[0]).toContain("agents-market apply starter-dev-pack --target claude --policy-preset balanced --yes");
@@ -110,6 +111,7 @@ describe("apply workflow", () => {
 
     expect(result.installed).toBe(true);
     expect(result.compatibility.ok).toBe(true);
+    expect(result.changeSummary).toEqual({ create: 4, update: 0, unchanged: 0, total: 4 });
     const manifest = JSON.parse(await readFile(join(cleanupPath, ".agents-market/manifest.json"), "utf8")) as {
       installs: Array<{ packId: string; packVersion?: string; target: string; files: unknown[] }>;
     };

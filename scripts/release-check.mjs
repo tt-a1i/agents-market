@@ -156,6 +156,8 @@ async function runLifecycleSmoke() {
     assert(applyPreview.compatibility?.ok === true, "Lifecycle apply preview did not include a passing compatibility report.");
     assert(applyPreview.policy?.ok === true, "Lifecycle apply preview did not include a passing policy report.");
     assert(applyPreview.changes?.length === 4, `Expected apply preview to include four changes, found ${applyPreview.changes?.length}.`);
+    assert(applyPreview.changeSummary?.create === 4, `Expected apply preview change summary to create four files, found ${applyPreview.changeSummary?.create}.`);
+    assert(applyPreview.changeSummary?.total === 4, `Expected apply preview change summary total four files, found ${applyPreview.changeSummary?.total}.`);
 
     const blockedApply = runJsonAllowFailure(
       "node",
@@ -174,6 +176,8 @@ async function runLifecycleSmoke() {
     assert(applyInstall.installed === true, "Expected apply --yes to install files after policy passed.");
     assert(applyInstall.compatibility?.ok === true, "Expected apply install to include a passing compatibility report.");
     assert(applyInstall.policy?.ok === true, "Expected apply install to include a passing policy report.");
+    assert(applyInstall.changeSummary?.create === 4, `Expected apply install change summary to create four files, found ${applyInstall.changeSummary?.create}.`);
+    assert(applyInstall.changeSummary?.total === 4, `Expected apply install change summary total four files, found ${applyInstall.changeSummary?.total}.`);
 
     const policyInstallPreview = runJson(
       "node",

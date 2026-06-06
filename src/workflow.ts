@@ -55,6 +55,12 @@ export interface ApplyWorkflowResult {
   policySource: ApplyPolicySource;
   policy?: PolicyCheckReport;
   changes: ApplyWorkflowChange[];
+  changeSummary: {
+    create: number;
+    update: number;
+    unchanged: number;
+    total: number;
+  };
   nextCommands: string[];
 }
 
@@ -110,6 +116,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
     policySource: options.policySource,
     policy,
     changes,
+    changeSummary: summarizeApplyChanges(changes),
     nextCommands: buildNextCommands(selected.pack.id, options.target, options.mode, options.policyCommandArg)
   };
 }
@@ -141,4 +148,13 @@ function buildNextCommands(packId: string, target: Target | "all", mode: ApplyMo
     return [`agents-market apply ${packId} --target ${target}${policyCommandArg} --yes`, "agents-market status --json", "agents-market doctor --strict --json"];
   }
   return ["agents-market status --json", "agents-market doctor --strict --json"];
+}
+
+function summarizeApplyChanges(changes: ApplyWorkflowChange[]): ApplyWorkflowResult["changeSummary"] {
+  return {
+    create: changes.filter((change) => change.state === "create").length,
+    update: changes.filter((change) => change.state === "update").length,
+    unchanged: changes.filter((change) => change.state === "unchanged").length,
+    total: changes.length
+  };
 }
