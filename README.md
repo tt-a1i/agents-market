@@ -59,6 +59,7 @@ agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
+agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
 ```
 
 ## Install Manifest
@@ -152,6 +153,7 @@ Normalize Claude Code or OpenCode Markdown agents into the registry schema:
 
 ```bash
 agents-market import markdown ./code-reviewer.md --target claude --out ./registry/agents
+agents-market import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs
 agents-market registry lint --registry ./registry
 ```
 

@@ -1,7 +1,7 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, parse } from "node:path";
-import { agentSchema } from "./schema.js";
-import type { AgentDefinition, PermissionMode, Target } from "./types.js";
+import { agentSchema, packSchema } from "./schema.js";
+import type { AgentDefinition, PackDefinition, PermissionMode, Target } from "./types.js";
 
 type FrontmatterValue = string | string[] | Record<string, string>;
 
@@ -17,6 +17,29 @@ export interface ImportMarkdownOptions {
   category?: string;
   tags?: string[];
   version?: string;
+}
+
+export interface ImportDirectoryOptions {
+  sourceDir: string;
+  target: Target;
+  outDir: string;
+  category?: string;
+  tags?: string[];
+  version?: string;
+  recursive?: boolean;
+  overwrite?: boolean;
+  pack?: {
+    id: string;
+    name?: string;
+    description?: string;
+    outDir: string;
+  };
+}
+
+export interface ImportDirectoryResult {
+  imported: AgentDefinition[];
+  skipped: string[];
+  pack?: PackDefinition;
 }
 
 export async function importMarkdownAgent(options: ImportMarkdownOptions): Promise<AgentDefinition> {
@@ -48,6 +71,54 @@ export async function importMarkdownAgent(options: ImportMarkdownOptions): Promi
   }
 
   return agent;
+}
+
+export async function importMarkdownDirectory(options: ImportDirectoryOptions): Promise<ImportDirectoryResult> {
+  const files = await findMarkdownFiles(options.sourceDir, options.recursive ?? true);
+  const imported: AgentDefinition[] = [];
+  const skipped: string[] = [];
+  const seen = new Set<string>();
+
+  for (const file of files) {
+    const agent = await importMarkdownAgent({
+      sourcePath: file,
+      target: options.target,
+      category: options.category,
+      tags: options.tags,
+      version: options.version
+    });
+    const outPath = join(options.outDir, `${agent.id}.json`);
+    if (seen.has(agent.id)) {
+      skipped.push(file);
+      continue;
+    }
+    seen.add(agent.id);
+    if (!options.overwrite && (await fileExists(outPath))) {
+      skipped.push(file);
+      continue;
+    }
+    await mkdir(dirname(outPath), { recursive: true });
+    await writeFile(outPath, `${JSON.stringify(agent, null, 2)}\n`, "utf8");
+    imported.push(agent);
+  }
+
+  let pack: PackDefinition | undefined;
+  if (options.pack && imported.length > 0) {
+    pack = packSchema.parse({
+      id: slug(options.pack.id),
+      name: options.pack.name ?? humanize(options.pack.id),
+      description: options.pack.description ?? `Imported pack containing ${imported.length} normalized agents.`,
+      version: options.version ?? "0.1.0",
+      tags: options.tags ?? ["imported"],
+      agents: imported.map((agent) => agent.id),
+      recommendedFor: {}
+    });
+    const packPath = join(options.pack.outDir, `${pack.id}.json`);
+    await mkdir(dirname(packPath), { recursive: true });
+    await writeFile(packPath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
+  }
+
+  return { imported, skipped, pack };
 }
 
 export function parseMarkdownAgent(raw: string): ParsedMarkdownAgent {
@@ -178,4 +249,27 @@ function humanize(id: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+async function findMarkdownFiles(root: string, recursive: boolean): Promise<string[]> {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory() && recursive) {
+      files.push(...(await findMarkdownFiles(path, recursive)));
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
+      files.push(path);
+    }
+  }
+  return files.sort();
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await readFile(path, "utf8");
+    return true;
+  } catch {
+    return false;
+  }
 }

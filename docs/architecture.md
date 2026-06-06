@@ -52,6 +52,7 @@ agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
+agents-market import directory ./agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
 ```
 
 ## Manifest Lifecycle
@@ -142,6 +143,8 @@ The importer is intentionally conservative:
 - It can write normalized JSON or print to stdout.
 
 Imported agents should always go through `registry lint` before being included in a published pack.
+
+`agents-market import directory` applies the same normalization to a folder of Markdown templates and can write a provisional pack. This is the first step toward ingesting large GitHub template collections, but it deliberately keeps human review in the loop.
 
 ## Future Production Requirements
 

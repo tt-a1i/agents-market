@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { importMarkdownAgent, parseMarkdownAgent } from "../src/importer.js";
+import { importMarkdownAgent, importMarkdownDirectory, parseMarkdownAgent } from "../src/importer.js";
 
 let cleanupPath: string | undefined;
 
@@ -78,4 +78,55 @@ You are an accessibility auditor. Return issues with impact, file references, an
     const written = JSON.parse(await readFile(join(outDir, "accessibility.json"), "utf8")) as { id: string };
     expect(written.id).toBe("accessibility");
   });
+
+  it("imports directories and creates packs", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-import-"));
+    const sourceDir = join(cleanupPath, "source");
+    const agentsDir = join(cleanupPath, "registry", "agents");
+    const packsDir = join(cleanupPath, "registry", "packs");
+    await writeFileWithDir(
+      join(sourceDir, "reviewer.md"),
+      `---
+name: code-reviewer
+description: Reviews code carefully for test gaps, security issues, regressions, and maintainability.
+tools: Read, Grep
+---
+
+You are a senior code reviewer. Return concise findings with file paths and suggested fixes.
+`
+    );
+    await writeFileWithDir(
+      join(sourceDir, "nested", "debugger.md"),
+      `---
+name: debugger
+description: Investigates failing tests, runtime errors, stack traces, and suspicious behavior with root cause focus.
+tools: Read, Grep, Bash
+---
+
+You are a debugging specialist. Find the smallest credible root cause and explain the fix.
+`
+    );
+
+    const result = await importMarkdownDirectory({
+      sourceDir,
+      target: "claude",
+      outDir: agentsDir,
+      pack: {
+        id: "imported-pack",
+        outDir: packsDir
+      }
+    });
+
+    expect(result.imported.map((agent) => agent.id).sort()).toEqual(["code-reviewer", "debugger"]);
+    expect(result.pack?.agents.sort()).toEqual(["code-reviewer", "debugger"]);
+    const pack = JSON.parse(await readFile(join(packsDir, "imported-pack.json"), "utf8")) as { agents: string[] };
+    expect(pack.agents).toHaveLength(2);
+  });
 });
+
+async function writeFileWithDir(path: string, content: string): Promise<void> {
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, content, "utf8");
+}

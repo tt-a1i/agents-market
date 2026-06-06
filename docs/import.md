@@ -45,6 +45,35 @@ agents-market import markdown ./security-reviewer.md \
   --out ./registry/agents
 ```
 
+## Import A Directory
+
+Batch import Markdown agents from a third-party template collection:
+
+```bash
+agents-market import directory ./community-agents \
+  --target claude \
+  --out ./registry/agents
+```
+
+By default, directory imports scan recursively. Use `--no-recursive` to scan only the top-level directory.
+
+Existing normalized agents are not overwritten unless you pass `--overwrite`.
+
+## Generate A Pack During Import
+
+Create a pack that contains the imported agents:
+
+```bash
+agents-market import directory ./community-agents \
+  --target claude \
+  --out ./registry/agents \
+  --pack community-pack \
+  --pack-out ./registry/packs \
+  --tag imported community
+```
+
+The generated pack is a starting point. Review it before publishing: add recommendation signals, split large packs, and remove low-quality or overlapping agents.
+
 ## Validate Imported Content
 
 After importing, run:
@@ -54,3 +83,5 @@ agents-market registry lint --registry ./registry
 ```
 
 Imported single-target agents may produce `partial-target-support` warnings. That is expected until you review and declare support for other targets.
+
+Generated packs may produce `no-recommendation-signals` warnings. Add `recommendedFor.frameworks`, `recommendedFor.languages`, or `recommendedFor.files` before publishing a curated pack.

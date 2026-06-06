@@ -10,7 +10,7 @@ import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
-import { importMarkdownAgent } from "./importer.js";
+import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -426,6 +426,69 @@ importCommand
         console.log(pc.green(`Imported ${agent.id} into ${resolve(options.out)}`));
       } else {
         console.log(JSON.stringify(agent, null, 2));
+      }
+    }
+  );
+
+importCommand
+  .command("directory")
+  .argument("<dir>", "Directory containing Claude Code or OpenCode Markdown agent files")
+  .requiredOption("-t, --target <target>", "source target format: claude, codex, or opencode")
+  .requiredOption("-o, --out <dir>", "write normalized agent JSON into this registry/agents directory")
+  .option("--no-recursive", "only scan the top-level directory")
+  .option("--overwrite", "overwrite existing normalized agent JSON files")
+  .option("--category <category>", "override inferred category for all imported agents")
+  .option("--tag <tag...>", "additional tags for all imported agents")
+  .option("--version <version>", "agent version", "0.1.0")
+  .option("--pack <id>", "also write a pack containing imported agents")
+  .option("--pack-out <dir>", "registry/packs output directory for --pack")
+  .option("--pack-name <name>", "pack display name")
+  .option("--pack-description <description>", "pack description")
+  .description("Normalize a directory of Markdown agents into registry/agents JSON")
+  .action(
+    async (
+      dir: string,
+      options: {
+        target: string;
+        out: string;
+        recursive: boolean;
+        overwrite?: boolean;
+        category?: string;
+        tag?: string[];
+        version: string;
+        pack?: string;
+        packOut?: string;
+        packName?: string;
+        packDescription?: string;
+      }
+    ) => {
+      const target = parseTarget(options.target);
+      if (target === "all") throw new Error("Import target must be one of claude, codex, or opencode.");
+      if (options.pack && !options.packOut) throw new Error("--pack-out is required when --pack is provided.");
+      const result = await importMarkdownDirectory({
+        sourceDir: resolve(dir),
+        target,
+        outDir: resolve(options.out),
+        recursive: options.recursive,
+        overwrite: options.overwrite,
+        category: options.category,
+        tags: options.tag,
+        version: options.version,
+        pack: options.pack
+          ? {
+              id: options.pack,
+              name: options.packName,
+              description: options.packDescription,
+              outDir: resolve(options.packOut!)
+            }
+          : undefined
+      });
+      console.log(pc.green(`Imported ${result.imported.length} agents into ${resolve(options.out)}`));
+      if (result.skipped.length > 0) {
+        console.log(pc.yellow(`Skipped ${result.skipped.length} files due to duplicate ids or existing outputs.`));
+      }
+      if (result.pack) {
+        console.log(pc.green(`Wrote pack ${result.pack.id} with ${result.pack.agents.length} agents.`));
       }
     }
   );
