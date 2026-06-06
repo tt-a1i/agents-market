@@ -59,6 +59,7 @@ The final product has three layers:
 ```bash
 agents-market list
 agents-market list --agents
+agents-market list --agents --json
 agents-market init --target all
 agents-market init --target all --dry-run --json
 agents-market search accessibility --target claude

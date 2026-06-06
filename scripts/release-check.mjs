@@ -22,6 +22,10 @@ async function main() {
     registryInfo.packs?.every((pack) => pack.requires?.agentsMarket),
     "Expected every registry info pack to include an Agents Market version requirement."
   );
+  const list = runJson("node", ["dist/index.js", "list", "--agents", "--json"], "List registry JSON");
+  assert(list.packCount === registryInfo.packCount, "Expected list --json pack count to match registry info.");
+  assert(list.agentCount === registryInfo.agentCount, "Expected list --json agent count to match registry info.");
+  assert(list.agents?.length === registryInfo.agentCount, "Expected list --agents --json to include agent records.");
   const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");

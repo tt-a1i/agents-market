@@ -293,8 +293,26 @@ program
   .description("List available agent packs and agents")
   .option("--agents", "show individual agents")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
-  .action(async (options: { agents?: boolean; registry?: string }) => {
-    const { registry } = await loadRegistryWithInfo(options.registry);
+  .option("--json", "print machine-readable JSON")
+  .action(async (options: { agents?: boolean; registry?: string; json?: boolean }) => {
+    const loaded = await loadRegistryWithInfo(options.registry);
+    const { registry } = loaded;
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            source: loaded.source,
+            packCount: registry.packs.length,
+            agentCount: registry.agents.length,
+            packs: registry.packs,
+            agents: options.agents ? registry.agents : undefined
+          },
+          null,
+          2
+        )
+      );
+      return;
+    }
     console.log(pc.bold("Packs"));
     for (const pack of registry.packs) {
       console.log(`${pc.cyan(pack.id)} - ${pack.description}`);
