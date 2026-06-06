@@ -2,8 +2,10 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { generateKeyPairSync } from "node:crypto";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCatalog, verifyCatalog } from "../src/catalog.js";
+import { buildCatalog, verifyCatalog, verifyCatalogUrl } from "../src/catalog.js";
 import { loadRegistry, verifyRegistryBundleSignature } from "../src/registry.js";
 import type { RegistryBundle } from "../src/types.js";
 
@@ -196,6 +198,40 @@ describe("catalog", () => {
     expect(validReport.findings).toEqual([]);
   });
 
+  it("verifies a hosted signed catalog URL", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-hosted-"));
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
+    const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
+    const server = await serveDirectory(cleanupPath);
+    try {
+      const { port } = server.address() as AddressInfo;
+      const baseUrl = `http://127.0.0.1:${port}`;
+      await buildCatalog(registry, {
+        outDir: cleanupPath,
+        version: "0.1.0",
+        title: "Agents Market Hosted Test",
+        baseUrl,
+        signingPrivateKeyPem: privateKeyPem,
+        signingPublicKeyPem: publicKeyPem,
+        signingKeyId: "hosted-test"
+      });
+
+      const report = await verifyCatalogUrl(`${baseUrl}/catalog.json`);
+      expect(report.ok).toBe(true);
+      expect(report.source).toEqual({ kind: "url", value: `${baseUrl}/` });
+      expect(report.findings).toEqual([]);
+      expect(report.signatures?.registry).toMatchObject({
+        ok: true,
+        keyId: "hosted-test",
+        algorithm: "ed25519"
+      });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it("can sign the hosted registry bundle and publish the public key", async () => {
     const registry = await loadRegistry();
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-signed-"));
@@ -250,6 +286,11 @@ describe("catalog", () => {
     const validReport = await verifyCatalog(cleanupPath);
     expect(validReport.ok).toBe(true);
     expect(validReport.findings).toEqual([]);
+    expect(validReport.signatures?.registry).toMatchObject({
+      ok: true,
+      keyId: "catalog-test",
+      algorithm: "ed25519"
+    });
   });
 
   it("fails verification when catalog commands drift from the bundle", async () => {
@@ -298,3 +339,37 @@ describe("catalog", () => {
     expect(report.ok).toBe(true);
   });
 });
+
+async function serveDirectory(root: string): Promise<Server> {
+  const server = createServer(async (request, response) => {
+    try {
+      const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+      const fileName = requestUrl.pathname.split("/").filter(Boolean).pop() ?? "index.html";
+      if (fileName.includes("..")) {
+        response.writeHead(400);
+        response.end("bad request");
+        return;
+      }
+      const content = await readFile(join(root, fileName));
+      response.writeHead(200);
+      response.end(content);
+    } catch {
+      response.writeHead(404);
+      response.end("not found");
+    }
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  return server;
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}

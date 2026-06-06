@@ -12,7 +12,7 @@ import {
   verifyRegistryBundleSignature,
   verifyRegistryLock
 } from "./registry.js";
-import { buildCatalog, verifyCatalog } from "./catalog.js";
+import { buildCatalog, verifyCatalog, verifyCatalogUrl } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
@@ -2262,11 +2262,14 @@ catalogCommand
 
 catalogCommand
   .command("verify")
-  .requiredOption("--dir <path>", "catalog directory containing index.html, catalog.json, and registry.bundle.json")
+  .option("--dir <path>", "catalog directory containing index.html, catalog.json, and registry.bundle.json")
+  .option("--url <url>", "hosted catalog base URL or catalog.json URL")
   .option("--json", "print machine-readable JSON")
   .description("Verify static catalog assets are internally consistent")
-  .action(async (options: { dir: string; json?: boolean }) => {
-    const report = await verifyCatalog(resolve(options.dir));
+  .action(async (options: { dir?: string; url?: string; json?: boolean }) => {
+    if (!options.dir && !options.url) throw new Error("catalog verify requires --dir or --url.");
+    if (options.dir && options.url) throw new Error("catalog verify accepts only one of --dir or --url.");
+    const report = options.url ? await verifyCatalogUrl(options.url) : await verifyCatalog(resolve(options.dir!));
     if (options.json) {
       console.log(JSON.stringify(report, null, 2));
       if (!report.ok) process.exitCode = 1;
@@ -2274,8 +2277,13 @@ catalogCommand
     }
     const state = report.ok ? pc.green("pass") : pc.red("fail");
     console.log(`${pc.bold("Catalog")} ${state}`);
-    console.log(`- dir: ${report.dir}`);
+    console.log(`- source: ${report.source.kind} ${report.source.value}`);
+    if (report.dir) console.log(`- dir: ${report.dir}`);
     console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
+    if (report.signatures?.registry) {
+      const signature = report.signatures.registry;
+      console.log(`- registry signature: ${signature.ok ? pc.green(`ok (${signature.keyId})`) : pc.red("fail")}`);
+    }
     for (const finding of report.findings) {
       const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
       console.log(`- ${label} ${finding.code}: ${finding.message}${finding.detail ? ` (${finding.detail})` : ""}`);

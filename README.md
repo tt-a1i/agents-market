@@ -137,6 +137,7 @@ agents-market ci init --provider github --yes
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0
 agents-market catalog verify --dir ./site
+agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
 agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
 agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
@@ -364,6 +365,7 @@ Build a static marketplace catalog:
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0 --repository https://github.com/acme/agents-market
 agents-market catalog verify --dir ./site
+agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
 ```
 
 Use a tag- or SHA-pinned GitHub package spec such as `--package github:tt-a1i/agents-market#preview-0.1.0` for preview catalogs before npm publication. Use `--package @agents-market/cli` for production catalogs after the npm package is published.
@@ -377,7 +379,7 @@ The catalog generator writes:
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path. The catalog also includes registry trust workflow commands for `registry info`, signature verification when signing is configured, `registry lock`, and `registry verify-lock` so teams can inspect and lock the hosted registry before installing packs.
 
-Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls, manifest metadata, and favicon wiring.
+Run `catalog verify` before publishing static assets, and use `catalog verify --url` after deployment to verify the hosted catalog directly. It checks that `catalog.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls, manifest metadata, favicon wiring, and hosted registry signatures when `registry-public.pem` is present.
 
 The repository includes GitHub Actions for CI, CodeQL/dependency security scanning, and GitHub Pages catalog deployment.
 

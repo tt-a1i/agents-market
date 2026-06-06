@@ -849,6 +849,16 @@ async function runReleaseArtifactsSmoke() {
     );
     assert(signedCatalogVerification.ok === true, "Signed release catalog verification failed.");
     assert(signedCatalogVerification.signatures?.verified?.ok === true, "Signed release catalog signature should verify.");
+    await withStaticServer(join(signedDir, "catalog"), async (catalogBaseUrl) => {
+      const hostedCatalogVerification = runJson(
+        "node",
+        ["dist/index.js", "catalog", "verify", "--url", `${catalogBaseUrl}/catalog.json`, "--json"],
+        "Hosted signed catalog verify"
+      );
+      assert(hostedCatalogVerification.ok === true, "Hosted signed catalog verification failed.");
+      assert(hostedCatalogVerification.source?.kind === "url", "Hosted signed catalog verification should report a URL source.");
+      assert(hostedCatalogVerification.signatures?.registry?.ok === true, "Hosted signed catalog registry signature should verify.");
+    });
     await withStaticServer(signedDir, async (baseUrl) => {
       const remoteKeyVerification = runJson(
         "node",

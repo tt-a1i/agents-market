@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
 import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
-import { createRegistryBundle, signRegistryBundle, validateRegistry } from "./registry.js";
+import { createRegistryBundle, signRegistryBundle, validateRegistry, verifyRegistryBundleSignature } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
 import type { AgentDefinition, Registry, RegistryBundle, RegistryMetadata, Target } from "./types.js";
 
@@ -31,9 +32,21 @@ export interface CatalogVerificationFinding {
 export interface CatalogVerificationReport {
   ok: boolean;
   dir: string;
+  source: {
+    kind: "directory" | "url";
+    value: string;
+  };
   errorCount: number;
   warningCount: number;
   findings: CatalogVerificationFinding[];
+  signatures?: {
+    registry?: {
+      ok: boolean;
+      keyId?: string;
+      algorithm?: string;
+      error?: string;
+    };
+  };
 }
 
 export async function buildCatalog(registry: Registry, options: CatalogOptions): Promise<string[]> {
@@ -116,6 +129,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
 
 export async function verifyCatalog(dir: string): Promise<CatalogVerificationReport> {
   const findings: CatalogVerificationFinding[] = [];
+  const signatures: CatalogVerificationReport["signatures"] = {};
   const catalog = await readJson(join(dir, "catalog.json"), findings, "catalog.json");
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
   const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
@@ -128,6 +142,20 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
     try {
       registryBundle = registryBundleSchema.parse(bundle);
       validateRegistry(registryBundle);
+      if ((registryBundle.signatures?.length ?? 0) > 0) {
+        const publicKeyPem = await readText(join(dir, "registry-public.pem"), findings, "registry-public.pem");
+        if (publicKeyPem) {
+          signatures.registry = verifyRegistryBundleSignature(registryBundle, publicKeyPem, registryBundle.signatures?.[0]?.keyId);
+          if (!signatures.registry.ok) {
+            findings.push({
+              severity: "error",
+              code: "registry-signature-invalid",
+              message: "registry.bundle.json signature could not be verified with registry-public.pem.",
+              detail: signatures.registry.error
+            });
+          }
+        }
+      }
     } catch (error) {
       findings.push({
         severity: "error",
@@ -200,10 +228,44 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   return {
     ok: errorCount === 0,
     dir,
+    source: { kind: "directory", value: dir },
     errorCount,
     warningCount,
-    findings
+    findings,
+    ...(Object.keys(signatures).length > 0 ? { signatures } : {})
   };
+}
+
+export async function verifyCatalogUrl(url: string): Promise<CatalogVerificationReport> {
+  const baseUrl = normalizeCatalogBaseUrl(url);
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-catalog-url-"));
+  try {
+    const bundleText = await fetchCatalogAsset(baseUrl, "registry.bundle.json");
+    await Promise.all([
+      writeFile(join(dir, "registry.bundle.json"), bundleText, "utf8"),
+      fetchCatalogAsset(baseUrl, "catalog.json").then((content) => writeFile(join(dir, "catalog.json"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "index.html").then((content) => writeFile(join(dir, "index.html"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "robots.txt").then((content) => writeFile(join(dir, "robots.txt"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "favicon.svg").then((content) => writeFile(join(dir, "favicon.svg"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "site.webmanifest").then((content) => writeFile(join(dir, "site.webmanifest"), content, "utf8"))
+    ]);
+
+    const publicKeyPem = await fetchCatalogAssetOptional(baseUrl, "registry-public.pem");
+    if (publicKeyPem) {
+      await writeFile(join(dir, "registry-public.pem"), publicKeyPem, "utf8");
+    }
+
+    const report = await verifyCatalog(dir);
+    await rm(dir, { recursive: true, force: true });
+    return {
+      ...report,
+      dir: "",
+      source: { kind: "url", value: baseUrl }
+    };
+  } catch (error) {
+    await rm(dir, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: RegistryBundle, findings: CatalogVerificationFinding[]): void {
@@ -404,6 +466,37 @@ function stringValue(value: unknown): string | undefined {
 function assetUrl(path: string, baseUrl?: string): string {
   if (!baseUrl) return path;
   return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+function normalizeCatalogBaseUrl(value: string): string {
+  const parsed = new URL(value);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Catalog URL must use http or https: ${value}`);
+  }
+  if (parsed.pathname.endsWith("/catalog.json")) {
+    parsed.pathname = parsed.pathname.slice(0, -"catalog.json".length);
+  } else if (!parsed.pathname.endsWith("/")) {
+    parsed.pathname = `${parsed.pathname}/`;
+  }
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.toString();
+}
+
+async function fetchCatalogAsset(baseUrl: string, asset: string): Promise<string> {
+  const url = new URL(asset, baseUrl).toString();
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch catalog asset ${url}: HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
+async function fetchCatalogAssetOptional(baseUrl: string, asset: string): Promise<string | undefined> {
+  const url = new URL(asset, baseUrl).toString();
+  const response = await fetch(url);
+  if (!response.ok) return undefined;
+  return response.text();
 }
 
 export function assertSafePackageSpec(packageSpec: string): void {
