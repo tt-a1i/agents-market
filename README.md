@@ -64,6 +64,7 @@ agents-market doctor
 agents-market update
 agents-market update --dry-run --json
 agents-market uninstall starter-dev-pack --target claude
+agents-market uninstall starter-dev-pack --target claude --dry-run --json
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
@@ -86,9 +87,9 @@ This enables drift-aware operations:
 - `status` reports clean, modified, and missing generated files.
 - `doctor` runs manifest, registry lock, drift, and target directory health checks.
 - `update` refreshes installed packs from the current registry.
-- `uninstall` removes generated files while skipping user-modified files by default.
+- `uninstall` removes generated files while skipping and continuing to track user-modified files by default.
 
-Use `update --dry-run --json` before updating installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
+Use `update --dry-run --json` and `uninstall --dry-run --json` before changing installed packs in automation. Use `--force` with `update` or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
 
 ## Initialize A Project
 

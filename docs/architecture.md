@@ -73,7 +73,7 @@ This gives the installer a lifecycle:
 
 - `status` compares current files with stored hashes.
 - `update` regenerates installed packs and skips user-modified files unless `--force` is set.
-- `uninstall` removes generated files and skips user-modified files unless `--force` is set.
+- `uninstall` removes generated files and skips user-modified files unless `--force` is set. Skipped files remain in the manifest so later `status`, `doctor`, or forced uninstall can still find them.
 
 The manifest is intentionally not ignored. Teams can commit it when they want deterministic pack lifecycle tracking.
 

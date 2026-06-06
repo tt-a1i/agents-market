@@ -530,8 +530,10 @@ program
   .option("-t, --target <target>", "claude, codex, opencode, or all")
   .option("--cwd <path>", "project root to uninstall from")
   .option("--force", "remove files even if they were modified")
+  .option("--dry-run", "preview without removing files")
+  .option("--json", "print machine-readable JSON")
   .description("Uninstall files previously installed by Agents Market")
-  .action(async (packId: string, options: { target?: string; cwd?: string; force?: boolean }) => {
+  .action(async (packId: string, options: { target?: string; cwd?: string; force?: boolean; dryRun?: boolean; json?: boolean }) => {
     const root = cwd(options.cwd);
     const target = options.target ? parseTarget(options.target) : undefined;
     const manifest = await loadManifest(root);
@@ -544,24 +546,87 @@ program
 
     let removed = 0;
     let skipped = 0;
+    let nextManifest = manifest;
+    const summaries = [];
     for (const install of installs) {
+      const remainingFiles: ManifestFileEntry[] = [];
+      const changes = [];
       for (const file of install.files) {
         const current = await readExisting(root, { path: file.path, content: "" });
-        if (current === undefined) continue;
+        if (current === undefined) {
+          changes.push({
+            path: file.path,
+            target: file.target,
+            agentId: file.agentId,
+            state: "missing",
+            action: "forget-missing"
+          });
+          continue;
+        }
         const changed = sha256(current) !== file.sha256;
         if (changed && !options.force) {
           skipped += 1;
-          console.log(`${pc.yellow("skip modified")} ${file.path}`);
+          remainingFiles.push(file);
+          changes.push({
+            path: file.path,
+            target: file.target,
+            agentId: file.agentId,
+            state: "modified",
+            action: "skip-modified"
+          });
+          if (!options.json) console.log(`${pc.yellow("skip modified")} ${file.path}`);
           continue;
         }
-        await removeFile(root, file.path);
+        changes.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agentId,
+          state: changed ? "modified" : "clean",
+          action: "remove"
+        });
+        if (!options.dryRun) {
+          await removeFile(root, file.path);
+        }
         removed += 1;
-        console.log(`${pc.green("removed")} ${file.path}`);
+        if (!options.json) console.log(`${pc.green(options.dryRun ? "would remove" : "removed")} ${file.path}`);
+      }
+      summaries.push({
+        packId: install.packId,
+        target: install.target,
+        changes
+      });
+
+      if (!options.dryRun) {
+        nextManifest = removeInstall(nextManifest, install.packId, install.target);
+        if (remainingFiles.length > 0) {
+          nextManifest = upsertInstallEntry(nextManifest, {
+            ...install,
+            files: remainingFiles
+          });
+        }
       }
     }
 
-    await saveManifest(root, removeInstall(manifest, packId, target));
-    console.log(pc.green(`Uninstalled ${packId}: removed ${removed}, skipped ${skipped}.`));
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          {
+            dryRun: Boolean(options.dryRun),
+            removed,
+            skipped,
+            uninstalls: summaries
+          },
+          null,
+          2
+        )
+      );
+    } else {
+      console.log(pc.green(`${options.dryRun ? "Previewed uninstall" : "Uninstalled"} ${packId}: removed ${removed}, skipped ${skipped}.`));
+    }
+
+    if (!options.dryRun) {
+      await saveManifest(root, nextManifest);
+    }
   });
 
 program
