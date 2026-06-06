@@ -32,6 +32,7 @@ agents-market apply --target <target> --json
 agents-market apply <pack> --target <target> --yes
 agents-market search <query> --json
 agents-market init --target <target> --json
+agents-market ci init --provider github --json
 agents-market plan <pack> --target <target> --json
 agents-market audit <pack> --target <target> --json
 agents-market policy check <pack> --target <target> --json
@@ -56,6 +57,7 @@ Treat `apply --json` compatibility failures as blockers; ask the user to upgrade
 Use `apply --yes` after explicit user confirmation to install the selected pack.
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.
+Use `ci init --json` when the user wants repository automation for ongoing drift, outdated-pack, registry-lock, and policy checks. Run it without `--yes` first, then write the workflow only after confirmation.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
 Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.

@@ -116,6 +116,8 @@ agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market integrations package --target all --out ./integration-packages
+agents-market ci diff
+agents-market ci init --provider github --yes
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market
 agents-market catalog verify --dir ./site
@@ -282,6 +284,17 @@ This writes:
 - `agents-market-opencode/`
 
 Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `apply --json`, asks for confirmation, installs with `apply --yes`, and verifies with `status` and `doctor`.
+
+## Project CI
+
+Generate a GitHub Actions workflow that keeps installed packs healthy in pull requests and on `main`:
+
+```bash
+agents-market ci diff
+agents-market ci init --provider github --yes
+```
+
+The generated workflow runs `status --diff --json`, `outdated --json`, and `doctor --strict --json` through `npx github:tt-a1i/agents-market`. After npm publication, regenerate with `--package @agents-market/cli` if you want the workflow to use the npm package name.
 
 Agent-native wrappers can use structured output:
 

@@ -32,6 +32,7 @@ import { versionStatus } from "./version.js";
 import { checkPackCompatibility, type PackCompatibilityReport } from "./compatibility.js";
 import { planManifestResolution, type ResolveStrategy } from "./resolve.js";
 import { BUNDLED_REGISTRY_VERSION, CLI_VERSION } from "./constants.js";
+import { defaultCiWorkflowOptions, generateCiWorkflow, type CiProvider } from "./ci.js";
 import {
   loadManifest,
   loadRegistryLock,
@@ -76,6 +77,11 @@ function parsePolicyPreset(value: string): PolicyPreset {
 function parseResolveStrategy(value: string): ResolveStrategy {
   if (value === "accept-registry" || value === "keep-local" || value === "forget") return value;
   throw new Error(`Invalid resolve strategy: ${value}. Use accept-registry, keep-local, or forget.`);
+}
+
+function parseCiProvider(value: string): CiProvider {
+  if (value === "github") return value;
+  throw new Error(`Invalid CI provider: ${value}. Use github.`);
 }
 
 function collectOption(value: string, previous: string[] = []): string[] {
@@ -1834,6 +1840,90 @@ integrationsCommand
     const files = generateIntegrationPackages(parseTarget(options.target));
     await writeGeneratedFiles(resolve(options.out), files);
     console.log(pc.green(`Packaged ${files.length} integration files into ${resolve(options.out)}`));
+  });
+
+const ciCommand = program.command("ci").description("Generate CI workflows for Agents Market maintenance");
+
+ciCommand
+  .command("diff")
+  .option("--provider <provider>", "ci provider: github", "github")
+  .option("--package <spec>", "package spec used by npx", defaultCiWorkflowOptions().packageSpec)
+  .option("--no-strict", "generate a doctor command that allows warnings")
+  .option("--cwd <path>", "project root to inspect")
+  .option("--json", "print machine-readable JSON")
+  .description("Preview generated Agents Market CI workflow files")
+  .action(async (options: { provider: string; package: string; strict?: boolean; cwd?: string; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const workflow = generateCiWorkflow({
+      provider: parseCiProvider(options.provider),
+      packageSpec: options.package,
+      strict: options.strict !== false
+    });
+    const existing = await readExisting(root, workflow);
+    const change = {
+      path: workflow.path,
+      state: summarizeFileChange(existing, workflow.content)
+    };
+    if (options.json) {
+      console.log(JSON.stringify({ root, provider: options.provider, package: options.package, strict: options.strict !== false, changes: [change] }, null, 2));
+      return;
+    }
+    const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+    console.log(`${label} ${change.path}`);
+  });
+
+ciCommand
+  .command("init")
+  .option("--provider <provider>", "ci provider: github", "github")
+  .option("--package <spec>", "package spec used by npx", defaultCiWorkflowOptions().packageSpec)
+  .option("--no-strict", "generate a doctor command that allows warnings")
+  .option("--cwd <path>", "project root to write into")
+  .option("--yes", "write workflow files; default is preview only")
+  .option("--json", "print machine-readable JSON")
+  .description("Create a project CI workflow for Agents Market drift, version, and policy checks")
+  .action(async (options: { provider: string; package: string; strict?: boolean; cwd?: string; yes?: boolean; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const workflow = generateCiWorkflow({
+      provider: parseCiProvider(options.provider),
+      packageSpec: options.package,
+      strict: options.strict !== false
+    });
+    const existing = await readExisting(root, workflow);
+    const change = {
+      path: workflow.path,
+      state: summarizeFileChange(existing, workflow.content)
+    };
+    const result = {
+      root,
+      provider: options.provider,
+      package: options.package,
+      strict: options.strict !== false,
+      dryRun: !options.yes,
+      written: options.yes ? 1 : 0,
+      changes: [change],
+      nextCommands: ["agents-market status --diff --json", "agents-market outdated --json", `agents-market doctor${options.strict === false ? "" : " --strict"} --json`]
+    };
+
+    if (options.yes) {
+      await writeGeneratedFiles(root, [workflow]);
+    }
+
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+    console.log(`${pc.bold(options.yes ? "Installed CI workflow" : "CI workflow preview")}`);
+    console.log(`- root: ${result.root}`);
+    console.log(`- provider: ${result.provider}`);
+    console.log(`- package: ${result.package}`);
+    console.log(`- strict: ${result.strict}`);
+    console.log(`${label} ${change.path}`);
+    if (!options.yes) {
+      console.log(`\n${pc.bold("Next")}`);
+      console.log("agents-market ci init --provider github --yes");
+    }
   });
 
 const catalogCommand = program.command("catalog").description("Build static marketplace catalog assets");

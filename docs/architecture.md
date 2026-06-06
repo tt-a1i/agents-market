@@ -56,6 +56,7 @@ agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market integrations package --target all --out ./integration-packages
+agents-market ci init --provider github --yes
 agents-market catalog build --out ./site
 agents-market catalog verify --dir ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
@@ -200,6 +201,10 @@ The catalog surfaces provenance and short source checksums, and `registry lint` 
 - `agents-market-opencode/` contains the OpenCode command under `.opencode/commands/`.
 
 These packages reuse the same generated instructions as `integrations install`, but target release artifacts, team templates, or marketplace ingestion instead of writing directly into the current project.
+
+## Project CI
+
+`agents-market ci init --provider github` generates `.github/workflows/agents-market.yml` for installed-pack maintenance. The workflow runs drift status, outdated-pack checks, and `doctor --strict --json` on pull requests, pushes to `main`, and manual dispatch. It is intentionally generated into the user's project so teams can review, commit, and customize their own policy for ongoing agent-pack health.
 
 ## Release Pipeline
 

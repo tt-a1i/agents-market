@@ -51,6 +51,7 @@ async function main() {
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
+  await runCiWorkflowSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
   run("npm", ["test"], "Unit tests");
@@ -375,6 +376,28 @@ async function runIntegrationPackageSmoke() {
     assert(manifest.name === "agents-market-installer", `Expected Codex plugin name agents-market-installer, found ${manifest.name}.`);
     assert(manifest.skills === "./skills/", `Expected Codex plugin skills path ./skills/, found ${manifest.skills}.`);
     checks.push("Integration package contents");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function runCiWorkflowSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-ci-"));
+  try {
+    const preview = runJson("node", ["dist/index.js", "ci", "diff", "--cwd", dir, "--json"], "CI workflow diff");
+    assert(preview.changes?.[0]?.path === ".github/workflows/agents-market.yml", "Expected CI diff to preview the GitHub workflow path.");
+    assert(preview.changes?.[0]?.state === "create", `Expected CI diff to create workflow, found ${preview.changes?.[0]?.state}.`);
+
+    const init = runJson("node", ["dist/index.js", "ci", "init", "--cwd", dir, "--yes", "--json"], "CI workflow init");
+    assert(init.written === 1, `Expected CI init to write one workflow, found ${init.written}.`);
+    assert(init.strict === true, "Expected CI init to default to strict doctor checks.");
+    assert(init.nextCommands?.includes("agents-market doctor --strict --json"), "Expected CI init to include strict doctor next command.");
+
+    const workflow = await readFile(join(dir, ".github/workflows/agents-market.yml"), "utf8");
+    assert(workflow.includes("npx --yes github:tt-a1i/agents-market status --diff --json"), "Expected CI workflow to check generated agent drift.");
+    assert(workflow.includes("npx --yes github:tt-a1i/agents-market outdated --json"), "Expected CI workflow to check installed pack versions.");
+    assert(workflow.includes("npx --yes github:tt-a1i/agents-market doctor --strict --json"), "Expected CI workflow to run strict doctor.");
+    checks.push("CI workflow contents");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
