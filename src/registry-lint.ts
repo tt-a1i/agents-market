@@ -1,5 +1,6 @@
 import type { AgentDefinition, PackDefinition, Registry } from "./types.js";
 import { CLI_VERSION } from "./constants.js";
+import { scoreRegistryPrompts, type PromptQualityReport } from "./prompt-quality.js";
 import { satisfiesVersionRange } from "./version.js";
 
 export type LintSeverity = "error" | "warning";
@@ -16,19 +17,22 @@ export interface LintReport {
   errorCount: number;
   warningCount: number;
   score: number;
+  promptQuality: PromptQualityReport;
 }
 
 export function lintRegistry(registry: Registry): LintReport {
   const findings: LintFinding[] = [];
+  const promptQuality = scoreRegistryPrompts(registry.agents);
   lintDuplicateIds("agent", registry.agents, findings);
   lintDuplicateIds("pack", registry.packs, findings);
   lintAgents(registry.agents, findings);
+  lintPromptQuality(promptQuality, findings);
   lintPacks(registry, findings);
 
   const errorCount = findings.filter((finding) => finding.severity === "error").length;
   const warningCount = findings.filter((finding) => finding.severity === "warning").length;
   const score = Math.max(0, 100 - errorCount * 20 - warningCount * 4);
-  return { findings, errorCount, warningCount, score };
+  return { findings, errorCount, warningCount, score, promptQuality };
 }
 
 function lintDuplicateIds(
@@ -132,6 +136,18 @@ function lintAgents(agents: AgentDefinition[], findings: LintFinding[]): void {
         message: "Agent provenance does not include a source license."
       });
     }
+  }
+}
+
+function lintPromptQuality(promptQuality: PromptQualityReport, findings: LintFinding[]): void {
+  for (const score of promptQuality.agents) {
+    if (score.score >= 70) continue;
+    findings.push({
+      severity: score.score < 50 ? "error" : "warning",
+      code: "prompt-quality-low",
+      subject: `agent:${score.agentId}`,
+      message: `Prompt quality score is ${score.score}/${score.maxScore}; missing: ${score.suggestions.join("; ")}`
+    });
   }
 }
 

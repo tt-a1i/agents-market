@@ -37,6 +37,8 @@ describe("registry lint", () => {
     expect(report.errorCount).toBe(0);
     expect(report.warningCount).toBe(0);
     expect(report.score).toBe(100);
+    expect(report.promptQuality.averageScore).toBeGreaterThanOrEqual(70);
+    expect(report.promptQuality.agents[0]?.dimensions.length).toBeGreaterThan(0);
   });
 
   it("flags unsafe readonly write tools", () => {
@@ -92,5 +94,21 @@ describe("registry lint", () => {
       ]
     });
     expect(report.findings.some((finding) => finding.code === "missing-provenance")).toBe(true);
+  });
+
+  it("flags low-quality prompts with suggestions", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          prompt: "Help with code."
+        }
+      ]
+    });
+
+    expect(report.findings.some((finding) => finding.code === "prompt-quality-low")).toBe(true);
+    expect(report.promptQuality.agents[0]?.score).toBeLessThan(70);
+    expect(report.promptQuality.agents[0]?.suggestions.length).toBeGreaterThan(0);
   });
 });

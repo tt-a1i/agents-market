@@ -134,6 +134,8 @@ node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
 
 `registry lint --strict` must pass with `ok: true` and `score: 100` for bundled marketplace content.
 
+The JSON report includes `promptQuality`, with per-agent scoring for role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture. Treat low prompt-quality findings as review blockers for published packs unless the reviewer documents why the prompt is intentionally narrow.
+
 ## Pull Request Evidence
 
 Include this evidence in the PR body:

@@ -1665,6 +1665,7 @@ registryCommand
         console.log(`${label} ${finding.code} ${finding.subject}: ${finding.message}`);
       }
       console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings)`);
+      console.log(`Prompt quality: avg ${report.promptQuality.averageScore}/100, min ${report.promptQuality.minScore}/100`);
     }
     if (!ok) {
       process.exitCode = 1;

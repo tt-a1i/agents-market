@@ -145,6 +145,7 @@ Current checks include:
 - weak routing metadata
 - short descriptions
 - missing prompt role framing
+- prompt quality scores for role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture
 - imported agents without provenance
 - provenance without source license
 - readonly agents requesting write tools
@@ -155,7 +156,7 @@ Current checks include:
 
 CI runs `npm run registry:check` through the release gate. This treats warnings as failures for the published registry, verifies all agents support Claude Code, Codex, and OpenCode, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
 
-Static linting is necessary but not sufficient for marketplace publication. New or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
+Deterministic prompt quality scoring gives reviewers a comparable baseline before publication. Static scoring is still not sufficient on its own: new or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
 
 Security-sensitive findings, including policy bypasses, unsafe generated files, registry checksum issues, or dangerous third-party content, follow [../SECURITY.md](../SECURITY.md) and should not be filed as public issues.
 
@@ -186,7 +187,6 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 
 ## Future Production Requirements
 
-- Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.
 - Review automation for third-party registry submissions.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.

@@ -12,6 +12,8 @@ async function main() {
   const registryLint = runJson("node", ["dist/index.js", "registry", "lint", "--strict", "--json"], "Registry quality lint");
   assert(registryLint.ok === true, "Registry quality lint failed.");
   assert(registryLint.score === 100, `Expected registry lint score 100, found ${registryLint.score}.`);
+  assert(registryLint.promptQuality?.averageScore >= 90, `Expected prompt quality average >= 90, found ${registryLint.promptQuality?.averageScore}.`);
+  assert(registryLint.promptQuality?.minScore >= 80, `Expected prompt quality minimum >= 80, found ${registryLint.promptQuality?.minScore}.`);
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);
@@ -407,6 +409,7 @@ function verifyTarball(packOutput) {
     "dist/resolve.js",
     "dist/policy.js",
     "dist/pack.js",
+    "dist/prompt-quality.js",
     "dist/version.js",
     "registry/agents/code-reviewer.json",
     "registry/changelog.json",

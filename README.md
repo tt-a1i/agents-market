@@ -195,7 +195,9 @@ agents-market registry lint --strict
 agents-market registry lint --strict --json
 ```
 
-The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt structure, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings }`.
+The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt quality, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings, promptQuality }`.
+
+`promptQuality` is a deterministic, explainable score for every agent prompt. It grades role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture. Low-scoring prompts create lint findings so imported or third-party templates can be improved before publication.
 
 Published packs declare `requires.agentsMarket`, for example `>=0.1.0`. `apply`, `install`, and `update` check this constraint before writing files so older CLIs reject incompatible registry content cleanly.
 
