@@ -29,3 +29,4 @@ npm test
 - [ ] `registry lint --strict --json` returns `ok: true`.
 - [ ] Changed packs have an `audit --json` result in the PR.
 - [ ] Install preview was checked with `apply --json` or `diff --json`.
+- [ ] Registry Review workflow summary or PR comment matches the evidence above.

@@ -8,6 +8,7 @@ const options = parseArgs(process.argv.slice(2));
 const summary = {
   ok: false,
   registrySource: options.registry,
+  failure: undefined,
   checks,
   lint: undefined,
   inventory: undefined,
@@ -122,7 +123,7 @@ async function main() {
   }
 
   summary.ok = true;
-  await writeSummary();
+  await writeOutputs();
   console.log(`\nRegistry submission check passed (${checks.length} checks).`);
 }
 
@@ -191,7 +192,8 @@ function assert(condition, message) {
 function parseArgs(args) {
   const parsed = {
     registry: "./registry",
-    summaryJson: undefined
+    summaryJson: undefined,
+    summaryMarkdown: undefined
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -200,6 +202,9 @@ function parseArgs(args) {
       index += 1;
     } else if (arg === "--summary-json") {
       parsed.summaryJson = requiredValue(args, index, arg);
+      index += 1;
+    } else if (arg === "--summary-markdown") {
+      parsed.summaryMarkdown = requiredValue(args, index, arg);
       index += 1;
     } else {
       throw new Error(`Unknown option: ${arg}`);
@@ -214,13 +219,74 @@ function requiredValue(args, index, option) {
   return value;
 }
 
-async function writeSummary() {
-  if (!options.summaryJson) return;
-  await writeFile(options.summaryJson, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+async function writeOutputs() {
+  if (options.summaryJson) {
+    await writeFile(options.summaryJson, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+  }
+  if (options.summaryMarkdown) {
+    await writeFile(options.summaryMarkdown, renderMarkdownSummary(summary), "utf8");
+  }
 }
 
-main().catch((error) => {
+function renderMarkdownSummary(report) {
+  const lint = report.lint;
+  const inventory = report.inventory;
+  const catalog = report.catalog;
+  const status = report.ok ? "pass" : "fail";
+  const lines = [
+    "<!-- agents-market-registry-review -->",
+    "## Registry Review",
+    "",
+    `- Status: ${status}`,
+    `- Registry: \`${report.registrySource}\``,
+    `- Checks completed: ${report.checks.length}`,
+    `- Lint score: ${formatScore(lint?.score)}`,
+    `- Prompt quality: ${formatPromptQuality(lint?.promptQuality)}`,
+    `- Inventory: ${formatInventory(inventory)}`,
+    `- Catalog verify: ${catalog ? (catalog.ok ? "pass" : "fail") : "not run"}`
+  ];
+
+  if (report.failure) {
+    lines.push("", `**Failure:** ${report.failure}`);
+  }
+
+  if (report.packs.length > 0) {
+    lines.push(
+      "",
+      "| Pack | Version | Risk | Agents | Files | Imported | Checksummed | Policy | Preview changes |",
+      "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |",
+      ...report.packs.map(
+        (pack) =>
+          `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${
+            pack.provenance.imported
+          } | ${pack.provenance.withChecksum} | ${pack.policyOk ? "pass" : "fail"} | ${pack.previewChanges} |`
+      )
+    );
+  }
+
+  lines.push("");
+  return `${lines.join("\n")}\n`;
+}
+
+function formatScore(score) {
+  return typeof score === "number" ? `${score}/100` : "not run";
+}
+
+function formatPromptQuality(promptQuality) {
+  if (!promptQuality) return "not run";
+  return `avg ${promptQuality.averageScore}/100, min ${promptQuality.minScore}/100`;
+}
+
+function formatInventory(inventory) {
+  if (!inventory) return "not run";
+  return `${inventory.packCount} packs, ${inventory.agentCount} agents`;
+}
+
+main().catch(async (error) => {
   const message = error instanceof Error ? error.message : String(error);
+  summary.ok = false;
+  summary.failure = message;
+  await writeOutputs();
   console.error(`\nRegistry submission check failed: ${message}`);
   process.exitCode = 1;
 });

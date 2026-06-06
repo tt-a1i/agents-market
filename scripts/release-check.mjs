@@ -312,8 +312,14 @@ async function runRegistrySubmissionGateSmoke() {
   const dir = await mkdtemp(join(tmpdir(), "agents-market-release-registry-gate-"));
   try {
     const summaryPath = join(dir, "registry-submission-summary.json");
-    run("node", ["scripts/registry-submission-check.mjs", "--summary-json", summaryPath], "Registry submission gate");
+    const summaryMarkdownPath = join(dir, "registry-submission-summary.md");
+    run(
+      "node",
+      ["scripts/registry-submission-check.mjs", "--summary-json", summaryPath, "--summary-markdown", summaryMarkdownPath],
+      "Registry submission gate"
+    );
     const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    const markdown = await readFile(summaryMarkdownPath, "utf8");
     assert(summary.ok === true, "Expected registry submission summary to be ok.");
     assert(summary.lint?.score === 100, `Expected registry submission summary lint score 100, found ${summary.lint?.score}.`);
     assert(summary.packs?.length >= 4, `Expected registry submission summary to include at least four packs, found ${summary.packs?.length}.`);
@@ -322,6 +328,9 @@ async function runRegistrySubmissionGateSmoke() {
       "Expected registry submission summary packs to include checksum provenance coverage."
     );
     assert(summary.catalog?.ok === true, "Expected registry submission summary catalog verification to pass.");
+    assert(markdown.includes("<!-- agents-market-registry-review -->"), "Expected registry submission Markdown to include a sticky comment marker.");
+    assert(markdown.includes("| Pack | Version | Risk |"), "Expected registry submission Markdown to include the pack review table.");
+    assert(markdown.includes("security-pack"), "Expected registry submission Markdown to include security-pack.");
     checks.push("Registry submission summary");
   } finally {
     await rm(dir, { recursive: true, force: true });

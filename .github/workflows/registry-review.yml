@@ -15,6 +15,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   registry-review:
@@ -28,38 +30,54 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Run registry submission gate
-        run: node scripts/registry-submission-check.mjs --summary-json registry-submission-summary.json
+        run: node scripts/registry-submission-check.mjs --summary-json registry-submission-summary.json --summary-markdown registry-submission-summary.md
       - name: Write registry review summary
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFile, appendFile } from "node:fs/promises";
-
-          const summary = JSON.parse(await readFile("registry-submission-summary.json", "utf8"));
-          const lines = [
-            "## Registry Review",
-            "",
-            `- Status: ${summary.ok ? "pass" : "fail"}`,
-            `- Registry: \`${summary.registrySource}\``,
-            `- Lint score: ${summary.lint.score}/100`,
-            `- Prompt quality: avg ${summary.lint.promptQuality.averageScore}/100, min ${summary.lint.promptQuality.minScore}/100`,
-            `- Inventory: ${summary.inventory.packCount} packs, ${summary.inventory.agentCount} agents`,
-            `- Catalog verify: ${summary.catalog.ok ? "pass" : "fail"}`,
-            "",
-            "| Pack | Version | Risk | Agents | Files | Imported | Checksummed | Policy | Preview changes |",
-            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |",
-            ...summary.packs.map(
-              (pack) =>
-                `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${
-                  pack.provenance.imported
-                } | ${pack.provenance.withChecksum} | ${
-                  pack.policyOk ? "pass" : "fail"
-                } | ${pack.previewChanges} |`
-            ),
-            ""
-          ];
-          await appendFile(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`, "utf8");
-          NODE
+        if: always()
+        run: cat registry-submission-summary.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment registry review on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- agents-market-registry-review -->";
+            const body = fs.existsSync("registry-submission-summary.md")
+              ? fs.readFileSync("registry-submission-summary.md", "utf8")
+              : `${marker}\n## Registry Review\n\n- Status: fail\n\n**Failure:** Registry review summary was not generated.\n`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number,
+                per_page: 100
+              });
+              const existing = comments.find(
+                (comment) => comment.user.type === "Bot" && comment.body?.includes(marker)
+              );
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body
+                });
+              }
+            } catch (error) {
+              core.warning(`Could not write registry review PR comment: ${error.message}`);
+            }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: registry-submission-summary
-          path: registry-submission-summary.json
+          path: |
+            registry-submission-summary.json
+            registry-submission-summary.md

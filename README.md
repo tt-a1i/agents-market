@@ -381,7 +381,7 @@ Agents Market is curated. Before adding or importing registry content, read [CON
 
 Registry pull requests should include provenance, source checksums, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
 
-Registry-related pull requests also run the `Registry Review` GitHub Actions workflow. It uploads `registry-submission-summary.json` and writes a pack-by-pack summary with lint, prompt quality, catalog verification, audit, and apply-preview results.
+Registry-related pull requests also run the `Registry Review` GitHub Actions workflow. It uploads JSON and Markdown review artifacts, writes the same pack-by-pack report to the Actions summary, and maintains a sticky PR comment with lint, prompt quality, catalog verification, audit, and apply-preview results.
 
 Registry content changes should also update `registry/changelog.json` so hosted bundles and catalogs can explain what changed.
 
