@@ -270,6 +270,7 @@ function verifyTarball(packOutput) {
   const files = new Set(tarball.files.map((file) => file.path));
   const required = [
     "README.md",
+    "CONTRIBUTING.md",
     "LICENSE",
     "dist/index.js",
     "dist/catalog.js",
@@ -280,6 +281,7 @@ function verifyTarball(packOutput) {
     "registry/agents/code-reviewer.json",
     "registry/packs/starter-dev-pack.json",
     "docs/agent-native.md",
+    "docs/contributing-agents.md",
     "docs/policy.md",
     "integrations/codex-skill/SKILL.md"
   ];

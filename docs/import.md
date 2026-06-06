@@ -108,7 +108,7 @@ The generated pack is a starting point. Review it before publishing: add recomme
 After importing, run:
 
 ```bash
-agents-market registry lint --registry ./registry
+agents-market registry lint --registry ./registry --json
 ```
 
 Imported single-target agents may produce `partial-target-support` warnings. That is expected until you review and declare support for other targets.

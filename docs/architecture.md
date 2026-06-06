@@ -146,6 +146,8 @@ Current checks include:
 
 CI runs `node dist/index.js registry lint --strict --json`, which treats warnings as failures for the bundled registry and returns a machine-readable `{ ok, score, findings }` report.
 
+Static linting is necessary but not sufficient for marketplace publication. New or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
+
 ## Import Pipeline
 
 `agents-market import markdown` normalizes third-party Claude Code and OpenCode Markdown agent templates into `registry/agents/*.json`.
@@ -178,7 +180,7 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 - Manifest conflict resolution and richer drift reports.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.
-- Batch import from GitHub template repositories with provenance metadata.
+- Review automation for third-party registry submissions.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
 

@@ -33,7 +33,6 @@ npx @agents-market/cli init --target all
 npx @agents-market/cli recommend
 npx @agents-market/cli apply --target all
 npx @agents-market/cli apply frontend-pack --target all --yes
-npx @agents-market/cli install frontend-pack --target all
 ```
 
 ## Product Shape
@@ -116,7 +115,7 @@ agents-market init --target all
 agents-market init --target claude --dry-run --json
 ```
 
-`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `audit`, `diff`, `install`, and `doctor` commands. It does not install the recommended pack automatically; pack installation still requires an explicit `install` or `apply --yes`.
+`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `apply --json`, `apply --yes`, and `doctor --strict --json` commands. It does not install the recommended pack automatically; pack installation still requires explicit confirmation with `apply --yes`.
 
 ## Registry Sources
 
@@ -201,7 +200,7 @@ agents-market pack create frontend-lite \
   --out ./registry/packs
 ```
 
-After creating the pack, run `agents-market registry lint --registry ./registry`, then install it with `agents-market install frontend-lite --registry ./registry`.
+After creating the pack, run `agents-market registry lint --registry ./registry --json`, then preview it with `agents-market apply frontend-lite --registry ./registry --json`.
 
 ## Agent-Native Integrations
 
@@ -311,6 +310,12 @@ agents-market import repo owner/repo \
 ```
 
 See [docs/import.md](./docs/import.md).
+
+## Contributing Marketplace Content
+
+Agents Market is curated. Before adding or importing registry content, read [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/contributing-agents.md](./docs/contributing-agents.md).
+
+Registry pull requests should include provenance, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
 
 ## Repository Layout
 
