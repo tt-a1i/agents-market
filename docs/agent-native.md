@@ -16,18 +16,20 @@ Shall I install it?
 
 1. Inspect the project.
 2. If the user or organization has a registry URL, run `agents-market registry info --registry <source> --json`, summarize the source/version/checksum, verify the signature when a public key is available, then run `agents-market registry lock --registry <source> --public-key <path-or-url> --key-id <id>` after confirmation. If no public key is available, run `agents-market registry lock --registry <source>` and explain that the lock only enforces source/version/checksum.
-3. Run `agents-market apply --target <target> --json` to preview the recommended pack, audit, policy result, and file diff.
-4. If the user names a pack, run `agents-market apply <pack> --target <target> --json` instead.
-5. Explain files, permissions, policy findings, and command-running risk.
-6. After confirmation, run `agents-market apply <pack> --target <target> --yes`.
-7. Run `agents-market status --json` and `agents-market doctor --strict --json`.
-8. Tell the user how to invoke the installed agents.
+3. If a registry lock exists, run `agents-market registry verify-lock --json` before previewing or installing packs.
+4. Run `agents-market apply --target <target> --json` to preview the recommended pack, audit, policy result, and file diff.
+5. If the user names a pack, run `agents-market apply <pack> --target <target> --json` instead.
+6. Explain files, permissions, policy findings, and command-running risk.
+7. After confirmation, run `agents-market apply <pack> --target <target> --yes`.
+8. Run `agents-market registry verify-lock --json` when a lock exists, then run `agents-market status --json` and `agents-market doctor --strict --json`.
+9. Tell the user how to invoke the installed agents.
 
 For agent-native integrations, prefer structured output where available:
 
 ```bash
 agents-market recommend --json
 agents-market registry info --registry <source> --json
+agents-market registry verify-lock --json
 agents-market apply --target <target> --json
 agents-market apply <pack> --target <target> --yes
 agents-market search <query> --json
@@ -62,6 +64,7 @@ Use `apply --yes` after explicit user confirmation to install the selected pack.
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.
 Use `init --json` when the project does not yet have Agents Market integrations installed.
 Use `ci init --json` when the user wants repository automation for ongoing drift, outdated-pack, update-preview, registry-lock, and policy checks. Run it without `--yes` first, then write the workflow only after confirmation.
+Use `registry verify-lock --json` before previewing, installing, updating, or rolling back packs when `.agents-market/registry-lock.json` exists. Treat failures as blockers until the user confirms a new trusted registry source.
 Use `audit --json` before install confirmation so the user can see permissions, tool access, target support, provenance, and source license gaps.
 Use `policy check --json` after `audit` when `.agents-market/policy.json` exists, and treat failures as blockers unless the user intentionally updates policy.
 Use `install --enforce-policy` when policy exists so the final write step repeats the gate before creating files.
@@ -100,7 +103,7 @@ Generated files:
 - Codex: `.codex/skills/agents-market-installer/SKILL.md`
 - OpenCode: `.opencode/commands/agents-market.md`
 
-After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `apply --json`, ask for confirmation, run `apply --yes`, then verify with `status` and `doctor`.
+After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `apply --json`, ask for confirmation, run `apply --yes`, verify any existing registry lock with `registry verify-lock --json`, then verify with `status` and `doctor`.
 
 Use `integrations package` when you need distributable bundles instead of writing into the current repository. It produces Claude Code, Codex plugin, and OpenCode command packages from the same installer workflow.
 
@@ -110,6 +113,7 @@ Use `integrations package` when you need distributable bundles instead of writin
 - Always preview before installing.
 - Run `policy check` when the project has `.agents-market/policy.json`.
 - Run `status` after install/update.
+- Run `registry verify-lock` before install/update/rollback when the project has a registry lock.
 - Run `status --diff` and preview `resolve` before reconciling modified or missing generated files.
 - Preview `rollback --json` before reverting an update; require confirmation before `rollback --yes`.
 - Use `registry lock` for organization or hosted marketplace registries before installing.

@@ -282,6 +282,7 @@ program
         audit,
         diff,
         nextCommands: [
+          ...(options.lock === false ? [] : ["agents-market registry verify-lock --json"]),
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --json`,
           `agents-market apply ${selectedPack.id} --target ${target} --policy-preset balanced --yes`,
           "agents-market doctor --strict --json"
@@ -2179,6 +2180,7 @@ ciCommand
       written: options.yes ? 1 : 0,
       changes: [change],
       nextCommands: [
+        "agents-market registry verify-lock --json",
         "agents-market status --diff --json",
         "agents-market outdated --fail-on-outdated --json",
         "agents-market update --dry-run --fail-on-skipped --json",

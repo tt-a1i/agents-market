@@ -127,16 +127,20 @@ async function runLifecycleSmoke() {
     assert(init.lockWritten === true, "Lifecycle init did not write a registry lock.");
     assert(init.recommendation?.packId, "Lifecycle init did not include a pack recommendation.");
     assert(
-      init.nextCommands?.[0] === "agents-market apply starter-dev-pack --target claude --policy-preset balanced --json",
-      `Lifecycle init should preview with apply, found: ${init.nextCommands?.[0]}.`
+      init.nextCommands?.includes("agents-market registry verify-lock --json"),
+      "Lifecycle init should verify the registry lock before follow-up commands."
     );
     assert(
-      init.nextCommands?.[1] === "agents-market apply starter-dev-pack --target claude --policy-preset balanced --yes",
-      `Lifecycle init should install with apply --yes, found: ${init.nextCommands?.[1]}.`
+      init.nextCommands?.includes("agents-market apply starter-dev-pack --target claude --policy-preset balanced --json"),
+      `Lifecycle init should preview with apply, found: ${JSON.stringify(init.nextCommands)}.`
     );
     assert(
-      init.nextCommands?.[2] === "agents-market doctor --strict --json",
-      `Lifecycle init should verify with strict doctor, found: ${init.nextCommands?.[2]}.`
+      init.nextCommands?.includes("agents-market apply starter-dev-pack --target claude --policy-preset balanced --yes"),
+      `Lifecycle init should install with apply --yes, found: ${JSON.stringify(init.nextCommands)}.`
+    );
+    assert(
+      init.nextCommands?.includes("agents-market doctor --strict --json"),
+      `Lifecycle init should verify with strict doctor, found: ${JSON.stringify(init.nextCommands)}.`
     );
     assert(
       init.integrations?.some((file) => file.path === ".claude/skills/agents-market-installer/SKILL.md"),
