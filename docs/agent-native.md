@@ -32,7 +32,7 @@ agents-market apply --target <target> --json
 agents-market apply <pack> --target <target> --yes
 agents-market search <query> --json
 agents-market init --target <target> --json
-agents-market plan <pack> --target <target>
+agents-market plan <pack> --target <target> --json
 agents-market audit <pack> --target <target> --json
 agents-market policy check <pack> --target <target> --json
 agents-market diff <pack> --target <target> --json
@@ -51,6 +51,7 @@ Use the JSON output for parsing, and translate it into concise human-facing summ
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
 Use `apply --json` as the default preview path because it combines recommendation, audit, policy, and diff into one agent-friendly response.
+Use `plan --json` when the user has already selected a pack and wants a confirmation summary before installation. Treat `ready: false` as a blocker and explain the compatibility or policy findings before offering next steps.
 Treat `apply --json` compatibility failures as blockers; ask the user to upgrade `@agents-market/cli` before installing incompatible packs.
 Use `apply --yes` after explicit user confirmation to install the selected pack.
 Use `pack create` when the user wants a small custom set from individual search results instead of a full curated pack.

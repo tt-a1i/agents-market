@@ -26,6 +26,26 @@ async function main() {
   assert(list.packCount === registryInfo.packCount, "Expected list --json pack count to match registry info.");
   assert(list.agentCount === registryInfo.agentCount, "Expected list --json agent count to match registry info.");
   assert(list.agents?.length === registryInfo.agentCount, "Expected list --agents --json to include agent records.");
+  const installPlan = runJson(
+    "node",
+    ["dist/index.js", "plan", "security-pack", "--target", "claude", "--policy-preset", "balanced", "--json"],
+    "Install plan JSON"
+  );
+  assert(installPlan.ready === true, "Expected security-pack install plan to be ready under balanced policy.");
+  assert(installPlan.pack?.id === "security-pack", `Expected install plan pack security-pack, found ${installPlan.pack?.id}.`);
+  assert(installPlan.audit?.risk === "medium", `Expected security-pack audit risk medium, found ${installPlan.audit?.risk}.`);
+  assert(installPlan.plan?.fileCount === 4, `Expected security-pack Claude plan to include four files, found ${installPlan.plan?.fileCount}.`);
+  assert(installPlan.changeSummary?.create === 4, `Expected security-pack plan to create four files, found ${installPlan.changeSummary?.create}.`);
+  assert(installPlan.policy?.ok === true, "Expected security-pack plan policy check to pass.");
+  assert(installPlan.nextCommands?.[0]?.includes("agents-market apply security-pack"), "Expected install plan to include apply preview command.");
+  const blockedPlan = runJsonAllowFailure(
+    "node",
+    ["dist/index.js", "plan", "starter-dev-pack", "--target", "claude", "--policy-preset", "strict", "--json"],
+    "Blocked install plan JSON"
+  );
+  assert(blockedPlan.status === 1, `Expected blocked install plan to exit 1, found ${blockedPlan.status}.`);
+  assert(blockedPlan.json.ready === false, "Expected blocked install plan to be marked not ready.");
+  assert(blockedPlan.json.policy?.ok === false, "Expected blocked install plan to include failing policy report.");
   const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");

@@ -42,6 +42,7 @@ agents-market recommend
 agents-market apply --target all
 agents-market apply <pack> --target all --yes
 agents-market diff <pack> --target all
+agents-market plan <pack> --target all --json
 agents-market install <pack> --target all
 agents-market status
 agents-market update
@@ -79,6 +80,7 @@ The manifest records:
 This gives the installer a lifecycle:
 
 - `apply` combines project-aware recommendation, audit, policy checking, diff preview, and confirmed install for agent-native workflows.
+- `plan` creates a project-aware confirmation payload for a selected pack, including registry source, pack metadata, file changes, audit risk, compatibility, optional policy results, readiness, and next commands.
 - `apply`, `install`, and `update` check pack compatibility requirements such as `requires.agentsMarket` before writing files.
 - `status` compares current files with stored hashes. With `--diff`, it reloads expected generated content from the registry and returns line-level drift summaries for modified or missing files.
 - `resolve` reconciles manifest drift after review. It can restore registry-generated content, record intentional local edits as the new tracked hash, or forget tracked files while preserving user content.

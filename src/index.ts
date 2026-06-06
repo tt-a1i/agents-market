@@ -82,6 +82,21 @@ function collectOption(value: string, previous: string[] = []): string[] {
   return [...previous, value];
 }
 
+function summarizeChanges(changes: Array<{ state: string }>): Record<"create" | "update" | "same", number> {
+  return {
+    create: changes.filter((change) => change.state === "create").length,
+    update: changes.filter((change) => change.state === "update").length,
+    same: changes.filter((change) => change.state === "same").length
+  };
+}
+
+function applyPolicyCommandArg(options: { enforcePolicy?: boolean; policy?: string; policyPreset?: string }): string {
+  if (options.policyPreset) return ` --policy-preset ${parsePolicyPreset(options.policyPreset)}`;
+  if (options.policy) return ` --policy-file ${options.policy}`;
+  if (options.enforcePolicy) return " --enforce-policy";
+  return "";
+}
+
 function isNotFoundError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
@@ -700,22 +715,101 @@ program
   .command("plan")
   .argument("<pack>", "pack id to plan")
   .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .option("--cwd <path>", "project root to inspect")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--enforce-policy", "include .agents-market/policy.json in the plan")
+  .option("--policy <path>", "policy file path to include in the plan")
+  .option("--policy-preset <preset>", "include a built-in policy preset: open, balanced, or strict")
+  .option("--json", "print machine-readable JSON", true)
   .option("--no-json", "print human-readable output")
-  .description("Create an install plan for a pack")
-  .action(async (packId: string, options: { target: string; registry?: string; json?: boolean }) => {
-    const { registry } = await loadRegistryWithInfo(options.registry);
+  .description("Create a project-aware install plan for a pack")
+  .action(
+    async (
+      packId: string,
+      options: {
+        target: string;
+        cwd?: string;
+        registry?: string;
+        enforcePolicy?: boolean;
+        policy?: string;
+        policyPreset?: string;
+        json?: boolean;
+      }
+    ) => {
+    const root = cwd(options.cwd);
+    const loaded = await loadProjectRegistry(root, options.registry);
+    const registry = loaded.registry;
     const target = parseTarget(options.target);
     const plan = createInstallPlan(registry, packId, target);
+    const pack = getPack(registry, packId);
+    const audit = auditPack(registry, packId, target);
+    const compatibility = checkPackCompatibility(pack, CLI_VERSION);
+    const policy = await resolvePolicyForCommand(root, options);
+    const policyReport = policy ? checkPackPolicy(registry, packId, target, policy) : undefined;
+    const changes = [];
+    for (const file of generatePackFiles(registry, packId, target)) {
+      const existing = await readExisting(root, file);
+      changes.push({
+        path: file.path,
+        target: file.target,
+        agentId: file.agent.id,
+        state: summarizeFileChange(existing, file.content)
+      });
+    }
+    const changeSummary = summarizeChanges(changes);
+    const policyCommandArg = applyPolicyCommandArg(options);
+    const registryCommandArg = options.registry ? ` --registry ${options.registry}` : "";
+    const result = {
+      root,
+      registry: loaded.source,
+      pack: {
+        id: pack.id,
+        name: pack.name,
+        description: pack.description,
+        version: pack.version,
+        requires: pack.requires
+      },
+      target,
+      plan,
+      audit,
+      compatibility,
+      policy: policyReport,
+      changes,
+      changeSummary,
+      ready: compatibility.ok && (!policyReport || policyReport.ok),
+      nextCommands: [
+        `agents-market apply ${packId} --target ${target}${registryCommandArg}${policyCommandArg} --json`,
+        `agents-market apply ${packId} --target ${target}${registryCommandArg}${policyCommandArg} --yes`,
+        "agents-market doctor --strict --json"
+      ]
+    };
     if (options.json) {
-      console.log(JSON.stringify(plan, null, 2));
+      console.log(JSON.stringify(result, null, 2));
+      if (!result.ready) process.exitCode = 1;
       return;
     }
-    console.log(`${plan.packId} -> ${plan.fileCount} files for ${plan.agentCount} agents`);
-    for (const file of plan.files) {
-      console.log(`${file.path} (${file.target}, ${file.agentId})`);
+
+    const ready = result.ready ? pc.green("ready") : pc.red("blocked");
+    console.log(`${pc.bold("Install plan")} ${ready}`);
+    console.log(`- root: ${result.root}`);
+    console.log(`- registry: ${result.registry.value}`);
+    console.log(`- pack: ${pc.cyan(result.pack.id)} ${result.pack.version}`);
+    console.log(`- target: ${result.target}`);
+    console.log(`- agents: ${result.plan.agentCount}`);
+    console.log(`- files: ${result.plan.fileCount} (${changeSummary.create} create, ${changeSummary.update} update, ${changeSummary.same} same)`);
+    console.log(`- audit risk: ${result.audit.risk}`);
+    printCompatibilityReport(result.compatibility);
+    if (result.policy) printPolicyReport(result.policy);
+    console.log(`\n${pc.bold("Files")}`);
+    for (const change of result.changes) {
+      const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
+      console.log(`${label} ${change.path} (${change.target}, ${change.agentId})`);
     }
-  });
+    console.log(`\n${pc.bold("Next")}`);
+    for (const command of result.nextCommands) console.log(`- ${command}`);
+    if (!result.ready) process.exitCode = 1;
+  }
+  );
 
 program
   .command("audit")
