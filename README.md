@@ -80,6 +80,7 @@ agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market
+agents-market catalog verify --dir ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
 agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
 agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
@@ -238,6 +239,7 @@ Build a static marketplace catalog:
 ```bash
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market
+agents-market catalog verify --dir ./site
 ```
 
 The catalog generator writes:
@@ -247,6 +249,8 @@ The catalog generator writes:
 - `registry.bundle.json`: portable registry bundle that users can install from
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable audit, policy check, diff, and install commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
+
+Run `catalog verify` before publishing static assets. It checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, workflow commands, and hosted bundle URLs.
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
 

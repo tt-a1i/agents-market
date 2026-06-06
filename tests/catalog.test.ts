@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCatalog } from "../src/catalog.js";
+import { buildCatalog, verifyCatalog } from "../src/catalog.js";
 import { loadRegistry } from "../src/registry.js";
 
 let cleanupPath: string | undefined;
@@ -83,5 +83,33 @@ describe("catalog", () => {
     expect(starterPack?.workflowCommands.map((command) => command.label)).toEqual(["Audit", "Policy Check", "Diff", "Install"]);
     expect(starterPack?.audit.risk).toBe("high");
     expect(starterPack?.audit.fileCount).toBe(12);
+
+    const validReport = await verifyCatalog(cleanupPath);
+    expect(validReport.ok).toBe(true);
+    expect(validReport.findings).toEqual([]);
+  });
+
+  it("fails verification when catalog commands drift from the bundle", async () => {
+    const registry = await loadRegistry();
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-catalog-"));
+    await buildCatalog(registry, {
+      outDir: cleanupPath,
+      version: "0.1.0",
+      title: "Agents Market Test",
+      baseUrl: "https://example.com/agents-market"
+    });
+
+    const catalogPath = join(cleanupPath, "catalog.json");
+    const catalog = JSON.parse(await readFile(catalogPath, "utf8")) as {
+      packs: Array<{ id: string; installCommand: string }>;
+    };
+    const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
+    if (!starterPack) throw new Error("starter-dev-pack missing from test catalog");
+    starterPack.installCommand = "npx @agents-market/cli install wrong-pack";
+    await writeFile(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
+
+    const report = await verifyCatalog(cleanupPath);
+    expect(report.ok).toBe(false);
+    expect(report.findings.map((finding) => finding.code)).toContain("install-command-mismatch");
   });
 });

@@ -4,7 +4,7 @@ import pc from "picocolors";
 import { dirname, resolve, sep } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRegistryBundle, loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
-import { buildCatalog } from "./catalog.js";
+import { buildCatalog, verifyCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
@@ -1196,6 +1196,29 @@ catalogCommand
       baseUrl: options.baseUrl
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
+  });
+
+catalogCommand
+  .command("verify")
+  .requiredOption("--dir <path>", "catalog directory containing index.html, catalog.json, and registry.bundle.json")
+  .option("--json", "print machine-readable JSON")
+  .description("Verify static catalog assets are internally consistent")
+  .action(async (options: { dir: string; json?: boolean }) => {
+    const report = await verifyCatalog(resolve(options.dir));
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.ok) process.exitCode = 1;
+      return;
+    }
+    const state = report.ok ? pc.green("pass") : pc.red("fail");
+    console.log(`${pc.bold("Catalog")} ${state}`);
+    console.log(`- dir: ${report.dir}`);
+    console.log(`- findings: ${report.errorCount} errors, ${report.warningCount} warnings`);
+    for (const finding of report.findings) {
+      const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warn");
+      console.log(`- ${label} ${finding.code}: ${finding.message}${finding.detail ? ` (${finding.detail})` : ""}`);
+    }
+    if (!report.ok) process.exitCode = 1;
   });
 
 const importCommand = program.command("import").description("Import third-party agent templates into Agents Market format");

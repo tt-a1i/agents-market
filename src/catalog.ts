@@ -1,14 +1,30 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
-import { createRegistryBundle } from "./registry.js";
-import type { Registry } from "./types.js";
+import { createRegistryBundle, validateRegistry } from "./registry.js";
+import { registryBundleSchema } from "./schema.js";
+import type { Registry, RegistryBundle } from "./types.js";
 
 export interface CatalogOptions {
   outDir: string;
   version: string;
   title?: string;
   baseUrl?: string;
+}
+
+export interface CatalogVerificationFinding {
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+  detail?: string;
+}
+
+export interface CatalogVerificationReport {
+  ok: boolean;
+  dir: string;
+  errorCount: number;
+  warningCount: number;
+  findings: CatalogVerificationFinding[];
 }
 
 export async function buildCatalog(registry: Registry, options: CatalogOptions): Promise<string[]> {
@@ -48,6 +64,167 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   }
 
   return files.map((file) => join(options.outDir, file.name));
+}
+
+export async function verifyCatalog(dir: string): Promise<CatalogVerificationReport> {
+  const findings: CatalogVerificationFinding[] = [];
+  const catalog = await readJson(join(dir, "catalog.json"), findings, "catalog.json");
+  const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
+  const html = await readText(join(dir, "index.html"), findings, "index.html");
+
+  let registryBundle: RegistryBundle | undefined;
+  if (bundle) {
+    try {
+      registryBundle = registryBundleSchema.parse(bundle);
+      validateRegistry(registryBundle);
+    } catch (error) {
+      findings.push({
+        severity: "error",
+        code: "invalid-registry-bundle",
+        message: "registry.bundle.json is not a valid registry bundle.",
+        detail: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  if (catalog && registryBundle) {
+    verifyCatalogAgainstBundle(catalog, registryBundle, findings);
+  }
+
+  if (catalog && html) {
+    const bundleUrl = stringValue(catalog.registryBundleUrl);
+    if (bundleUrl && !html.includes(bundleUrl)) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-bundle-url",
+        message: "index.html does not reference the catalog registry bundle URL.",
+        detail: bundleUrl
+      });
+    }
+    if (!html.includes("data-copy=")) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-copy-controls",
+        message: "index.html does not include copy controls for workflow commands."
+      });
+    }
+  }
+
+  const errorCount = findings.filter((finding) => finding.severity === "error").length;
+  const warningCount = findings.filter((finding) => finding.severity === "warning").length;
+  return {
+    ok: errorCount === 0,
+    dir,
+    errorCount,
+    warningCount,
+    findings
+  };
+}
+
+function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: RegistryBundle, findings: CatalogVerificationFinding[]): void {
+  const registry: Registry = { agents: bundle.agents, packs: bundle.packs };
+  if (catalog.packCount !== bundle.packs.length) {
+    findings.push({
+      severity: "error",
+      code: "pack-count-mismatch",
+      message: "catalog.json packCount does not match registry.bundle.json.",
+      detail: `${catalog.packCount ?? "missing"} !== ${bundle.packs.length}`
+    });
+  }
+  if (catalog.agentCount !== bundle.agents.length) {
+    findings.push({
+      severity: "error",
+      code: "agent-count-mismatch",
+      message: "catalog.json agentCount does not match registry.bundle.json.",
+      detail: `${catalog.agentCount ?? "missing"} !== ${bundle.agents.length}`
+    });
+  }
+
+  const bundleUrl = stringValue(catalog.registryBundleUrl) ?? "registry.bundle.json";
+  const catalogPacks = Array.isArray(catalog.packs) ? catalog.packs : [];
+  if (!Array.isArray(catalog.packs)) {
+    findings.push({
+      severity: "error",
+      code: "catalog-packs-missing",
+      message: "catalog.json does not include a packs array."
+    });
+    return;
+  }
+
+  for (const pack of bundle.packs) {
+    const catalogPack = catalogPacks.find((candidate) => isRecord(candidate) && candidate.id === pack.id);
+    if (!isRecord(catalogPack)) {
+      findings.push({
+        severity: "error",
+        code: "catalog-pack-missing",
+        message: "catalog.json is missing a pack from registry.bundle.json.",
+        detail: pack.id
+      });
+      continue;
+    }
+    const expected = packCatalogSummary(registry, pack.id, bundleUrl);
+    if (catalogPack.installCommand !== expected.installCommand) {
+      findings.push({
+        severity: "error",
+        code: "install-command-mismatch",
+        message: "Catalog install command does not match the registry bundle.",
+        detail: pack.id
+      });
+    }
+    if (JSON.stringify(catalogPack.workflowCommands) !== JSON.stringify(expected.workflowCommands)) {
+      findings.push({
+        severity: "error",
+        code: "workflow-commands-mismatch",
+        message: "Catalog workflow commands do not match the registry bundle.",
+        detail: pack.id
+      });
+    }
+    const catalogAudit = isRecord(catalogPack.audit) ? catalogPack.audit : undefined;
+    if (!catalogAudit || catalogAudit.risk !== expected.audit.risk || catalogAudit.fileCount !== expected.audit.fileCount) {
+      findings.push({
+        severity: "error",
+        code: "audit-mismatch",
+        message: "Catalog audit summary does not match the registry bundle.",
+        detail: pack.id
+      });
+    }
+  }
+}
+
+async function readJson(path: string, findings: CatalogVerificationFinding[], label: string): Promise<Record<string, unknown> | undefined> {
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+  } catch (error) {
+    findings.push({
+      severity: "error",
+      code: "missing-or-invalid-file",
+      message: `${label} could not be read as JSON.`,
+      detail: error instanceof Error ? error.message : String(error)
+    });
+    return undefined;
+  }
+}
+
+async function readText(path: string, findings: CatalogVerificationFinding[], label: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    findings.push({
+      severity: "error",
+      code: "missing-file",
+      message: `${label} could not be read.`,
+      detail: error instanceof Error ? error.message : String(error)
+    });
+    return undefined;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function assetUrl(path: string, baseUrl?: string): string {

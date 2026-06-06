@@ -18,6 +18,8 @@ async function main() {
       ["dist/index.js", "catalog", "build", "--out", siteDir, "--base-url", "https://example.com/agents-market"],
       "Catalog build"
     );
+    const catalogVerify = runJson("node", ["dist/index.js", "catalog", "verify", "--dir", siteDir, "--json"], "Catalog verify");
+    assert(catalogVerify.ok === true, "Catalog verification failed after build.");
   } finally {
     await rm(siteDir, { recursive: true, force: true });
   }

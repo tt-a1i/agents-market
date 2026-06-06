@@ -51,6 +51,7 @@ agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
+agents-market catalog verify --dir ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
 agents-market import directory ./agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
 ```
@@ -112,7 +113,7 @@ Outputs:
 - `catalog.json`: machine-readable catalog with pack audits, safety workflow commands, install commands, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
-The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for audit, policy check, diff, and installation from the generated bundle. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
+The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for audit, policy check, diff, and installation from the generated bundle. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, workflow commands, and hosted bundle URLs. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
 
 ## Custom Packs
 
