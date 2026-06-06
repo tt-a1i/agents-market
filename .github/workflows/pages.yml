@@ -61,7 +61,7 @@ jobs:
 
           node dist/index.js catalog build "${args[@]}"
       - run: node dist/index.js catalog verify --dir ./site
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ./site
 
