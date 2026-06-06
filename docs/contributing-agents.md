@@ -156,6 +156,10 @@ Include this evidence in the PR body:
 - `apply --json` preview summary.
 - Link to the `Registry Review` workflow artifact or sticky PR comment when CI has completed.
 
+Use the repository's agent or pack submission issue form for proposals that are not ready for a pull request yet. It asks for contribution type, target tools, source/license data, expected permissions, safety notes, and validation evidence so maintainers can triage the request without reconstructing provenance later.
+
+When opening a pull request, keep the pull request template intact and fill in every registry evidence field. The release gate checks that the repository keeps these templates aligned with the review policy because they are part of the public marketplace intake path.
+
 ## Maintainer Checklist
 
 Before merging:

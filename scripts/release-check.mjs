@@ -64,6 +64,7 @@ async function main() {
   await runRepositoryAutomationSmoke();
   await runSecurityWorkflowSmoke();
   await runCodeownersSmoke();
+  await runContributionTemplatesSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
   await runReleaseWorkflowSmoke();
@@ -624,6 +625,50 @@ async function runCodeownersSmoke() {
     assert(codeowners.includes(required), `CODEOWNERS is missing ${required}.`);
   }
   checks.push("CODEOWNERS coverage");
+}
+
+async function runContributionTemplatesSmoke() {
+  const submission = await readFile(".github/ISSUE_TEMPLATE/agent_pack_submission.yml", "utf8");
+  for (const required of [
+    "id: contribution_type",
+    "New native agent",
+    "Imported third-party agent",
+    "id: target_tools",
+    "Claude Code",
+    "Codex",
+    "OpenCode",
+    "id: source",
+    "id: license",
+    "id: permissions",
+    "id: risk_review",
+    "id: validation",
+    "docs/contributing-agents.md"
+  ]) {
+    assert(submission.includes(required), `Agent submission template is missing ${required}.`);
+  }
+
+  const bugReport = await readFile(".github/ISSUE_TEMPLATE/bug_report.yml", "utf8");
+  for (const required of ["SECURITY.md", "id: reproduce", "id: expected", "id: version"]) {
+    assert(bugReport.includes(required), `Bug report template is missing ${required}.`);
+  }
+
+  const issueConfig = await readFile(".github/ISSUE_TEMPLATE/config.yml", "utf8");
+  assert(issueConfig.includes("security/advisories/new"), "Issue template config should route security reports to private advisories.");
+
+  const pullRequestTemplate = await readFile(".github/pull_request_template.md", "utf8");
+  for (const required of [
+    "Source/provenance",
+    "Source license",
+    "Target support",
+    "Permission/tool changes",
+    "Safety and policy notes",
+    "registry review --registry ./registry",
+    "Imported GitHub agents include source commit and source checksum provenance",
+    "Registry Review workflow summary or PR comment matches the evidence above"
+  ]) {
+    assert(pullRequestTemplate.includes(required), `Pull request template is missing ${required}.`);
+  }
+  checks.push("Contribution templates");
 }
 
 async function runReleaseArtifactsSmoke() {

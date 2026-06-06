@@ -15,6 +15,29 @@ body:
       placeholder: Next.js apps with performance and frontend quality issues
     validations:
       required: true
+  - type: dropdown
+    id: contribution_type
+    attributes:
+      label: Contribution type
+      description: Choose the closest review path.
+      options:
+        - New native agent
+        - Imported third-party agent
+        - New pack
+        - Existing pack update
+    validations:
+      required: true
+  - type: checkboxes
+    id: target_tools
+    attributes:
+      label: Target tools
+      description: Select every target that should receive generated files.
+      options:
+        - label: Claude Code
+        - label: Codex
+        - label: OpenCode
+    validations:
+      required: true
   - type: textarea
     id: proposed_content
     attributes:
@@ -48,6 +71,14 @@ body:
     validations:
       required: true
   - type: textarea
+    id: risk_review
+    attributes:
+      label: Safety and policy notes
+      description: Note any command execution, web access, secrets exposure risk, or policy-sensitive behavior.
+      placeholder: No command execution. Web access only for official framework documentation. No credentials or private repositories required.
+    validations:
+      required: true
+  - type: textarea
     id: validation
     attributes:
       label: Validation evidence
@@ -56,4 +87,3 @@ body:
         node dist/index.js registry lint --registry ./registry --strict --json
         node dist/index.js audit <pack-id> --target all --json
         node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
-
