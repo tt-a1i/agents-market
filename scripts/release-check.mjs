@@ -90,6 +90,10 @@ async function main() {
         catalogInfo.manifest?.commands?.automation?.some((command) => command.command?.includes("ci init --provider github")),
         "Catalog info should expose the CI setup command."
       );
+      const localManifestPath = join(siteDir, "agents-market.json");
+      const localManifest = JSON.parse(await readFile(localManifestPath, "utf8"));
+      localManifest.registryBundleUrl = `${baseUrl}/registry.bundle.json`;
+      await writeFile(localManifestPath, `${JSON.stringify(localManifest, null, 2)}\n`, "utf8");
       const catalogProjectDir = await mkdtemp(join(tmpdir(), "agents-market-catalog-init-"));
       try {
         const catalogInitPreview = runJson(
