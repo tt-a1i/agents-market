@@ -85,6 +85,7 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   assert(registry.version === version, `Registry bundle version ${registry.version} does not match release version ${version}.`);
   assert(Array.isArray(registry.agents) && registry.agents.length > 0, "Registry bundle has no agents.");
   assert(Array.isArray(registry.packs) && registry.packs.length > 0, "Registry bundle has no packs.");
+  verifySourceMetadata(manifest, registry, "registry.bundle.json");
   const signatures: ReleaseArtifactVerificationReport["signatures"] = {};
   if (manifestPaths.has("registry-public.pem")) {
     signatures.registry = await verifyRegistryBundleSignature(registry, join(root, "registry-public.pem"), "registry.bundle.json");
@@ -92,14 +93,20 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
 
   const catalog = await readJson(join(root, "catalog", "catalog.json"), "catalog/catalog.json");
   const catalogManifest = await readJson(join(root, "catalog", "agents-market.json"), "catalog/agents-market.json");
+  const catalogRegistry = await readJson(join(root, "catalog", "registry.bundle.json"), "catalog/registry.bundle.json");
   assert(catalog.registryBundleUrl, "Catalog is missing registryBundleUrl.");
   assert(catalog.packCount === registry.packs.length, "Catalog packCount does not match registry bundle.");
   assert(catalog.agentCount === registry.agents.length, "Catalog agentCount does not match registry bundle.");
   assert(Array.isArray(catalog.packs) && catalog.packs.length === registry.packs.length, "Catalog packs do not match registry bundle.");
   assert(catalog.metadata?.packageSpec === manifest.packageSpec, "Catalog packageSpec metadata does not match release manifest.");
+  verifySourceMetadata(manifest, catalogRegistry, "catalog/registry.bundle.json");
+  verifyCatalogSourceMetadata(manifest, catalog, "catalog/catalog.json");
   assert(catalogManifest.schemaVersion === 1, "Catalog agents-market.json schemaVersion must be 1.");
   assert(catalogManifest.packageSpec === catalog.packageSpec, "Catalog agents-market.json packageSpec does not match catalog.json.");
   assert(catalogManifest.registryBundleUrl === catalog.registryBundleUrl, "Catalog agents-market.json registryBundleUrl does not match catalog.json.");
+  assert(catalogManifest.metadata?.packageSpec === manifest.packageSpec, "Catalog agents-market.json packageSpec metadata does not match release manifest.");
+  assert(catalogManifest.metadata?.commit === manifest.commit, "Catalog agents-market.json commit metadata does not match release manifest.");
+  assert(catalogManifest.metadata?.repository === manifest.repositoryUrl, "Catalog agents-market.json repository metadata does not match release manifest.");
   assert(Array.isArray(catalogManifest.packs) && catalogManifest.packs.length === registry.packs.length, "Catalog agents-market.json packs do not match registry bundle.");
 
   const catalogHtml = await readText(join(root, "catalog", "index.html"), "catalog/index.html");
@@ -118,7 +125,6 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
   const catalogSitemap = await readText(join(root, "catalog", "sitemap.xml"), "catalog/sitemap.xml");
   assert(catalogSitemap.includes("<urlset") && catalogSitemap.includes("<loc>"), "Catalog sitemap.xml does not include a URL entry.");
   if (manifestPaths.has("catalog/registry-public.pem")) {
-    const catalogRegistry = await readJson(join(root, "catalog", "registry.bundle.json"), "catalog/registry.bundle.json");
     signatures.catalog = await verifyRegistryBundleSignature(catalogRegistry, join(root, "catalog", "registry-public.pem"), "catalog/registry.bundle.json");
   }
 
@@ -139,6 +145,33 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
       packageCount: sbom.packages.length
     }
   };
+}
+
+function verifySourceMetadata(manifest: Record<string, unknown>, bundle: Record<string, unknown>, label: string): void {
+  const metadata = asRecord(bundle.metadata);
+  assert(metadata?.packageSpec === manifest.packageSpec, `${label} packageSpec metadata does not match release manifest.`);
+  assert(metadata?.homepage === manifest.homepageUrl, `${label} homepage metadata does not match release manifest.`);
+  assert(metadata?.repository === manifest.repositoryUrl, `${label} repository metadata does not match release manifest.`);
+  assert(metadata?.catalogUrl === manifest.catalogBaseUrl, `${label} catalog URL metadata does not match release manifest.`);
+  assert(metadata?.releaseUrl === manifest.releaseUrl, `${label} release URL metadata does not match release manifest.`);
+  assert(metadata?.commit === manifest.commit, `${label} commit metadata does not match release manifest.`);
+}
+
+function verifyCatalogSourceMetadata(manifest: Record<string, unknown>, catalog: Record<string, unknown>, label: string): void {
+  const metadata = asRecord(catalog.metadata);
+  assert(catalog.baseUrl === manifest.catalogBaseUrl, `${label} baseUrl does not match release manifest.`);
+  assert(catalog.registryBundleUrl === `${String(manifest.catalogBaseUrl).replace(/\/+$/, "")}/registry.bundle.json`, `${label} registryBundleUrl does not match release manifest catalog URL.`);
+  assert(catalog.packageSpec === manifest.packageSpec, `${label} packageSpec does not match release manifest.`);
+  assert(metadata?.packageSpec === manifest.packageSpec, `${label} packageSpec metadata does not match release manifest.`);
+  assert(metadata?.homepage === manifest.homepageUrl, `${label} homepage metadata does not match release manifest.`);
+  assert(metadata?.repository === manifest.repositoryUrl, `${label} repository metadata does not match release manifest.`);
+  assert(metadata?.catalogUrl === manifest.catalogBaseUrl, `${label} catalog URL metadata does not match release manifest.`);
+  assert(metadata?.releaseUrl === manifest.releaseUrl, `${label} release URL metadata does not match release manifest.`);
+  assert(metadata?.commit === manifest.commit, `${label} commit metadata does not match release manifest.`);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 }
 
 async function resolveArtifactInput(value: string, archive?: boolean): Promise<{ root: string; cleanupDir?: string }> {

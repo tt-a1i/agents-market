@@ -45,6 +45,17 @@ describe("release artifact verification", () => {
     await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/public key but no signatures/);
   });
 
+  it("rejects release artifacts when source metadata is inconsistent", async () => {
+    cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-metadata-"));
+    const { dir } = await writeSignedReleaseArtifacts(cleanupPath);
+    const catalogPath = join(dir, "catalog", "catalog.json");
+    const catalog = JSON.parse(await readFile(catalogPath, "utf8")) as { metadata?: { commit?: string } };
+    await writeFile(catalogPath, `${JSON.stringify({ ...catalog, metadata: { ...catalog.metadata, commit: "unexpected-commit" } }, null, 2)}\n`, "utf8");
+    await writeManifestAndChecksums(dir);
+
+    await expect(verifyReleaseArtifacts(dir)).rejects.toThrow(/catalog\/catalog\.json commit metadata does not match release manifest/);
+  });
+
   it("rejects complete archives with unsafe tar entry paths before extraction", async () => {
     cleanupPath = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-unsafe-"));
     const archive = join(cleanupPath, "unsafe.tgz");
@@ -64,8 +75,16 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   const privateKeyPem = privateKey.export({ format: "pem", type: "pkcs8" }).toString();
   const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
-  const bundle = signRegistryBundle(createRegistryBundle(registry, "0.1.0", "agents-market", { packageSpec: "github:tt-a1i/agents-market" }), privateKeyPem, "test-key");
-  const catalogBundle = signRegistryBundle(createRegistryBundle(registry, "0.1.0", "agents-market", { packageSpec: "github:tt-a1i/agents-market" }), privateKeyPem, "test-key");
+  const releaseMetadata = {
+    homepage: "https://example.com",
+    repository: "https://github.com/example/agents-market",
+    catalogUrl: "https://example.com",
+    releaseUrl: "https://github.com/example/agents-market/releases/tag/preview-0.1.0",
+    packageSpec: "github:tt-a1i/agents-market",
+    commit: "0123456789abcdef"
+  };
+  const bundle = signRegistryBundle(createRegistryBundle(registry, "0.1.0", "agents-market", releaseMetadata), privateKeyPem, "test-key");
+  const catalogBundle = signRegistryBundle(createRegistryBundle(registry, "0.1.0", "agents-market", releaseMetadata), privateKeyPem, "test-key");
 
   await writeFile(join(dir, "registry.bundle.json"), `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "registry-public.pem"), publicKeyPem, "utf8");
@@ -80,16 +99,18 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
     title: "Agents Market Test",
     packageSpec: "github:tt-a1i/agents-market",
     registryBundleUrl: "https://example.com/registry.bundle.json",
+    baseUrl: "https://example.com",
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
     packs: registry.packs.map((pack) => ({ id: pack.id })),
-    metadata: { packageSpec: "github:tt-a1i/agents-market" }
+    metadata: releaseMetadata
   }, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "catalog", "agents-market.json"), `${JSON.stringify({
     schemaVersion: 1,
     title: "Agents Market Test",
     packageSpec: "github:tt-a1i/agents-market",
     registryBundleUrl: "https://example.com/registry.bundle.json",
+    metadata: releaseMetadata,
     commands: {
       trust: [],
       install: [{ label: "Install Agent-Native Integrations", command: "npx github:tt-a1i/agents-market integrations install --target all" }],
@@ -160,7 +181,12 @@ async function writeManifestAndChecksums(dir: string): Promise<void> {
   await writeFile(join(dir, "release-artifacts.json"), `${JSON.stringify({
     version: "0.1.0",
     releaseTag: "preview-0.1.0",
+    catalogBaseUrl: "https://example.com",
     packageSpec: "github:tt-a1i/agents-market",
+    homepageUrl: "https://example.com",
+    repositoryUrl: "https://github.com/example/agents-market",
+    releaseUrl: "https://github.com/example/agents-market/releases/tag/preview-0.1.0",
+    commit: "0123456789abcdef",
     artifacts
   }, null, 2)}\n`, "utf8");
   await writeFile(join(dir, "SHA256SUMS"), `${artifacts.map((artifact) => `${artifact.sha256}  ${artifact.path}`).join("\n")}\n`, "utf8");

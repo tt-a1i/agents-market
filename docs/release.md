@@ -28,8 +28,8 @@ npm run release:verify-artifacts -- --archive ./release-artifacts/agents-market-
 agents-market release verify-artifacts --archive ./release-artifacts/agents-market-release-artifacts-0.1.0.tgz
 ```
 
-The artifact builder stamps `registry.bundle.json`, `catalog/catalog.json`, and `release-artifacts.json` with release/source metadata: homepage, repository URL, catalog URL, release URL, package spec, and the current git commit when available. Bundle metadata is included in the registry checksum.
-`release:verify-artifacts` and `agents-market release verify-artifacts` validate the manifest, `SHA256SUMS`, required release files, registry/catalog JSON, registry signatures when public keys are present, catalog static site metadata, and SPDX SBOM for a local artifact directory or a downloaded `agents-market-release-artifacts-<version>.tgz` archive.
+The artifact builder stamps `registry.bundle.json`, `catalog/registry.bundle.json`, `catalog/catalog.json`, `catalog/agents-market.json`, and `release-artifacts.json` with release/source metadata: homepage, repository URL, catalog URL, release URL, package spec, and the current git commit when available. Bundle metadata is included in the registry checksum.
+`release:verify-artifacts` and `agents-market release verify-artifacts` validate the manifest, `SHA256SUMS`, required release files, registry/catalog JSON, source metadata consistency, registry signatures when public keys are present, catalog static site metadata, and SPDX SBOM for a local artifact directory or a downloaded `agents-market-release-artifacts-<version>.tgz` archive.
 
 - `registry.bundle.json`
 - `registry-public.pem` when registry signing secrets are configured
