@@ -1,0 +1,17 @@
+# Default ownership for product, registry, and release changes.
+* @tt-a1i
+
+# Marketplace content is executable-adjacent supply-chain input.
+/registry/ @tt-a1i
+/docs/contributing-agents.md @tt-a1i
+/docs/import.md @tt-a1i
+/SECURITY.md @tt-a1i
+
+# Release, CI, and dependency automation can affect published artifacts.
+/.github/workflows/ @tt-a1i
+/.github/dependabot.yml @tt-a1i
+/scripts/build-release-artifacts.mjs @tt-a1i
+/scripts/release-check.mjs @tt-a1i
+/scripts/registry-submission-check.mjs @tt-a1i
+/package.json @tt-a1i
+/package-lock.json @tt-a1i

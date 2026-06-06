@@ -61,6 +61,7 @@ async function main() {
   await runRegistrySubmissionGateSmoke();
   await runCiWorkflowSmoke();
   await runRepositoryAutomationSmoke();
+  await runCodeownersSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
   await runReleaseWorkflowSmoke();
@@ -425,6 +426,22 @@ async function runRepositoryAutomationSmoke() {
   assert(dependabot.includes("npm-minor-patch"), "Dependabot should group npm minor and patch updates.");
   assert(dependabot.includes("github-actions-minor-patch"), "Dependabot should group GitHub Actions minor and patch updates.");
   checks.push("Repository automation config");
+}
+
+async function runCodeownersSmoke() {
+  const codeowners = await readFile(".github/CODEOWNERS", "utf8");
+  for (const required of [
+    "* @tt-a1i",
+    "/registry/ @tt-a1i",
+    "/.github/workflows/ @tt-a1i",
+    "/scripts/build-release-artifacts.mjs @tt-a1i",
+    "/scripts/release-check.mjs @tt-a1i",
+    "/package.json @tt-a1i",
+    "/SECURITY.md @tt-a1i"
+  ]) {
+    assert(codeowners.includes(required), `CODEOWNERS is missing ${required}.`);
+  }
+  checks.push("CODEOWNERS coverage");
 }
 
 async function runReleaseArtifactsSmoke() {
