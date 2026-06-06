@@ -465,6 +465,14 @@ async function runReleaseArtifactsSmoke() {
 
 async function runReleaseWorkflowSmoke() {
   const workflow = await readFile(".github/workflows/release.yml", "utf8");
+  assert(workflow.includes("Resolve release tag"), "Release workflow should resolve one release tag for tag pushes and manual dispatch.");
+  assert(workflow.includes("tag=${{ inputs.version }}"), "Release workflow should use the manual dispatch version as the release tag.");
+  assert(workflow.includes("tag=${GITHUB_REF_NAME}"), "Release workflow should use the pushed tag name as the release tag.");
+  assert(workflow.includes('--release-tag "${{ steps.release.outputs.tag }}"'), "Release workflow should stamp artifacts with the resolved release tag.");
+  assert(
+    workflow.includes("startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'"),
+    "Release workflow should attach artifacts for both tag pushes and manual dispatch."
+  );
   assert(workflow.includes("release-artifacts/*.tgz"), "Release workflow should upload top-level release tarballs.");
   assert(workflow.includes("release-artifacts/npm/*.tgz"), "Release workflow should upload the npm package tarball.");
   assert(workflow.includes("release-artifacts/registry.bundle.json"), "Release workflow should upload the registry bundle.");

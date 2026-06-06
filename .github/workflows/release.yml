@@ -36,8 +36,16 @@ jobs:
             echo "Workflow input version must match package.json: expected $expected, got ${{ inputs.version }}"
             exit 1
           fi
+      - name: Resolve release tag
+        id: release
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
       - run: npm run release:check
-      - run: npm run release:artifacts -- --out ./release-artifacts --catalog-base-url "https://tt-a1i.github.io/agents-market" --release-tag "${GITHUB_REF_NAME}" --package "@agents-market/cli"
+      - run: npm run release:artifacts -- --out ./release-artifacts --catalog-base-url "https://tt-a1i.github.io/agents-market" --release-tag "${{ steps.release.outputs.tag }}" --package "@agents-market/cli"
       - uses: actions/upload-artifact@v4
         with:
           name: agents-market-release-artifacts
@@ -46,9 +54,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Attach artifacts to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes "Agents Market ${GITHUB_REF_NAME}"
-          gh release upload "${GITHUB_REF_NAME}" release-artifacts/*.tgz release-artifacts/npm/*.tgz release-artifacts/install.sh release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json --clobber
+          release_tag="${{ steps.release.outputs.tag }}"
+          gh release view "${release_tag}" >/dev/null 2>&1 || gh release create "${release_tag}" --title "${release_tag}" --notes "Agents Market ${release_tag}"
+          gh release upload "${release_tag}" release-artifacts/*.tgz release-artifacts/npm/*.tgz release-artifacts/install.sh release-artifacts/SHA256SUMS release-artifacts/release-artifacts.json release-artifacts/registry.bundle.json --clobber

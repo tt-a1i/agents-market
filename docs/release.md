@@ -70,7 +70,7 @@ curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1
 
 ## Manual Dispatch
 
-The workflow can also be started manually from GitHub Actions. The input must match `v<package.json version>` so manual releases cannot publish a mismatched package version by accident.
+The workflow can also be started manually from GitHub Actions. The input must match `v<package.json version>` so manual releases cannot publish a mismatched package version by accident. Manual dispatch uses that input as the release tag for artifact metadata and GitHub Release uploads; tag pushes use the pushed tag name.
 
 ## Post-Release Checks
 
