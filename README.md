@@ -31,6 +31,8 @@ Production publishing and repository governance are covered in [docs/operations.
 
 When registry signing is configured, GitHub Releases and the hosted catalog include `registry-public.pem` so users and agent-native integrations can verify the registry bundle before locking or installing it.
 
+Agents Market has no telemetry or analytics. See [PRIVACY.md](./PRIVACY.md) for local file and network access boundaries.
+
 Install the preview CLI from the GitHub Release with checksum verification:
 
 ```bash
@@ -433,6 +435,8 @@ Registry-related pull requests also run the `Registry Review` GitHub Actions wor
 Registry content changes should also update `registry/changelog.json` so hosted bundles and catalogs can explain what changed.
 
 Do not open public issues for vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks. Use the private reporting path in [SECURITY.md](./SECURITY.md).
+
+Agents Market does not phone home. Commands contact the network only for explicit remote registry, public key, hosted catalog, GitHub import, release, or package sources. See [PRIVACY.md](./PRIVACY.md).
 
 ## Repository Layout
 
