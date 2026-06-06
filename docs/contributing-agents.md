@@ -106,18 +106,17 @@ Then review the generated files manually:
 Run these before opening a pull request:
 
 ```bash
-npm run build
-node dist/index.js registry lint --registry ./registry --strict --json
-node dist/index.js audit <pack-id> --target all --json
-node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
+npm run registry:check
 npm test
 ```
 
-If the catalog changes or the registry is intended for publication, also run:
+`registry:check` builds the CLI, runs strict registry lint, checks all first-class target support, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
+
+For targeted PR evidence, include the specific pack commands too:
 
 ```bash
-node dist/index.js catalog build --out ./site --base-url https://example.com/agents-market
-node dist/index.js catalog verify --dir ./site --json
+node dist/index.js audit <pack-id> --target all --json
+node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
 ```
 
 `registry lint --strict` must pass with `ok: true` and `score: 100` for bundled marketplace content.
@@ -144,4 +143,3 @@ Before merging:
 - Confirm pack scope is focused and recommendation signals are useful.
 - Confirm generated target files are valid by running `apply --json` or `diff --json`.
 - Confirm CI is green.
-

@@ -144,7 +144,7 @@ Current checks include:
 - packs with too many agents
 - packs without recommendation signals
 
-CI runs `node dist/index.js registry lint --strict --json`, which treats warnings as failures for the bundled registry and returns a machine-readable `{ ok, score, findings }` report.
+CI runs `npm run registry:check` through the release gate. This treats warnings as failures for the published registry, verifies all agents support Claude Code, Codex, and OpenCode, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
 
 Static linting is necessary but not sufficient for marketplace publication. New or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
 

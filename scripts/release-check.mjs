@@ -14,6 +14,7 @@ async function main() {
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);
+  run("node", ["scripts/registry-submission-check.mjs"], "Registry submission gate");
   run("npm", ["test"], "Unit tests");
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));

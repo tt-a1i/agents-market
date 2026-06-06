@@ -8,6 +8,7 @@ Agents Market accepts changes to the CLI, registry, documentation, and generated
 npm ci
 npm run build
 npm test
+npm run registry:check
 ```
 
 Before opening a pull request, run the full release gate:
@@ -34,6 +35,7 @@ Every registry pull request should include:
 Useful commands:
 
 ```bash
+npm run registry:check
 node dist/index.js registry lint --registry ./registry --strict --json
 node dist/index.js audit <pack-id> --target all --json
 node dist/index.js apply <pack-id> --target all --policy-preset balanced --json
