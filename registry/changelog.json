@@ -7,6 +7,7 @@
       "starter-dev-pack with review, debugging, test, and documentation research agents",
       "frontend-pack with visual verification, accessibility, testing, review, and debugging agents",
       "nextjs-pack with Next.js performance, frontend verification, accessibility, testing, and review agents",
+      "security-pack with security audit, dependency risk, secrets scanning, and review agents",
       "Portable registry bundle and static catalog support"
     ],
     "changed": [

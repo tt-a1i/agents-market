@@ -15,8 +15,8 @@ async function main() {
   assert(registryLint.promptQuality?.averageScore >= 90, `Expected prompt quality average >= 90, found ${registryLint.promptQuality?.averageScore}.`);
   assert(registryLint.promptQuality?.minScore >= 80, `Expected prompt quality minimum >= 80, found ${registryLint.promptQuality?.minScore}.`);
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
-  assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
-  assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);
+  assert(registryInfo.packCount >= 4, `Expected registry info to report at least four packs, found ${registryInfo.packCount}.`);
+  assert(registryInfo.agentCount >= 10, `Expected registry info to report at least ten agents, found ${registryInfo.agentCount}.`);
   assert(registryInfo.changelog?.count >= 1, "Expected registry info to report at least one changelog entry.");
   assert(
     registryInfo.packs?.every((pack) => pack.requires?.agentsMarket),
@@ -316,7 +316,7 @@ async function runRegistrySubmissionGateSmoke() {
     const summary = JSON.parse(await readFile(summaryPath, "utf8"));
     assert(summary.ok === true, "Expected registry submission summary to be ok.");
     assert(summary.lint?.score === 100, `Expected registry submission summary lint score 100, found ${summary.lint?.score}.`);
-    assert(summary.packs?.length >= 3, `Expected registry submission summary to include at least three packs, found ${summary.packs?.length}.`);
+    assert(summary.packs?.length >= 4, `Expected registry submission summary to include at least four packs, found ${summary.packs?.length}.`);
     assert(
       summary.packs?.every((pack) => typeof pack.provenance?.withChecksum === "number"),
       "Expected registry submission summary packs to include checksum provenance coverage."

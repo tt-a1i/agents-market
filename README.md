@@ -227,6 +227,7 @@ Published packs declare `requires.agentsMarket`, for example `>=0.1.0`. `apply`,
 - `starter-dev-pack`: review, debugging, tests, and documentation research.
 - `frontend-pack`: visual verification, accessibility, review, tests, and debugging.
 - `nextjs-pack`: Next.js performance, frontend verification, accessibility, tests, and review.
+- `security-pack`: application security audit, dependency risk, secrets scanning, and review.
 
 ## Discover Agents
 

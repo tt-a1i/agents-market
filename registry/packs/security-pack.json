@@ -1,0 +1,16 @@
+{
+  "id": "security-pack",
+  "name": "Security Review Pack",
+  "description": "Security-focused agents for application review, dependency risk, secrets scanning, and code review.",
+  "version": "0.1.0",
+  "tags": ["security", "secrets", "dependencies"],
+  "agents": ["security-auditor", "dependency-risk-auditor", "secrets-scanner", "code-reviewer"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["nextjs", "express", "django", "rails", "fastapi"],
+    "languages": ["javascript", "typescript", "python", "ruby", "go"],
+    "files": ["package.json", "package-lock.json", "pnpm-lock.yaml", "pyproject.toml", "requirements.txt", ".env.example", "Dockerfile"]
+  }
+}

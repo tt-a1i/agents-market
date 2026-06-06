@@ -25,9 +25,21 @@ import { createPolicyPreset, savePolicy, policyPath } from "../src/policy.js";
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
     const registry = await loadRegistry();
-    expect(registry.agents.length).toBeGreaterThanOrEqual(7);
+    expect(registry.agents.length).toBeGreaterThanOrEqual(10);
     expect(registry.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
+    expect(registry.packs.map((pack) => pack.id)).toContain("security-pack");
     expect(registry.changelog?.[0]?.version).toBe("0.1.0");
+  });
+
+  it("recommends security pack for security-sensitive signals", async () => {
+    const registry = await loadRegistry();
+    const packs = recommendPacks(registry, {
+      root: "/tmp/project",
+      languages: ["typescript"],
+      frameworks: ["express"],
+      files: ["package.json", "package-lock.json", ".env.example", "Dockerfile"]
+    });
+    expect(packs[0]?.id).toBe("security-pack");
   });
 
   it("recommends Next.js pack for Next.js signals", async () => {
