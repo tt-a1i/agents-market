@@ -6,7 +6,7 @@ Agents Market is built around one invariant: the registry is tool-neutral, and a
 
 1. Registry
 
-   `registry/agents/*.json` and `registry/packs/*.json` are the source of truth. They describe agent intent, permissions, prompts, tags, and target support without committing to one coding agent's file format.
+   `registry/agents/*.json`, `registry/packs/*.json`, and `registry/changelog.json` are the source of truth. They describe agent intent, permissions, prompts, tags, target support, pack composition, and user-visible registry changes without committing to one coding agent's file format.
 
 2. Core library
 
@@ -48,6 +48,7 @@ agents-market update
 agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
 agents-market registry info --registry ./registry.bundle.json
+agents-market registry changelog --registry ./registry.bundle.json
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry lint --strict --json
@@ -99,9 +100,10 @@ The CLI supports multiple registry sources:
 - export timestamp
 - agents
 - packs
+- changelog entries
 - sha256 checksum
 
-`agents-market registry info` reports source type, version, checksum, pack count, agent count, target support, and pack inventory for bundled, local, file, or hosted registry sources.
+`agents-market registry info` reports source type, version, checksum, pack count, agent count, target support, changelog status, and pack inventory for bundled, local, file, or hosted registry sources. `agents-market registry changelog` exposes release history for humans and agent-native wrappers.
 
 `agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands prefer that lockfile and verify its source/version/checksum when present. For installed-pack maintenance, the CLI then falls back to the registry source recorded in `.agents-market/manifest.json`, and only then to the bundled registry.
 
@@ -116,10 +118,10 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 Outputs:
 
 - `index.html`: searchable catalog for humans
-- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, changelog entries, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
-The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, audits, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
+The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
 
 ## Custom Packs
 

@@ -1,7 +1,7 @@
 import { stat, readFile, readdir } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { registryRoot } from "./paths.js";
-import { agentSchema, packSchema, registryBundleSchema } from "./schema.js";
+import { agentSchema, changelogEntrySchema, packSchema, registryBundleSchema } from "./schema.js";
 import { sha256 } from "./hash.js";
 import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock } from "./types.js";
 
@@ -26,6 +26,14 @@ export interface RegistrySummary {
     agentCount: number;
     tags: string[];
   }>;
+  changelog: {
+    count: number;
+    latest?: {
+      version: string;
+      date: string;
+      summary: string;
+    };
+  };
   targets: Record<"claude" | "codex" | "opencode", number>;
 }
 
@@ -51,6 +59,7 @@ export async function loadRegistry(root = registryRoot()): Promise<Registry> {
   const packs = await readJsonFiles<PackDefinition>(join(root, "packs"), (value) =>
     packSchema.parse(value)
   );
+  const changelog = await readChangelog(root);
 
   const knownAgents = new Set(agents.map((agent) => agent.id));
   for (const pack of packs) {
@@ -60,7 +69,7 @@ export async function loadRegistry(root = registryRoot()): Promise<Registry> {
     }
   }
 
-  return { agents, packs };
+  return { agents, packs, changelog };
 }
 
 export function validateRegistry(registry: Registry): Registry {
@@ -154,6 +163,16 @@ export function summarizeRegistry(loaded: LoadedRegistry): RegistrySummary {
       agentCount: pack.agents.length,
       tags: pack.tags
     })),
+    changelog: {
+      count: loaded.registry.changelog?.length ?? 0,
+      latest: loaded.registry.changelog?.[0]
+        ? {
+            version: loaded.registry.changelog[0].version,
+            date: loaded.registry.changelog[0].date,
+            summary: loaded.registry.changelog[0].summary
+          }
+        : undefined
+    },
     targets
   };
 }
@@ -165,7 +184,8 @@ export function createRegistryBundle(registry: Registry, version: string, name =
     version,
     exportedAt: new Date().toISOString(),
     agents: registry.agents,
-    packs: registry.packs
+    packs: registry.packs,
+    changelog: registry.changelog
   };
   return {
     ...bundleWithoutHash,
@@ -195,9 +215,20 @@ function registryBundleHash(bundle: Omit<RegistryBundle, "sha256">): string {
       version: bundle.version,
       exportedAt: bundle.exportedAt,
       agents: bundle.agents,
-      packs: bundle.packs
+      packs: bundle.packs,
+      changelog: bundle.changelog
     })
   );
+}
+
+async function readChangelog(root: string): Promise<Registry["changelog"]> {
+  try {
+    const raw = await readFile(join(root, "changelog.json"), "utf8");
+    return changelogEntrySchema.array().parse(JSON.parse(raw));
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
+    throw error;
+  }
 }
 
 export function getPack(registry: Registry, id: string): PackDefinition {

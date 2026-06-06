@@ -1,0 +1,16 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2026-06-06",
+    "summary": "Initial public registry with cross-tool starter, frontend, and Next.js agent packs for Claude Code, Codex, and OpenCode.",
+    "added": [
+      "starter-dev-pack with review, debugging, test, and documentation research agents",
+      "frontend-pack with visual verification, accessibility, testing, review, and debugging agents",
+      "nextjs-pack with Next.js performance, frontend verification, accessibility, testing, and review agents",
+      "Portable registry bundle and static catalog support"
+    ],
+    "changed": [
+      "Registry content is validated by strict linting, pack audit, apply preview, and catalog verification gates"
+    ]
+  }
+]

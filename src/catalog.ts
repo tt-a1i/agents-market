@@ -40,6 +40,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     registryBundleUrl: bundleUrl,
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
+    changelog: registry.changelog ?? [],
     packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl)),
     agents: registry.agents
   };
@@ -122,7 +123,7 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
 }
 
 function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: RegistryBundle, findings: CatalogVerificationFinding[]): void {
-  const registry: Registry = { agents: bundle.agents, packs: bundle.packs };
+  const registry: Registry = { agents: bundle.agents, packs: bundle.packs, changelog: bundle.changelog };
   if (catalog.packCount !== bundle.packs.length) {
     findings.push({
       severity: "error",
@@ -137,6 +138,29 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
       code: "agent-count-mismatch",
       message: "catalog.json agentCount does not match registry.bundle.json.",
       detail: `${catalog.agentCount ?? "missing"} !== ${bundle.agents.length}`
+    });
+  }
+  const catalogChangelog = Array.isArray(catalog.changelog) ? catalog.changelog : [];
+  const bundleChangelog = bundle.changelog ?? [];
+  if (!Array.isArray(catalog.changelog)) {
+    findings.push({
+      severity: "error",
+      code: "catalog-changelog-missing",
+      message: "catalog.json does not include a changelog array."
+    });
+  } else if (catalogChangelog.length !== bundleChangelog.length) {
+    findings.push({
+      severity: "error",
+      code: "changelog-count-mismatch",
+      message: "catalog.json changelog length does not match registry.bundle.json.",
+      detail: `${catalogChangelog.length} !== ${bundleChangelog.length}`
+    });
+  } else if (bundleChangelog[0] && isRecord(catalogChangelog[0]) && catalogChangelog[0].version !== bundleChangelog[0].version) {
+    findings.push({
+      severity: "error",
+      code: "changelog-latest-mismatch",
+      message: "catalog.json latest changelog entry does not match registry.bundle.json.",
+      detail: `${String(catalogChangelog[0].version)} !== ${bundleChangelog[0].version}`
     });
   }
 
@@ -288,6 +312,22 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     )
     .join("\n");
 
+  const changelog = (registry.changelog ?? [])
+    .slice(0, 6)
+    .map((entry) => {
+      const details = [
+        ...(entry.added ?? []).map((item) => `<li><strong>Added:</strong> ${escapeHtml(item)}</li>`),
+        ...(entry.changed ?? []).map((item) => `<li><strong>Changed:</strong> ${escapeHtml(item)}</li>`),
+        ...(entry.removed ?? []).map((item) => `<li><strong>Removed:</strong> ${escapeHtml(item)}</li>`)
+      ].join("");
+      return `<article class="changelog-entry" data-search="${escapeHtml(`${entry.version} ${entry.date} ${entry.summary}`)}">
+        <div class="eyebrow">${escapeHtml(entry.version)} / ${escapeHtml(entry.date)}</div>
+        <p>${escapeHtml(entry.summary)}</p>
+        ${details ? `<ul>${details}</ul>` : ""}
+      </article>`;
+    })
+    .join("\n");
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -321,6 +361,8 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
     ul { padding-left: 20px; }
     li { margin: 8px 0; color: var(--muted); }
     .warnings { border-left: 3px solid #b45309; padding-left: 16px; }
+    .changelog { display: grid; gap: 12px; }
+    .changelog-entry { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
     th, td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); padding: 12px 8px; }
     th { color: var(--muted); font-size: 13px; }
@@ -345,6 +387,14 @@ function renderHtml(title: string, registry: Registry, bundlePath: string): stri
       <h2>Packs</h2>
       <div class="grid">${packs}</div>
     </section>
+    ${
+      changelog
+        ? `<section class="section">
+      <h2>Changelog</h2>
+      <div class="changelog">${changelog}</div>
+    </section>`
+        : ""
+    }
     <section class="section">
       <h2>Agents</h2>
       <table>

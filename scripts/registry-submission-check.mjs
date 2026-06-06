@@ -18,6 +18,7 @@ async function main() {
   const info = runJson("node", ["dist/index.js", "registry", "info", "--registry", registrySource, "--json"], "Registry inventory");
   assert(info.packCount > 0, "Registry must contain at least one pack.");
   assert(info.agentCount > 0, "Registry must contain at least one agent.");
+  assert(info.changelog?.count > 0, "Registry must contain at least one changelog entry.");
   assert(info.targets?.claude === info.agentCount, "All published agents must support Claude Code.");
   assert(info.targets?.codex === info.agentCount, "All published agents must support Codex.");
   assert(info.targets?.opencode === info.agentCount, "All published agents must support OpenCode.");
@@ -116,7 +117,7 @@ function formatJsonSummary(label, json) {
     return `ok=${json.ok} score=${json.score} errors=${json.errorCount} warnings=${json.warningCount}`;
   }
   if (label.includes("inventory")) {
-    return `packs=${json.packCount} agents=${json.agentCount} targets=claude:${json.targets?.claude} codex:${json.targets?.codex} opencode:${json.targets?.opencode}`;
+    return `packs=${json.packCount} agents=${json.agentCount} changelog=${json.changelog?.count ?? 0} targets=claude:${json.targets?.claude} codex:${json.targets?.codex} opencode:${json.targets?.opencode}`;
   }
   if (label.startsWith("Audit ")) {
     return `pack=${json.packId} risk=${json.risk} agents=${json.agentCount} files=${json.fileCount} warnings=${json.warnings?.length ?? 0}`;

@@ -1155,9 +1155,51 @@ registryCommand
     if (summary.source.sha256) console.log(`- sha256: ${summary.source.sha256}`);
     console.log(`- packs: ${summary.packCount}`);
     console.log(`- agents: ${summary.agentCount}`);
+    console.log(`- changelog entries: ${summary.changelog.count}`);
+    if (summary.changelog.latest) {
+      console.log(`- latest: ${summary.changelog.latest.version} (${summary.changelog.latest.date}) - ${summary.changelog.latest.summary}`);
+    }
     console.log(`- target support: claude ${summary.targets.claude}, codex ${summary.targets.codex}, opencode ${summary.targets.opencode}`);
     for (const pack of summary.packs) {
       console.log(`  ${pc.cyan(pack.id)} ${pack.version} - ${pack.agentCount} agents`);
+    }
+  });
+
+registryCommand
+  .command("changelog")
+  .option("--registry <source>", "registry source to inspect", "bundled")
+  .option("--limit <count>", "maximum number of entries to print", "10")
+  .option("--json", "print machine-readable JSON")
+  .description("Show registry release history")
+  .action(async (options: { registry: string; limit: string; json?: boolean }) => {
+    const loaded = await loadRegistryWithInfo(options.registry);
+    const limit = Number.parseInt(options.limit, 10);
+    if (!Number.isFinite(limit) || limit < 1) throw new Error(`Invalid changelog limit: ${options.limit}`);
+    const entries = (loaded.registry.changelog ?? []).slice(0, limit);
+    const result = {
+      source: loaded.source,
+      count: loaded.registry.changelog?.length ?? 0,
+      entries
+    };
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(pc.bold("Registry changelog"));
+    console.log(`- source: ${loaded.source.value}`);
+    console.log(`- entries: ${result.count}`);
+    for (const entry of entries) {
+      console.log(`\n${pc.cyan(entry.version)} ${entry.date}`);
+      console.log(`  ${entry.summary}`);
+      for (const [label, values] of [
+        ["added", entry.added],
+        ["changed", entry.changed],
+        ["removed", entry.removed]
+      ] as const) {
+        if (values && values.length > 0) {
+          console.log(`  ${label}: ${values.join(", ")}`);
+        }
+      }
     }
   });
 

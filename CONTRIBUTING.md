@@ -28,6 +28,7 @@ Every registry pull request should include:
 - A clear use case and routing trigger for each new agent or pack.
 - Provenance for third-party or imported templates.
 - Source license information for third-party content.
+- A `registry/changelog.json` update for user-visible registry content changes.
 - A passing strict registry lint report.
 - An `audit --json` summary for every new or changed pack.
 - A preview command showing the files that would be installed.

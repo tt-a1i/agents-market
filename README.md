@@ -78,6 +78,8 @@ agents-market uninstall starter-dev-pack --target claude --dry-run --json
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry info
 agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
+agents-market registry changelog
+agents-market registry changelog --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market registry verify-lock
@@ -159,7 +161,14 @@ agents-market registry info --registry https://tt-a1i.github.io/agents-market/re
 agents-market registry info --registry ./registry.bundle.json --json
 ```
 
-`registry info` reports source type, source URL/path, version, checksum, pack count, agent count, target support, and pack inventory. Agent-native workflows can use the JSON output to summarize a hosted registry before asking the user to lock or install from it.
+`registry info` reports source type, source URL/path, version, checksum, pack count, agent count, target support, changelog status, and pack inventory. Agent-native workflows can use the JSON output to summarize a hosted registry before asking the user to lock or install from it.
+
+View registry release history:
+
+```bash
+agents-market registry changelog
+agents-market registry changelog --registry ./registry.bundle.json --json
+```
 
 Lint a registry before publishing:
 
@@ -267,7 +276,7 @@ agents-market catalog verify --dir ./site
 The catalog generator writes:
 
 - `index.html`: searchable static catalog
-- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, `apply` preview/install commands, safety workflow commands, changelog entries, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path.
@@ -317,6 +326,8 @@ Agents Market is curated. Before adding or importing registry content, read [CON
 
 Registry pull requests should include provenance, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. The pull request template lists the required evidence.
 
+Registry content changes should also update `registry/changelog.json` so hosted bundles and catalogs can explain what changed.
+
 Do not open public issues for vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks. Use the private reporting path in [SECURITY.md](./SECURITY.md).
 
 ## Repository Layout
@@ -325,6 +336,7 @@ Do not open public issues for vulnerabilities, policy bypasses, unsafe generated
 registry/
   agents/     Standard agent source definitions
   packs/      Curated installable packs
+  changelog.json  Versioned registry release notes
 integrations/
   claude-skill/       Claude Code installer skill source
   codex-skill/        Codex installer skill source

@@ -78,6 +78,18 @@ Good pack examples:
 
 Avoid packs that are only a folder import from another repository. Import-generated packs are starting points; curate them before publishing.
 
+## Changelog
+
+Update `registry/changelog.json` for every user-visible registry change:
+
+- new or removed packs
+- new or removed agents
+- permission, tool, or prompt changes that affect behavior
+- recommendation signal changes
+- imported source or license changes
+
+The newest entry must be first. Use ISO dates in `YYYY-MM-DD` format and include a concise summary because the Web catalog and `registry changelog --json` expose this history directly to users and agent-native installers.
+
 ## Import Workflow
 
 For a public GitHub repository:
@@ -127,6 +139,7 @@ Include this evidence in the PR body:
 
 - Agent IDs and pack IDs changed.
 - Source repository and license for imported content.
+- Changelog entry added or updated.
 - Why the agent or pack should exist.
 - Expected user trigger, for example "Next.js app with performance issues".
 - `registry lint --strict --json` result.

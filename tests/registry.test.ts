@@ -19,6 +19,7 @@ describe("registry", () => {
     const registry = await loadRegistry();
     expect(registry.agents.length).toBeGreaterThanOrEqual(7);
     expect(registry.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
+    expect(registry.changelog?.[0]?.version).toBe("0.1.0");
   });
 
   it("recommends Next.js pack for Next.js signals", async () => {
@@ -167,6 +168,7 @@ describe("registry", () => {
     expect(bundle.schemaVersion).toBe(1);
     expect(bundle.sha256).toHaveLength(64);
     expect(bundle.packs.length).toBe(registry.packs.length);
+    expect(bundle.changelog?.[0]?.summary).toContain("Initial public registry");
   });
 
   it("summarizes registry source and pack inventory", async () => {
@@ -180,6 +182,8 @@ describe("registry", () => {
     expect(summary.packCount).toBe(registry.packs.length);
     expect(summary.agentCount).toBe(registry.agents.length);
     expect(summary.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
+    expect(summary.changelog.count).toBeGreaterThan(0);
+    expect(summary.changelog.latest?.version).toBe("0.1.0");
     expect(summary.targets.claude).toBeGreaterThan(0);
     expect(summary.targets.codex).toBeGreaterThan(0);
     expect(summary.targets.opencode).toBeGreaterThan(0);

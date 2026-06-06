@@ -57,9 +57,19 @@ export const packSchema = z.object({
     .default({})
 });
 
+export const changelogEntrySchema = z.object({
+  version: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  summary: z.string().min(20),
+  added: z.array(z.string()).optional(),
+  changed: z.array(z.string()).optional(),
+  removed: z.array(z.string()).optional()
+});
+
 export const registrySchema = z.object({
   agents: z.array(agentSchema),
-  packs: z.array(packSchema)
+  packs: z.array(packSchema),
+  changelog: z.array(changelogEntrySchema).optional()
 });
 
 export const registryBundleSchema = registrySchema.extend({

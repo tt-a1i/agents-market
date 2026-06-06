@@ -14,6 +14,10 @@ async function main() {
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 3, `Expected registry info to report at least three packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 7, `Expected registry info to report at least seven agents, found ${registryInfo.agentCount}.`);
+  assert(registryInfo.changelog?.count >= 1, "Expected registry info to report at least one changelog entry.");
+  const registryChangelog = runJson("node", ["dist/index.js", "registry", "changelog", "--json"], "Registry changelog");
+  assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
+  assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
   run("node", ["scripts/registry-submission-check.mjs"], "Registry submission gate");
   run("npm", ["test"], "Unit tests");
 
@@ -281,6 +285,7 @@ function verifyTarball(packOutput) {
     "dist/policy.js",
     "dist/pack.js",
     "registry/agents/code-reviewer.json",
+    "registry/changelog.json",
     "registry/packs/starter-dev-pack.json",
     "docs/agent-native.md",
     "docs/contributing-agents.md",

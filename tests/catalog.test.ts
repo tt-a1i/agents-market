@@ -34,6 +34,8 @@ describe("catalog", () => {
     const html = await readFile(join(cleanupPath, "index.html"), "utf8");
     expect(html).toContain("Agents Market Test");
     expect(html).toContain("starter-dev-pack");
+    expect(html).toContain("Changelog");
+    expect(html).toContain("Initial public registry");
     expect(html).toContain("Source");
     expect(html).toContain("risk:");
     expect(html).toContain("https://example.com/agents-market/registry.bundle.json");
@@ -53,6 +55,7 @@ describe("catalog", () => {
       packCount: number;
       agentCount: number;
       registryBundleUrl: string;
+      changelog: Array<{ version: string; summary: string }>;
       packs: Array<{
         id: string;
         previewCommand: string;
@@ -68,6 +71,8 @@ describe("catalog", () => {
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
+    expect(catalog.changelog[0]?.version).toBe("0.1.0");
+    expect(catalog.changelog[0]?.summary).toContain("Initial public registry");
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     expect(starterPack?.previewCommand).toContain(

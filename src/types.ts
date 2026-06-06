@@ -47,9 +47,19 @@ export interface PackDefinition {
   };
 }
 
+export interface RegistryChangelogEntry {
+  version: string;
+  date: string;
+  summary: string;
+  added?: string[];
+  changed?: string[];
+  removed?: string[];
+}
+
 export interface Registry {
   agents: AgentDefinition[];
   packs: PackDefinition[];
+  changelog?: RegistryChangelogEntry[];
 }
 
 export interface RegistryBundle {
@@ -59,6 +69,7 @@ export interface RegistryBundle {
   exportedAt: string;
   agents: AgentDefinition[];
   packs: PackDefinition[];
+  changelog?: RegistryChangelogEntry[];
   sha256?: string;
 }
 

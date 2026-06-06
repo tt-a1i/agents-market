@@ -6,6 +6,7 @@
 
 - Agents changed:
 - Packs changed:
+- Changelog updated:
 - Source/provenance:
 - Source license:
 
@@ -22,6 +23,7 @@ npm test
 ## Checklist
 
 - [ ] New or imported agents include provenance and source license when applicable.
+- [ ] User-visible registry changes update `registry/changelog.json`.
 - [ ] Agent permissions and tool access are minimal for the task.
 - [ ] Packs are focused and include recommendation signals.
 - [ ] `registry lint --strict --json` returns `ok: true`.
