@@ -4,7 +4,7 @@ import { sha256 } from "./hash.js";
 import { loadManifest, loadRegistryLock, MANIFEST_PATH, REGISTRY_LOCK_PATH } from "./manifest.js";
 import { checkPackPolicy, loadPolicy, policyPath, type AgentPolicy, type PolicyCheckReport } from "./policy.js";
 import { loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
-import type { InstallManifest, ManifestFileEntry, RegistryLock, Target } from "./types.js";
+import type { InstallManifest, ManifestFileEntry, ManifestInstallEntry, RegistryLock, Target } from "./types.js";
 
 export type DoctorSeverity = "pass" | "warn" | "error";
 
@@ -118,9 +118,11 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     if (policy && manifest.installs.length > 0) {
       try {
         const activePolicy = policy;
-        const loaded = await loadRegistryWithInfo(registryLock?.source);
-        if (registryLock) verifyRegistryLock(loaded, registryLock);
-        policyChecks = manifest.installs.map((install) => checkPackPolicy(loaded.registry, install.packId, install.target, activePolicy));
+        policyChecks = [];
+        for (const install of manifest.installs) {
+          const loaded = await loadRegistryForInstall(registryLock, install.registry);
+          policyChecks.push(checkPackPolicy(loaded.registry, install.packId, install.target, activePolicy));
+        }
         const violations = policyChecks.filter((report) => !report.ok);
         if (violations.length > 0) {
           checks.push({
@@ -155,6 +157,32 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     policyChecks,
     checks
   };
+}
+
+async function loadRegistryForInstall(registryLock: RegistryLock | undefined, installRegistry: ManifestInstallEntry["registry"] | undefined) {
+  if (registryLock) {
+    const loaded = await loadRegistryWithInfo(registryLock.source);
+    verifyRegistryLock(loaded, registryLock);
+    return loaded;
+  }
+  const loaded = await loadRegistryWithInfo(installRegistry?.source);
+  if (installRegistry) verifyInstallRegistrySource(loaded.source, installRegistry);
+  return loaded;
+}
+
+function verifyInstallRegistrySource(
+  loaded: { value: string; version?: string; sha256?: string },
+  installed: NonNullable<ManifestInstallEntry["registry"]>
+): void {
+  if (loaded.value !== installed.source) {
+    throw new Error(`Install registry source mismatch: expected ${installed.source}, loaded ${loaded.value}`);
+  }
+  if (installed.version && loaded.version && loaded.version !== installed.version) {
+    throw new Error(`Install registry version mismatch: expected ${installed.version}, loaded ${loaded.version}`);
+  }
+  if (installed.sha256 && loaded.sha256 !== installed.sha256) {
+    throw new Error(`Install registry checksum mismatch: expected ${installed.sha256}, loaded ${loaded.sha256 ?? "none"}`);
+  }
 }
 
 async function fileState(root: string, file: ManifestFileEntry): Promise<"clean" | "modified" | "missing"> {

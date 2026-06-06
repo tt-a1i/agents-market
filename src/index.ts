@@ -28,7 +28,7 @@ import {
   upsertInstallEntry
 } from "./manifest.js";
 import { sha256 } from "./hash.js";
-import type { ManifestFileEntry, Target } from "./types.js";
+import type { ManifestFileEntry, ManifestInstallEntry, Target } from "./types.js";
 
 const program = new Command();
 const BUNDLED_REGISTRY_VERSION = "0.1.0";
@@ -70,6 +70,34 @@ async function loadProjectRegistry(root: string, registryOption?: string) {
   const loaded = await loadRegistryWithInfo(lock?.source);
   if (lock) verifyRegistryLock(loaded, lock);
   return loaded;
+}
+
+async function loadRegistryForInstall(root: string, registryOption: string | undefined, installRegistry: ManifestInstallEntry["registry"] | undefined) {
+  if (registryOption) return loadRegistryWithInfo(registryOption);
+  const lock = await loadRegistryLock(root);
+  if (lock) {
+    const loaded = await loadRegistryWithInfo(lock.source);
+    verifyRegistryLock(loaded, lock);
+    return loaded;
+  }
+  const loaded = await loadRegistryWithInfo(installRegistry?.source);
+  if (installRegistry) verifyInstallRegistrySource(loaded.source, installRegistry);
+  return loaded;
+}
+
+function verifyInstallRegistrySource(
+  loaded: { value: string; version?: string; sha256?: string },
+  installed: NonNullable<ManifestInstallEntry["registry"]>
+): void {
+  if (loaded.value !== installed.source) {
+    throw new Error(`Install registry source mismatch: expected ${installed.source}, loaded ${loaded.value}`);
+  }
+  if (installed.version && loaded.version && loaded.version !== installed.version) {
+    throw new Error(`Install registry version mismatch: expected ${installed.version}, loaded ${loaded.version}`);
+  }
+  if (installed.sha256 && loaded.sha256 !== installed.sha256) {
+    throw new Error(`Install registry checksum mismatch: expected ${installed.sha256}, loaded ${loaded.sha256 ?? "none"}`);
+  }
 }
 
 async function resolvePolicyForCommand(root: string, options: { enforcePolicy?: boolean; policy?: string; policyPreset?: string }) {
@@ -816,8 +844,6 @@ program
   .description("Update installed packs from the current registry")
   .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean; dryRun?: boolean; json?: boolean; registry?: string }) => {
     const root = cwd(options.cwd);
-    const loaded = await loadProjectRegistry(root, options.registry);
-    const registry = loaded.registry;
     const manifest = await loadManifest(root);
     const installs = manifest.installs.filter((entry) => !packId || entry.packId === packId);
 
@@ -831,6 +857,8 @@ program
     let nextManifest = manifest;
     const summaries = [];
     for (const install of installs) {
+      const loaded = await loadRegistryForInstall(root, options.registry, install.registry);
+      const registry = loaded.registry;
       const files = generatePackFiles(registry, install.packId, install.target);
       const safeFiles = [];
       const manifestFiles: ManifestFileEntry[] = [];
@@ -877,6 +905,7 @@ program
       summaries.push({
         packId: install.packId,
         target: install.target,
+        registry: loaded.source,
         changes
       });
 

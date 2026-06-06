@@ -152,6 +152,26 @@ async function runLifecycleSmoke() {
     const finalStatus = runJson("node", ["dist/index.js", "status", "--cwd", projectDir, "--json"], "Lifecycle final status");
     assert(finalStatus.installCount === 0, `Expected no installs after force uninstall, found ${finalStatus.installCount}.`);
 
+    const registryBundlePath = join(projectDir, "hosted-registry.bundle.json");
+    const manifestRegistryProject = await mkdtemp(join(projectDir, "manifest-registry-"));
+    run("node", ["dist/index.js", "registry", "export", "--out", registryBundlePath], "Lifecycle export registry bundle");
+    const manifestRegistryInstall = runJson(
+      "node",
+      ["dist/index.js", "install", "starter-dev-pack", "--target", "claude", "--cwd", manifestRegistryProject, "--registry", registryBundlePath, "--json"],
+      "Lifecycle manifest registry install"
+    );
+    assert(manifestRegistryInstall.installed === true, "Expected manifest registry install to complete.");
+
+    const manifestRegistryUpdate = runJson(
+      "node",
+      ["dist/index.js", "update", "starter-dev-pack", "--cwd", manifestRegistryProject, "--dry-run", "--json"],
+      "Lifecycle manifest registry update"
+    );
+    assert(
+      manifestRegistryUpdate.updates?.[0]?.registry?.value === registryBundlePath,
+      `Expected update to use install manifest registry ${registryBundlePath}, found ${manifestRegistryUpdate.updates?.[0]?.registry?.value}.`
+    );
+
     checks.push("Lifecycle smoke assertions");
   } finally {
     await rm(projectDir, { recursive: true, force: true });

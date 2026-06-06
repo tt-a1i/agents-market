@@ -134,6 +134,8 @@ agents-market registry lock --registry ./registry.bundle.json
 
 This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted and verify the locked checksum when the lock includes one.
 
+Installed packs also remember the registry source used at install time. If a project has no lockfile, maintenance commands such as `update` and policy-aware `doctor` checks fall back to the install manifest's registry source before using the bundled registry.
+
 Verify a lock explicitly:
 
 ```bash
