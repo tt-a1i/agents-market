@@ -74,7 +74,7 @@ jobs:
             } catch (error) {
               core.warning(`Could not write registry review PR comment: ${error.message}`);
             }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: registry-submission-summary
