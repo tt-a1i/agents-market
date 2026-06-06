@@ -35,6 +35,8 @@ Agents Market has no telemetry or analytics. See [PRIVACY.md](./PRIVACY.md) for 
 
 For usage questions, pack proposals, bug reports, and release artifact issues, see [SUPPORT.md](./SUPPORT.md).
 
+Package release notes are tracked in [CHANGELOG.md](./CHANGELOG.md). Registry content history is also available through `agents-market registry changelog`.
+
 Install the preview CLI from the GitHub Release with checksum verification:
 
 ```bash

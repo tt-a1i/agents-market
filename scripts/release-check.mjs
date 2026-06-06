@@ -564,8 +564,14 @@ async function runCiWorkflowSmoke() {
 
 async function runRepositoryAutomationSmoke() {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+  assert(packageJson.files?.includes("CHANGELOG.md"), "npm package files should include CHANGELOG.md.");
   assert(packageJson.files?.includes("PRIVACY.md"), "npm package files should include PRIVACY.md.");
   assert(packageJson.files?.includes("SUPPORT.md"), "npm package files should include SUPPORT.md.");
+
+  const changelog = await readFile("CHANGELOG.md", "utf8");
+  for (const required of ["## 0.1.0 - Preview", "preview-0.1.0", "Signed registry bundles", "GitHub Artifact Attestations"]) {
+    assert(changelog.includes(required), `Package changelog is missing ${required}.`);
+  }
 
   const privacy = await readFile("PRIVACY.md", "utf8");
   for (const required of ["does not include telemetry", "Network Access", "catalog verify --url", "GitHub repository imports", "SECURITY.md"]) {
@@ -579,6 +585,7 @@ async function runRepositoryAutomationSmoke() {
 
   const readme = await readFile("README.md", "utf8");
   assert(readme.includes("no telemetry or analytics"), "README should mention the no-telemetry privacy posture.");
+  assert(readme.includes("CHANGELOG.md"), "README should link to CHANGELOG.md.");
   assert(readme.includes("PRIVACY.md"), "README should link to PRIVACY.md.");
   assert(readme.includes("SUPPORT.md"), "README should link to SUPPORT.md.");
 
@@ -1201,6 +1208,7 @@ function verifyTarball(packOutput) {
   const files = new Set(tarball.files.map((file) => file.path));
   const required = [
     "README.md",
+    "CHANGELOG.md",
     "CONTRIBUTING.md",
     "SECURITY.md",
     "PRIVACY.md",
