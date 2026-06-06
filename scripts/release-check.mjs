@@ -62,6 +62,7 @@ async function main() {
   await runCiWorkflowSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
+  await runReleaseWorkflowSmoke();
   run("npm", ["test"], "Unit tests");
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));
@@ -460,6 +461,15 @@ async function runReleaseArtifactsSmoke() {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function runReleaseWorkflowSmoke() {
+  const workflow = await readFile(".github/workflows/release.yml", "utf8");
+  assert(workflow.includes("release-artifacts/*.tgz"), "Release workflow should upload top-level release tarballs.");
+  assert(workflow.includes("release-artifacts/npm/*.tgz"), "Release workflow should upload the npm package tarball.");
+  assert(workflow.includes("release-artifacts/registry.bundle.json"), "Release workflow should upload the registry bundle.");
+  assert(workflow.includes("npm publish --provenance"), "Release workflow should publish the npm package with provenance.");
+  checks.push("Release workflow upload coverage");
 }
 
 async function runRegistrySignatureSmoke() {
