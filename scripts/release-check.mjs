@@ -768,7 +768,7 @@ async function runSecurityWorkflowSmoke() {
   assert(workflow.includes("github/codeql-action/init@v4"), "Security workflow should initialize CodeQL with the current major action.");
   assert(workflow.includes("github/codeql-action/analyze@v4"), "Security workflow should analyze CodeQL results with the current major action.");
   assert(workflow.includes("actions/dependency-review-action@v5"), "Security workflow should run the current major dependency review action.");
-  assert(workflow.includes("ossf/scorecard-action@v2"), "Security workflow should run OpenSSF Scorecard.");
+  assert(workflow.includes("ossf/scorecard-action@v2.4.3"), "Security workflow should run OpenSSF Scorecard from a resolvable pinned action tag.");
   assert(workflow.includes("github/codeql-action/upload-sarif@v4"), "Security workflow should upload Scorecard SARIF results.");
   assert(workflow.includes("languages: javascript-typescript"), "Security workflow should scan JavaScript and TypeScript.");
   assert(workflow.includes("security-events: write"), "Security workflow should be allowed to upload CodeQL results.");
