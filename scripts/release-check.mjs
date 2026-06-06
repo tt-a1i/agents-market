@@ -565,18 +565,26 @@ async function runCiWorkflowSmoke() {
 async function runRepositoryAutomationSmoke() {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
   assert(packageJson.files?.includes("PRIVACY.md"), "npm package files should include PRIVACY.md.");
+  assert(packageJson.files?.includes("SUPPORT.md"), "npm package files should include SUPPORT.md.");
 
   const privacy = await readFile("PRIVACY.md", "utf8");
   for (const required of ["does not include telemetry", "Network Access", "catalog verify --url", "GitHub repository imports", "SECURITY.md"]) {
     assert(privacy.includes(required), `Privacy documentation is missing ${required}.`);
   }
 
+  const support = await readFile("SUPPORT.md", "utf8");
+  for (const required of ["Agent And Pack Proposals", "Bug", "Security Reports", "Privacy", "Release And npm Issues"]) {
+    assert(support.includes(required), `Support documentation is missing ${required}.`);
+  }
+
   const readme = await readFile("README.md", "utf8");
   assert(readme.includes("no telemetry or analytics"), "README should mention the no-telemetry privacy posture.");
   assert(readme.includes("PRIVACY.md"), "README should link to PRIVACY.md.");
+  assert(readme.includes("SUPPORT.md"), "README should link to SUPPORT.md.");
 
   const security = await readFile("SECURITY.md", "utf8");
   assert(security.includes("PRIVACY.md"), "SECURITY.md should link to PRIVACY.md.");
+  assert(security.includes("SUPPORT.md"), "SECURITY.md should link to SUPPORT.md.");
 
   const ciWorkflow = await readFile(".github/workflows/ci.yml", "utf8");
   assert(ciWorkflow.includes("permissions:\n  contents: read"), "CI workflow should declare read-only contents permission.");
@@ -1196,6 +1204,7 @@ function verifyTarball(packOutput) {
     "CONTRIBUTING.md",
     "SECURITY.md",
     "PRIVACY.md",
+    "SUPPORT.md",
     "LICENSE",
     "dist/index.js",
     "dist/compatibility.js",

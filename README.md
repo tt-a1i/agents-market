@@ -33,6 +33,8 @@ When registry signing is configured, GitHub Releases and the hosted catalog incl
 
 Agents Market has no telemetry or analytics. See [PRIVACY.md](./PRIVACY.md) for local file and network access boundaries.
 
+For usage questions, pack proposals, bug reports, and release artifact issues, see [SUPPORT.md](./SUPPORT.md).
+
 Install the preview CLI from the GitHub Release with checksum verification:
 
 ```bash
@@ -437,6 +439,8 @@ Registry content changes should also update `registry/changelog.json` so hosted 
 Do not open public issues for vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks. Use the private reporting path in [SECURITY.md](./SECURITY.md).
 
 Agents Market does not phone home. Commands contact the network only for explicit remote registry, public key, hosted catalog, GitHub import, release, or package sources. See [PRIVACY.md](./PRIVACY.md).
+
+For non-security support, use the paths in [SUPPORT.md](./SUPPORT.md).
 
 ## Repository Layout
 
