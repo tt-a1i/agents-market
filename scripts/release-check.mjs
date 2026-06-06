@@ -557,6 +557,7 @@ async function runCiWorkflowSmoke() {
     assert(init.nextCommands?.includes("agents-market doctor --strict --json"), "Expected CI init to include strict doctor next command.");
 
     const workflow = await readFile(join(dir, ".github/workflows/agents-market.yml"), "utf8");
+    assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 registry verify-lock --json"), "Expected CI workflow to verify the registry lock with a pinned npm package.");
     assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 status --diff --json"), "Expected CI workflow to check generated agent drift with a pinned npm package.");
     assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 outdated --fail-on-outdated --json"), "Expected CI workflow to fail on outdated installed pack versions.");
     assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 update --dry-run --fail-on-skipped --json"), "Expected CI workflow to fail on blocked update previews.");

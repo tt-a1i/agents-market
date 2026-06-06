@@ -327,7 +327,7 @@ agents-market ci diff
 agents-market ci init --provider github --yes
 ```
 
-The generated workflow runs `status --diff --json`, `outdated --fail-on-outdated --json`, `update --dry-run --fail-on-skipped --json`, and `doctor --strict --json` through `npx @agents-market/cli@<version>`. It pins minimal permissions, disables persisted checkout credentials, defines a job timeout, and cancels superseded runs on the same ref. Use `--package github:tt-a1i/agents-market#<tag-or-sha>` only for preview workflows before npm publication.
+The generated workflow runs `registry verify-lock --json`, `status --diff --json`, `outdated --fail-on-outdated --json`, `update --dry-run --fail-on-skipped --json`, and `doctor --strict --json` through `npx @agents-market/cli@<version>`. It pins minimal permissions, disables persisted checkout credentials, defines a job timeout, and cancels superseded runs on the same ref. Use `--package github:tt-a1i/agents-market#<tag-or-sha>` only for preview workflows before npm publication.
 
 Agent-native wrappers can use structured output:
 

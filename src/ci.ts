@@ -79,6 +79,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Verify registry lock
+        run: npx --yes ${options.packageSpec} registry verify-lock --json
       - name: Check generated agent drift
         run: npx --yes ${options.packageSpec} status --diff --json
       - name: Check installed pack versions

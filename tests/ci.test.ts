@@ -6,6 +6,7 @@ describe("ci workflow generation", () => {
     const workflow = generateCiWorkflow();
     expect(workflow.path).toBe(".github/workflows/agents-market.yml");
     expect(workflow.content).toContain("name: Agents Market");
+    expect(workflow.content).toContain("npx --yes @agents-market/cli@0.1.0 registry verify-lock --json");
     expect(workflow.content).toContain("npx --yes @agents-market/cli@0.1.0 status --diff --json");
     expect(workflow.content).toContain("npx --yes @agents-market/cli@0.1.0 outdated --fail-on-outdated --json");
     expect(workflow.content).toContain("npx --yes @agents-market/cli@0.1.0 update --dry-run --fail-on-skipped --json");

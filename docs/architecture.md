@@ -210,7 +210,7 @@ These packages reuse the same generated instructions as `integrations install`, 
 
 ## Project CI
 
-`agents-market ci init --provider github` generates `.github/workflows/agents-market.yml` for installed-pack maintenance. The workflow runs drift status, strict outdated-pack checks, strict update previews, and `doctor --strict --json` on pull requests, pushes to `main`, and manual dispatch. By default it uses `npx @agents-market/cli@<version>` so downstream projects pin the CLI version instead of executing a floating GitHub source. It is intentionally generated into the user's project so teams can review, commit, and customize their own policy for ongoing agent-pack health.
+`agents-market ci init --provider github` generates `.github/workflows/agents-market.yml` for installed-pack maintenance. The workflow verifies the registry lock, runs drift status, strict outdated-pack checks, strict update previews, and `doctor --strict --json` on pull requests, pushes to `main`, and manual dispatch. By default it uses `npx @agents-market/cli@<version>` so downstream projects pin the CLI version instead of executing a floating GitHub source. It is intentionally generated into the user's project so teams can review, commit, and customize their own policy for ongoing agent-pack health.
 
 ## Release Pipeline
 
