@@ -125,6 +125,8 @@ npm test
 
 `registry:check` builds the CLI, runs strict registry lint, checks all first-class target support, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
 
+Registry-related pull requests run the `Registry Review` workflow automatically. The workflow uploads `registry-submission-summary.json` and writes a job summary with lint score, prompt quality, catalog verification, and pack-by-pack audit/apply preview results.
+
 For targeted PR evidence, include the specific pack commands too:
 
 ```bash
@@ -148,6 +150,7 @@ Include this evidence in the PR body:
 - `registry lint --strict --json` result.
 - `audit --json` result for changed packs.
 - `apply --json` preview summary.
+- Link to the `Registry Review` workflow artifact when CI has completed.
 
 ## Maintainer Checklist
 
@@ -158,4 +161,5 @@ Before merging:
 - Confirm prompts do not ask agents to bypass user confirmation or project policy.
 - Confirm pack scope is focused and recommendation signals are useful.
 - Confirm generated target files are valid by running `apply --json` or `diff --json`.
+- Confirm the `Registry Review` workflow summary and `registry-submission-summary.json` artifact match the PR evidence.
 - Confirm CI is green.

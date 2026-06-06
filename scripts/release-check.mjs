@@ -1,4 +1,4 @@
-import { appendFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,7 +26,7 @@ async function main() {
   assert(registryChangelog.count >= 1, "Expected registry changelog to include at least one entry.");
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
   await runRegistrySignatureSmoke();
-  run("node", ["scripts/registry-submission-check.mjs"], "Registry submission gate");
+  await runRegistrySubmissionGateSmoke();
   run("npm", ["test"], "Unit tests");
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));
@@ -299,6 +299,22 @@ async function runLifecycleSmoke() {
     checks.push("Lifecycle smoke assertions");
   } finally {
     await rm(projectDir, { recursive: true, force: true });
+  }
+}
+
+async function runRegistrySubmissionGateSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-registry-gate-"));
+  try {
+    const summaryPath = join(dir, "registry-submission-summary.json");
+    run("node", ["scripts/registry-submission-check.mjs", "--summary-json", summaryPath], "Registry submission gate");
+    const summary = JSON.parse(await readFile(summaryPath, "utf8"));
+    assert(summary.ok === true, "Expected registry submission summary to be ok.");
+    assert(summary.lint?.score === 100, `Expected registry submission summary lint score 100, found ${summary.lint?.score}.`);
+    assert(summary.packs?.length >= 3, `Expected registry submission summary to include at least three packs, found ${summary.packs?.length}.`);
+    assert(summary.catalog?.ok === true, "Expected registry submission summary catalog verification to pass.");
+    checks.push("Registry submission summary");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 }
 

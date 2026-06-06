@@ -1,21 +1,56 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const checks = [];
+const options = parseArgs(process.argv.slice(2));
+const summary = {
+  ok: false,
+  registrySource: options.registry,
+  checks,
+  lint: undefined,
+  inventory: undefined,
+  packs: [],
+  catalog: undefined
+};
 
 async function main() {
-  const registrySource = "./registry";
   const lint = runJson(
     "node",
-    ["dist/index.js", "registry", "lint", "--registry", registrySource, "--strict", "--json"],
+    ["dist/index.js", "registry", "lint", "--registry", options.registry, "--strict", "--json"],
     "Registry strict lint"
   );
+  summary.lint = {
+    ok: lint.ok,
+    score: lint.score,
+    errorCount: lint.errorCount,
+    warningCount: lint.warningCount,
+    promptQuality: lint.promptQuality
+      ? {
+          averageScore: lint.promptQuality.averageScore,
+          minScore: lint.promptQuality.minScore,
+          maxScore: lint.promptQuality.maxScore
+        }
+      : undefined
+  };
   assert(lint.ok === true, "Registry strict lint failed.");
   assert(lint.score === 100, `Expected registry score 100, found ${lint.score}.`);
 
-  const info = runJson("node", ["dist/index.js", "registry", "info", "--registry", registrySource, "--json"], "Registry inventory");
+  const info = runJson("node", ["dist/index.js", "registry", "info", "--registry", options.registry, "--json"], "Registry inventory");
+  summary.inventory = {
+    packCount: info.packCount,
+    agentCount: info.agentCount,
+    changelogCount: info.changelog?.count ?? 0,
+    targets: info.targets,
+    packs: info.packs?.map((pack) => ({
+      id: pack.id,
+      name: pack.name,
+      version: pack.version,
+      agentCount: pack.agentCount,
+      requires: pack.requires
+    }))
+  };
   assert(info.packCount > 0, "Registry must contain at least one pack.");
   assert(info.agentCount > 0, "Registry must contain at least one agent.");
   assert(info.changelog?.count > 0, "Registry must contain at least one changelog entry.");
@@ -29,7 +64,7 @@ async function main() {
     for (const pack of info.packs) {
       const audit = runJson(
         "node",
-        ["dist/index.js", "audit", pack.id, "--registry", registrySource, "--target", "all", "--json"],
+        ["dist/index.js", "audit", pack.id, "--registry", options.registry, "--target", "all", "--json"],
         `Audit ${pack.id}`
       );
       assert(audit.agentCount === pack.agentCount, `Audit agent count mismatch for ${pack.id}.`);
@@ -42,7 +77,7 @@ async function main() {
           "apply",
           pack.id,
           "--registry",
-          registrySource,
+          options.registry,
           "--target",
           "all",
           "--policy-preset",
@@ -56,20 +91,37 @@ async function main() {
       assert(preview.installed === false, `Apply preview should not install ${pack.id}.`);
       assert(preview.policy?.ok === true, `Balanced policy should pass for ${pack.id}.`);
       assert(preview.changes?.length === audit.fileCount, `Apply preview file count mismatch for ${pack.id}.`);
+      summary.packs.push({
+        id: pack.id,
+        version: pack.version,
+        risk: audit.risk,
+        agentCount: audit.agentCount,
+        fileCount: audit.fileCount,
+        auditWarnings: audit.warnings?.length ?? 0,
+        policyOk: preview.policy?.ok === true,
+        previewChanges: preview.changes?.length ?? 0
+      });
     }
 
     run(
       "node",
-      ["dist/index.js", "catalog", "build", "--registry", registrySource, "--out", siteDir, "--base-url", "https://example.com/agents-market"],
+      ["dist/index.js", "catalog", "build", "--registry", options.registry, "--out", siteDir, "--base-url", "https://example.com/agents-market"],
       "Registry catalog build"
     );
     const catalog = runJson("node", ["dist/index.js", "catalog", "verify", "--dir", siteDir, "--json"], "Registry catalog verify");
+    summary.catalog = {
+      ok: catalog.ok,
+      errorCount: catalog.errorCount,
+      warningCount: catalog.warningCount
+    };
     assert(catalog.ok === true, "Registry catalog verification failed.");
   } finally {
     await rm(previewRoot, { recursive: true, force: true });
     await rm(siteDir, { recursive: true, force: true });
   }
 
+  summary.ok = true;
+  await writeSummary();
   console.log(`\nRegistry submission check passed (${checks.length} checks).`);
 }
 
@@ -133,6 +185,37 @@ function formatJsonSummary(label, json) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function parseArgs(args) {
+  const parsed = {
+    registry: "./registry",
+    summaryJson: undefined
+  };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--registry") {
+      parsed.registry = requiredValue(args, index, arg);
+      index += 1;
+    } else if (arg === "--summary-json") {
+      parsed.summaryJson = requiredValue(args, index, arg);
+      index += 1;
+    } else {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+  }
+  return parsed;
+}
+
+function requiredValue(args, index, option) {
+  const value = args[index + 1];
+  if (!value) throw new Error(`Missing value for ${option}.`);
+  return value;
+}
+
+async function writeSummary() {
+  if (!options.summaryJson) return;
+  await writeFile(options.summaryJson, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 }
 
 main().catch((error) => {

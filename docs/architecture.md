@@ -156,6 +156,8 @@ Current checks include:
 
 CI runs `npm run registry:check` through the release gate. This treats warnings as failures for the published registry, verifies all agents support Claude Code, Codex, and OpenCode, audits every pack, previews `apply --json` for every pack under the balanced policy, and verifies a catalog built from `./registry`.
 
+Registry-related pull requests also run the `Registry Review` workflow. It builds the CLI, runs `scripts/registry-submission-check.mjs --summary-json`, writes a pack-by-pack review summary to the GitHub Actions job summary, and uploads `registry-submission-summary.json` as an artifact for maintainers and agent-native reviewers.
+
 Deterministic prompt quality scoring gives reviewers a comparable baseline before publication. Static scoring is still not sufficient on its own: new or imported registry content also follows the review process in [contributing-agents.md](./contributing-agents.md): provenance, source license data, permission review, pack scope review, `audit --json`, and `apply --json` preview evidence are required before merge.
 
 Security-sensitive findings, including policy bypasses, unsafe generated files, registry checksum issues, or dangerous third-party content, follow [../SECURITY.md](../SECURITY.md) and should not be filed as public issues.
@@ -188,15 +190,15 @@ The catalog surfaces provenance, and `registry lint` warns when imported agents 
 ## Future Production Requirements
 
 - Signature or checksum verification for third-party packs.
-- Review automation for third-party registry submissions.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
 
 ## Release Pipeline
 
-The repository includes three GitHub Actions workflows:
+The repository includes four GitHub Actions workflows:
 
 - CI: typecheck, build, registry lint, and tests.
+- Registry Review: focused registry submission automation for registry-related pull requests.
 - Pages: static catalog generation and GitHub Pages deployment.
 - Release: npm package verification and publish on `v*` tags.
 

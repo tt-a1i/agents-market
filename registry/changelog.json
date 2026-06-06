@@ -13,7 +13,8 @@
       "Registry content is validated by strict linting, pack audit, apply preview, and catalog verification gates",
       "Published packs declare Agents Market CLI compatibility constraints before installation",
       "Manifest drift can be reconciled with resolve strategies for registry content, local edits, or forgotten tracked files",
-      "Registry lint reports explainable prompt quality scores for every agent"
+      "Registry lint reports explainable prompt quality scores for every agent",
+      "Registry-related pull requests get an automated review summary artifact"
     ]
   }
 ]

@@ -1,0 +1,63 @@
+name: Registry Review
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  pull_request:
+    paths:
+      - "registry/**"
+      - "scripts/registry-submission-check.mjs"
+      - "docs/contributing-agents.md"
+      - ".github/workflows/registry-review.yml"
+      - ".github/pull_request_template.md"
+      - ".github/ISSUE_TEMPLATE/agent_pack_submission.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Run registry submission gate
+        run: node scripts/registry-submission-check.mjs --summary-json registry-submission-summary.json
+      - name: Write registry review summary
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from "node:fs/promises";
+
+          const summary = JSON.parse(await readFile("registry-submission-summary.json", "utf8"));
+          const lines = [
+            "## Registry Review",
+            "",
+            `- Status: ${summary.ok ? "pass" : "fail"}`,
+            `- Registry: \`${summary.registrySource}\``,
+            `- Lint score: ${summary.lint.score}/100`,
+            `- Prompt quality: avg ${summary.lint.promptQuality.averageScore}/100, min ${summary.lint.promptQuality.minScore}/100`,
+            `- Inventory: ${summary.inventory.packCount} packs, ${summary.inventory.agentCount} agents`,
+            `- Catalog verify: ${summary.catalog.ok ? "pass" : "fail"}`,
+            "",
+            "| Pack | Version | Risk | Agents | Files | Policy | Preview changes |",
+            "| --- | --- | --- | ---: | ---: | --- | ---: |",
+            ...summary.packs.map(
+              (pack) =>
+                `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${
+                  pack.policyOk ? "pass" : "fail"
+                } | ${pack.previewChanges} |`
+            ),
+            ""
+          ];
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`, "utf8");
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: registry-submission-summary
+          path: registry-submission-summary.json
