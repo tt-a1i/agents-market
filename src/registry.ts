@@ -3,7 +3,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { registryRoot } from "./paths.js";
 import { agentSchema, packSchema, registryBundleSchema } from "./schema.js";
 import { sha256 } from "./hash.js";
-import type { AgentDefinition, PackDefinition, Registry, RegistryBundle } from "./types.js";
+import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock } from "./types.js";
 
 export interface LoadedRegistry {
   registry: Registry;
@@ -77,6 +77,9 @@ async function loadRegistryBundleFromUrl(url: string): Promise<RegistryBundle> {
   }
   const raw = await response.text();
   const parsed = registryBundleSchema.parse(JSON.parse(raw));
+  if (parsed.sha256 && registryBundleHash(parsed) !== parsed.sha256) {
+    throw new Error(`Registry bundle checksum mismatch: ${url}`);
+  }
   validateRegistry(parsed);
   return parsed;
 }
@@ -128,6 +131,20 @@ export function createRegistryBundle(registry: Registry, version: string, name =
     ...bundleWithoutHash,
     sha256: registryBundleHash(bundleWithoutHash)
   };
+}
+
+export function verifyRegistryLock(loaded: LoadedRegistry, lock: RegistryLock): void {
+  if (loaded.source.value !== lock.source) {
+    throw new Error(`Registry lock source mismatch: expected ${lock.source}, loaded ${loaded.source.value}`);
+  }
+  if (lock.version && loaded.source.version && loaded.source.version !== lock.version) {
+    throw new Error(`Registry lock version mismatch: expected ${lock.version}, loaded ${loaded.source.version}`);
+  }
+  if (lock.sha256 && loaded.source.sha256 !== lock.sha256) {
+    throw new Error(
+      `Registry lock checksum mismatch: expected ${lock.sha256}, loaded ${loaded.source.sha256 ?? "none"}`
+    );
+  }
 }
 
 function registryBundleHash(bundle: Omit<RegistryBundle, "sha256">): string {

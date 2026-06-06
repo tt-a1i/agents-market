@@ -65,6 +65,7 @@ agents-market uninstall starter-dev-pack --target claude
 agents-market export frontend-pack --target all --out ./generated
 agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
+agents-market registry verify-lock
 agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
@@ -121,7 +122,14 @@ Lock a project to a registry source:
 agents-market registry lock --registry ./registry.bundle.json
 ```
 
-This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted.
+This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted and verify the locked checksum when the lock includes one.
+
+Verify a lock explicitly:
+
+```bash
+agents-market registry verify-lock
+agents-market registry verify-lock --json
+```
 
 Lint a registry before publishing:
 

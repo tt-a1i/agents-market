@@ -3,7 +3,7 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { dirname, resolve, sep } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
+import { createRegistryBundle, loadRegistryWithInfo, verifyRegistryLock } from "./registry.js";
 import { buildCatalog } from "./catalog.js";
 import { lintRegistry } from "./registry-lint.js";
 import { detectProject } from "./project.js";
@@ -55,7 +55,9 @@ function parseSearchKind(value: string): SearchKind {
 async function loadProjectRegistry(root: string, registryOption?: string) {
   if (registryOption) return loadRegistryWithInfo(registryOption);
   const lock = await loadRegistryLock(root);
-  return loadRegistryWithInfo(lock?.source);
+  const loaded = await loadRegistryWithInfo(lock?.source);
+  if (lock) verifyRegistryLock(loaded, lock);
+  return loaded;
 }
 
 program
@@ -654,6 +656,61 @@ registryCommand
       lockedAt: new Date().toISOString()
     });
     console.log(pc.green(`Locked registry ${loaded.source.value} in ${root}`));
+  });
+
+registryCommand
+  .command("verify-lock")
+  .option("--cwd <path>", "project root containing .agents-market/registry-lock.json")
+  .option("--json", "print machine-readable JSON")
+  .description("Verify the project registry lock source, version, and checksum")
+  .action(async (options: { cwd?: string; json?: boolean }) => {
+    const root = cwd(options.cwd);
+    const lock = await loadRegistryLock(root);
+    if (!lock) {
+      const result = {
+        ok: false,
+        root,
+        error: "No registry lock found.",
+        path: ".agents-market/registry-lock.json"
+      };
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(pc.yellow(`No registry lock found in ${root}`));
+      }
+      process.exitCode = 1;
+      return;
+    }
+
+    try {
+      const loaded = await loadRegistryWithInfo(lock.source);
+      verifyRegistryLock(loaded, lock);
+      const result = {
+        ok: true,
+        root,
+        lock,
+        loaded: loaded.source
+      };
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(pc.green(`Registry lock verified: ${lock.source}`));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        ok: false,
+        root,
+        lock,
+        error: message
+      };
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.log(pc.red(`Registry lock verification failed: ${message}`));
+      }
+      process.exitCode = 1;
+    }
   });
 
 registryCommand

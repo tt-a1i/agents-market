@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createRegistryBundle, loadRegistry } from "../src/registry.js";
+import { createRegistryBundle, loadRegistry, verifyRegistryLock } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { auditPack } from "../src/audit.js";
 import { runDoctor } from "../src/doctor.js";
@@ -119,5 +119,39 @@ describe("registry", () => {
     expect(bundle.schemaVersion).toBe(1);
     expect(bundle.sha256).toHaveLength(64);
     expect(bundle.packs.length).toBe(registry.packs.length);
+  });
+
+  it("verifies locked registry checksums", async () => {
+    const registry = await loadRegistry();
+    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry");
+    const loaded = {
+      registry,
+      source: {
+        kind: "file" as const,
+        value: "/tmp/registry.bundle.json",
+        version: bundle.version,
+        sha256: bundle.sha256
+      }
+    };
+
+    expect(() =>
+      verifyRegistryLock(loaded, {
+        schemaVersion: 1,
+        source: "/tmp/registry.bundle.json",
+        version: bundle.version,
+        sha256: bundle.sha256,
+        lockedAt: "2026-06-06T00:00:00.000Z"
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      verifyRegistryLock(loaded, {
+        schemaVersion: 1,
+        source: "/tmp/registry.bundle.json",
+        version: bundle.version,
+        sha256: "bad-checksum",
+        lockedAt: "2026-06-06T00:00:00.000Z"
+      })
+    ).toThrow(/checksum mismatch/);
   });
 });

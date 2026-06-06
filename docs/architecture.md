@@ -96,7 +96,9 @@ The CLI supports multiple registry sources:
 - packs
 - sha256 checksum
 
-`agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands read that lockfile first and fall back to the bundled registry only when no lockfile exists.
+`agents-market registry lock` writes `.agents-market/registry-lock.json`. When the user does not pass `--registry`, project-level commands read that lockfile first, verify its source/version/checksum when present, and fall back to the bundled registry only when no lockfile exists.
+
+`agents-market registry verify-lock` gives humans, CI, and agent-native wrappers an explicit lock verification command.
 
 This is the foundation for a hosted marketplace: the Web catalog can publish versioned registry bundles, and agent-native integrations can lock a project before installation.
 
