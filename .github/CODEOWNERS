@@ -12,6 +12,7 @@
 /.github/dependabot.yml @tt-a1i
 /scripts/build-release-artifacts.mjs @tt-a1i
 /scripts/release-check.mjs @tt-a1i
+/scripts/verify-release-artifacts.mjs @tt-a1i
 /scripts/registry-submission-check.mjs @tt-a1i
 /package.json @tt-a1i
 /package-lock.json @tt-a1i

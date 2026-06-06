@@ -1,8 +1,8 @@
-import { appendFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const checks = [];
 
@@ -59,8 +59,10 @@ async function main() {
   assert(registryReview.catalog?.ok === true, "Expected registry review catalog verification to pass.");
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
+  await runImportJsonSmoke();
   await runCiWorkflowSmoke();
   await runRepositoryAutomationSmoke();
+  await runSecurityWorkflowSmoke();
   await runCodeownersSmoke();
   await runIntegrationPackageSmoke();
   await runReleaseArtifactsSmoke();
@@ -84,6 +86,7 @@ async function main() {
 
   const pack = run("npm", ["pack", "--dry-run", "--json"], "Package dry run");
   verifyTarball(parseNpmPackJson(pack.stdout));
+  await runPackageInstallSmoke();
 
   console.log(`\nRelease check passed (${checks.length} checks).`);
 }
@@ -274,6 +277,58 @@ async function runLifecycleSmoke() {
     const acceptedFile = afterAcceptStatus.installs?.[0]?.files?.find((file) => file.path === ".claude/agents/code-reviewer.md");
     assert(acceptedFile?.state === "clean", `Expected accept-registry status to be clean, found ${acceptedFile?.state}.`);
 
+    const rollbackRegistryDir = join(projectDir, "rollback-registry");
+    await cp("registry", rollbackRegistryDir, { recursive: true });
+    const rollbackAgentPath = join(rollbackRegistryDir, "agents", "code-reviewer.json");
+    const rollbackAgent = JSON.parse(await readFile(rollbackAgentPath, "utf8"));
+    rollbackAgent.prompt = `${rollbackAgent.prompt}\nRollback smoke marker.`;
+    await writeFile(rollbackAgentPath, `${JSON.stringify(rollbackAgent, null, 2)}\n`, "utf8");
+    const rollbackPackPath = join(rollbackRegistryDir, "packs", "starter-dev-pack.json");
+    const rollbackPack = JSON.parse(await readFile(rollbackPackPath, "utf8"));
+    rollbackPack.version = "0.1.1";
+    await writeFile(rollbackPackPath, `${JSON.stringify(rollbackPack, null, 2)}\n`, "utf8");
+
+    const strictOutdated = runJsonAllowFailure(
+      "node",
+      ["dist/index.js", "outdated", "--cwd", projectDir, "--registry", rollbackRegistryDir, "--fail-on-outdated", "--json"],
+      "Lifecycle strict outdated check"
+    );
+    assert(strictOutdated.status === 1, `Expected strict outdated check to exit 1, found ${strictOutdated.status}.`);
+    assert(strictOutdated.json.outdatedCount === 1, `Expected strict outdated check to find one outdated pack, found ${strictOutdated.json.outdatedCount}.`);
+
+    const updateForRollback = runJson(
+      "node",
+      ["dist/index.js", "update", "starter-dev-pack", "--cwd", projectDir, "--registry", rollbackRegistryDir, "--json"],
+      "Lifecycle update for rollback"
+    );
+    assert(updateForRollback.written >= 1, `Expected update for rollback to write files, found ${updateForRollback.written}.`);
+    assert(updateForRollback.updates?.[0]?.toVersion === "0.1.1", `Expected rollback update target version 0.1.1, found ${updateForRollback.updates?.[0]?.toVersion}.`);
+    const updatedCodeReviewer = await readFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "utf8");
+    assert(updatedCodeReviewer.includes("Rollback smoke marker."), "Expected update for rollback to write the modified agent prompt.");
+
+    const rollbackPreview = runJson(
+      "node",
+      ["dist/index.js", "rollback", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--json"],
+      "Lifecycle rollback preview"
+    );
+    assert(rollbackPreview.dryRun === true, "Expected rollback without --yes to be a preview.");
+    assert(rollbackPreview.restored >= 1, `Expected rollback preview to restore files, found ${rollbackPreview.restored}.`);
+    const rollbackInstallManifest = JSON.parse(await readFile(join(projectDir, ".agents-market", "manifest.json"), "utf8"));
+    assert(rollbackInstallManifest.installs?.[0]?.history?.length === 1, "Expected rollback preview to leave update history intact.");
+
+    const rollback = runJson(
+      "node",
+      ["dist/index.js", "rollback", "starter-dev-pack", "--target", "claude", "--cwd", projectDir, "--yes", "--json"],
+      "Lifecycle rollback"
+    );
+    assert(rollback.dryRun === false, "Expected rollback --yes to write changes.");
+    assert(rollback.restored >= 1, `Expected rollback to restore files, found ${rollback.restored}.`);
+    const rolledBackCodeReviewer = await readFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "utf8");
+    assert(!rolledBackCodeReviewer.includes("Rollback smoke marker."), "Expected rollback to restore the previous agent prompt.");
+    const rolledBackManifest = JSON.parse(await readFile(join(projectDir, ".agents-market", "manifest.json"), "utf8"));
+    assert(rolledBackManifest.installs?.[0]?.packVersion === "0.1.0", `Expected rollback to restore pack version 0.1.0, found ${rolledBackManifest.installs?.[0]?.packVersion}.`);
+    assert(!rolledBackManifest.installs?.[0]?.history, "Expected rollback to consume the update history entry.");
+
     await appendFile(join(projectDir, ".claude", "agents", "code-reviewer.md"), "\n<!-- third local edit from release smoke -->\n", "utf8");
 
     const updateDryRun = runJson(
@@ -283,6 +338,14 @@ async function runLifecycleSmoke() {
     );
     assert(updateDryRun.skipped === 1, `Expected update dry run to skip one modified file, found ${updateDryRun.skipped}.`);
     assert(hasAction(updateDryRun.updates, "skip-modified"), "Expected update dry run to report a skip-modified action.");
+
+    const strictUpdateDryRun = runJsonAllowFailure(
+      "node",
+      ["dist/index.js", "update", "starter-dev-pack", "--cwd", projectDir, "--dry-run", "--fail-on-skipped", "--json"],
+      "Lifecycle strict update dry run"
+    );
+    assert(strictUpdateDryRun.status === 1, `Expected strict update dry run to exit 1, found ${strictUpdateDryRun.status}.`);
+    assert(strictUpdateDryRun.json.blockedCount === 1, `Expected strict update dry run to report one blocked change, found ${strictUpdateDryRun.json.blockedCount}.`);
 
     const uninstallDryRun = runJson(
       "node",
@@ -366,8 +429,83 @@ async function runRegistrySubmissionGateSmoke() {
     assert(summary.catalog?.ok === true, "Expected registry submission summary catalog verification to pass.");
     assert(markdown.includes("<!-- agents-market-registry-review -->"), "Expected registry submission Markdown to include a sticky comment marker.");
     assert(markdown.includes("| Pack | Version | Risk |"), "Expected registry submission Markdown to include the pack review table.");
+    assert(markdown.includes("| Checksummed | Committed |"), "Expected registry submission Markdown to include provenance commit coverage.");
     assert(markdown.includes("security-pack"), "Expected registry submission Markdown to include security-pack.");
     checks.push("Registry submission summary");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function runImportJsonSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-import-"));
+  try {
+    const sourceDir = join(dir, "community-agents");
+    const agentsDir = join(dir, "registry", "agents");
+    const packsDir = join(dir, "registry", "packs");
+    await mkdir(join(sourceDir, "nested"), { recursive: true });
+    await writeFile(
+      join(sourceDir, "reviewer.md"),
+      `---
+name: imported-reviewer
+description: Reviews code for regressions, maintainability, test gaps, and security issues.
+tools: Read, Grep
+---
+
+You are an imported code reviewer. Inspect the relevant files before making claims, prioritize regressions and missing tests, and return concise findings with file references.
+`,
+      "utf8"
+    );
+    await writeFile(
+      join(sourceDir, "nested", "debugger.md"),
+      `---
+name: imported-debugger
+description: Investigates failing tests, runtime errors, logs, and stack traces.
+tools: Read, Grep, Bash
+---
+
+You are an imported debugger. Inspect failing tests, logs, stack traces, and related source files, then identify the smallest credible root cause with verification steps.
+`,
+      "utf8"
+    );
+
+    const report = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "import",
+        "directory",
+        sourceDir,
+        "--target",
+        "claude",
+        "--out",
+        agentsDir,
+        "--pack",
+        "community-pack",
+        "--pack-out",
+        packsDir,
+        "--source-repo",
+        "example/community-agents",
+        "--source-license",
+        "MIT",
+        "--json"
+      ],
+      "Import directory JSON"
+    );
+    assert(report.importedCount === 2, `Expected import JSON to report two imported agents, found ${report.importedCount}.`);
+    assert(report.skippedCount === 0, `Expected import JSON to report zero skipped files, found ${report.skippedCount}.`);
+    assert(report.pack?.id === "community-pack", `Expected import JSON pack community-pack, found ${report.pack?.id}.`);
+    assert(
+      report.imported?.every((agent) => agent.provenance?.sourceSha256?.length === 64),
+      "Expected import JSON summaries to include source SHA-256 provenance."
+    );
+    assert(
+      !JSON.stringify(report.imported).includes("You are an imported"),
+      "Import JSON summaries should not include full prompt bodies."
+    );
+    const lint = runJson("node", ["dist/index.js", "registry", "lint", "--registry", join(dir, "registry"), "--json"], "Imported registry lint");
+    assert(lint.errorCount === 0, "Expected imported registry lint to avoid errors.");
+    checks.push("Import JSON smoke assertions");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -409,9 +547,14 @@ async function runCiWorkflowSmoke() {
     assert(init.nextCommands?.includes("agents-market doctor --strict --json"), "Expected CI init to include strict doctor next command.");
 
     const workflow = await readFile(join(dir, ".github/workflows/agents-market.yml"), "utf8");
-    assert(workflow.includes("npx --yes github:tt-a1i/agents-market status --diff --json"), "Expected CI workflow to check generated agent drift.");
-    assert(workflow.includes("npx --yes github:tt-a1i/agents-market outdated --json"), "Expected CI workflow to check installed pack versions.");
-    assert(workflow.includes("npx --yes github:tt-a1i/agents-market doctor --strict --json"), "Expected CI workflow to run strict doctor.");
+    assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 status --diff --json"), "Expected CI workflow to check generated agent drift with a pinned npm package.");
+    assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 outdated --fail-on-outdated --json"), "Expected CI workflow to fail on outdated installed pack versions.");
+    assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 update --dry-run --fail-on-skipped --json"), "Expected CI workflow to fail on blocked update previews.");
+    assert(workflow.includes("npx --yes @agents-market/cli@0.1.0 doctor --strict --json"), "Expected CI workflow to run strict doctor with a pinned npm package.");
+    assert(workflow.includes("group: agents-market-${{ github.ref }}"), "Expected CI workflow to cancel superseded runs by ref.");
+    assert(workflow.includes("cancel-in-progress: true"), "Expected CI workflow to cancel superseded runs.");
+    assert(workflow.includes("timeout-minutes: 10"), "Expected CI workflow to define a job timeout.");
+    assert(workflow.includes("persist-credentials: false"), "Expected CI workflow to avoid persisting checkout credentials.");
     checks.push("CI workflow contents");
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -419,6 +562,21 @@ async function runCiWorkflowSmoke() {
 }
 
 async function runRepositoryAutomationSmoke() {
+  const ciWorkflow = await readFile(".github/workflows/ci.yml", "utf8");
+  assert(ciWorkflow.includes("permissions:\n  contents: read"), "CI workflow should declare read-only contents permission.");
+  assert(ciWorkflow.includes("group: ci-${{ github.ref }}"), "CI workflow should cancel superseded runs by ref.");
+  assert(ciWorkflow.includes("cancel-in-progress: true"), "CI workflow should cancel superseded runs.");
+  assert(ciWorkflow.includes("timeout-minutes: 20"), "CI workflow should define a job timeout.");
+  assert(ciWorkflow.includes("persist-credentials: false"), "CI workflow should avoid persisting checkout credentials.");
+
+  const registryReviewWorkflow = await readFile(".github/workflows/registry-review.yml", "utf8");
+  assert(registryReviewWorkflow.includes("contents: read"), "Registry Review workflow should keep read-only contents permission.");
+  assert(registryReviewWorkflow.includes("pull-requests: write"), "Registry Review workflow should be allowed to update PR comments.");
+  assert(registryReviewWorkflow.includes("group: registry-review-${{ github.ref }}"), "Registry Review workflow should cancel superseded runs by ref.");
+  assert(registryReviewWorkflow.includes("cancel-in-progress: true"), "Registry Review workflow should cancel superseded runs.");
+  assert(registryReviewWorkflow.includes("timeout-minutes: 20"), "Registry Review workflow should define a job timeout.");
+  assert(registryReviewWorkflow.includes("persist-credentials: false"), "Registry Review workflow should avoid persisting checkout credentials.");
+
   const dependabot = await readFile(".github/dependabot.yml", "utf8");
   assert(dependabot.includes("package-ecosystem: npm"), "Dependabot should monitor npm dependencies.");
   assert(dependabot.includes("package-ecosystem: github-actions"), "Dependabot should monitor GitHub Actions.");
@@ -426,6 +584,29 @@ async function runRepositoryAutomationSmoke() {
   assert(dependabot.includes("npm-minor-patch"), "Dependabot should group npm minor and patch updates.");
   assert(dependabot.includes("github-actions-minor-patch"), "Dependabot should group GitHub Actions minor and patch updates.");
   checks.push("Repository automation config");
+}
+
+async function runSecurityWorkflowSmoke() {
+  const workflow = await readFile(".github/workflows/security.yml", "utf8");
+  assert(workflow.includes("github/codeql-action/init@v4"), "Security workflow should initialize CodeQL with the current major action.");
+  assert(workflow.includes("github/codeql-action/analyze@v4"), "Security workflow should analyze CodeQL results with the current major action.");
+  assert(workflow.includes("actions/dependency-review-action@v5"), "Security workflow should run the current major dependency review action.");
+  assert(workflow.includes("ossf/scorecard-action@v2"), "Security workflow should run OpenSSF Scorecard.");
+  assert(workflow.includes("github/codeql-action/upload-sarif@v4"), "Security workflow should upload Scorecard SARIF results.");
+  assert(workflow.includes("languages: javascript-typescript"), "Security workflow should scan JavaScript and TypeScript.");
+  assert(workflow.includes("security-events: write"), "Security workflow should be allowed to upload CodeQL results.");
+  assert(workflow.includes("id-token: write"), "Security workflow should allow Scorecard result publishing through OIDC.");
+  assert(workflow.includes("pull-requests: read"), "Security workflow should be allowed to inspect pull request dependency changes.");
+  assert(workflow.includes("group: security-${{ github.ref }}"), "Security workflow should cancel superseded runs by ref.");
+  assert(workflow.includes("cancel-in-progress: true"), "Security workflow should cancel superseded runs.");
+  assert(workflow.includes("fail-on-severity: high"), "Dependency review should fail high-severity dependency changes.");
+  assert(workflow.includes("publish_results: true"), "Security workflow should publish OpenSSF Scorecard results.");
+  assert(workflow.includes("timeout-minutes: 15"), "Security workflow should define timeouts for long-running scan jobs.");
+  assert(workflow.includes("timeout-minutes: 10"), "Security workflow should define a timeout for dependency review.");
+  assert(workflow.includes("persist-credentials: false"), "Security workflow should avoid persisting checkout credentials.");
+  assert(workflow.includes("cron:"), "Security workflow should run on a schedule.");
+  assert(workflow.includes("workflow_dispatch:"), "Security workflow should support manual runs.");
+  checks.push("Security workflow config");
 }
 
 async function runCodeownersSmoke() {
@@ -436,6 +617,7 @@ async function runCodeownersSmoke() {
     "/.github/workflows/ @tt-a1i",
     "/scripts/build-release-artifacts.mjs @tt-a1i",
     "/scripts/release-check.mjs @tt-a1i",
+    "/scripts/verify-release-artifacts.mjs @tt-a1i",
     "/package.json @tt-a1i",
     "/SECURITY.md @tt-a1i"
   ]) {
@@ -446,23 +628,47 @@ async function runCodeownersSmoke() {
 
 async function runReleaseArtifactsSmoke() {
   const dir = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-"));
+  const signedDir = await mkdtemp(join(tmpdir(), "agents-market-release-artifacts-signed-"));
+  const keyDir = await mkdtemp(join(tmpdir(), "agents-market-release-keys-"));
   try {
     const packageVersion = JSON.parse(await readFile("package.json", "utf8")).version;
     run(
       "node",
-      ["scripts/build-release-artifacts.mjs", "--out", dir, "--catalog-base-url", "https://example.com/agents-market"],
+      [
+        "scripts/build-release-artifacts.mjs",
+        "--out",
+        dir,
+        "--catalog-base-url",
+        "https://example.com/agents-market",
+        "--release-tag",
+        "preview-0.1.0",
+        "--package",
+        "github:tt-a1i/agents-market#preview-0.1.0"
+      ],
       "Release artifact build"
     );
+    const artifactVerification = runJson("node", ["scripts/verify-release-artifacts.mjs", "--dir", dir, "--json"], "Release artifact verification");
+    assert(artifactVerification.ok === true, "Release artifact verifier failed.");
+    assert(artifactVerification.sbom?.format === "SPDX-2.3", "Release artifact verifier did not validate the SPDX SBOM.");
     const manifest = JSON.parse(await readFile(join(dir, "release-artifacts.json"), "utf8"));
-    assert(manifest.packageSpec === "github:tt-a1i/agents-market", `Expected release artifact packageSpec github:tt-a1i/agents-market, found ${manifest.packageSpec}.`);
+    assert(
+      manifest.packageSpec === "github:tt-a1i/agents-market#preview-0.1.0",
+      `Expected release artifact packageSpec github:tt-a1i/agents-market#preview-0.1.0, found ${manifest.packageSpec}.`
+    );
     assert(manifest.repositoryUrl === "https://github.com/tt-a1i/agents-market", `Expected release artifact repository URL, found ${manifest.repositoryUrl}.`);
     assert(manifest.releaseUrl?.endsWith(`/releases/tag/${manifest.releaseTag}`), `Expected release artifact release URL to match release tag, found ${manifest.releaseUrl}.`);
     const artifactPaths = new Set(manifest.artifacts?.map((artifact) => artifact.path));
+    const completeArchiveName = `agents-market-release-artifacts-${packageVersion}.tgz`;
+    assert(!artifactPaths.has(completeArchiveName), "Complete release artifact archive should not be listed inside its own manifest.");
     for (const required of [
       "registry.bundle.json",
       "catalog/index.html",
       "catalog/catalog.json",
+      "catalog/favicon.svg",
       "catalog/registry.bundle.json",
+      "catalog/robots.txt",
+      "catalog/site.webmanifest",
+      "sbom.spdx.json",
       `agents-market-catalog-${packageVersion}.tgz`,
       "install.sh",
       `agents-market-claude-${packageVersion}.tgz`,
@@ -474,41 +680,306 @@ async function runReleaseArtifactsSmoke() {
     }
     const checksums = await readFile(join(dir, "SHA256SUMS"), "utf8");
     assert(checksums.includes("registry.bundle.json"), "Release artifact checksums do not include registry.bundle.json.");
+    assert(!checksums.includes(completeArchiveName), "Complete release artifact archive should not be listed inside its own SHA256SUMS.");
+    const completeArchiveListing = run("tar", ["-tzf", join(dir, completeArchiveName)], "Complete release artifact archive listing").stdout;
+    for (const required of [
+      "release-artifacts.json",
+      "SHA256SUMS",
+      "catalog/index.html",
+      "catalog/site.webmanifest",
+      `npm/agents-market-cli-${packageVersion}.tgz`
+    ]) {
+      assert(completeArchiveListing.includes(required), `Complete release artifact archive is missing ${required}.`);
+    }
+    const completeArchiveVerification = runJson(
+      "node",
+      ["scripts/verify-release-artifacts.mjs", "--archive", join(dir, completeArchiveName), "--json"],
+      "Complete release artifact archive verification"
+    );
+    assert(completeArchiveVerification.ok === true, "Complete release artifact archive verifier failed.");
+    const cliArchiveVerification = runJson(
+      "node",
+      ["dist/index.js", "release", "verify-artifacts", "--archive", join(dir, completeArchiveName), "--json"],
+      "CLI complete release artifact archive verification"
+    );
+    assert(cliArchiveVerification.ok === true, "CLI complete release artifact archive verifier failed.");
+    assert(cliArchiveVerification.version === packageVersion, "CLI release artifact verifier should report the package version.");
     const catalog = JSON.parse(await readFile(join(dir, "catalog", "catalog.json"), "utf8"));
     const bundle = JSON.parse(await readFile(join(dir, "registry.bundle.json"), "utf8"));
     const starterPack = catalog.packs?.find((pack) => pack.id === "starter-dev-pack");
-    assert(catalog.packageSpec === "github:tt-a1i/agents-market", `Expected release catalog packageSpec github:tt-a1i/agents-market, found ${catalog.packageSpec}.`);
+    assert(
+      catalog.packageSpec === "github:tt-a1i/agents-market#preview-0.1.0",
+      `Expected release catalog packageSpec github:tt-a1i/agents-market#preview-0.1.0, found ${catalog.packageSpec}.`
+    );
     assert(catalog.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release catalog repository metadata, found ${catalog.metadata?.repository}.`);
     assert(bundle.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release bundle repository metadata, found ${bundle.metadata?.repository}.`);
-    assert(bundle.metadata?.packageSpec === "github:tt-a1i/agents-market", `Expected release bundle packageSpec metadata, found ${bundle.metadata?.packageSpec}.`);
+    assert(bundle.metadata?.packageSpec === "github:tt-a1i/agents-market#preview-0.1.0", `Expected release bundle packageSpec metadata, found ${bundle.metadata?.packageSpec}.`);
     assert(
-      starterPack?.previewCommand?.startsWith("npx github:tt-a1i/agents-market apply starter-dev-pack"),
-      `Expected release catalog preview command to use GitHub npx package spec, found ${starterPack?.previewCommand}.`
+      starterPack?.previewCommand?.startsWith("npx github:tt-a1i/agents-market#preview-0.1.0 apply starter-dev-pack"),
+      `Expected release catalog preview command to use tag-pinned GitHub npx package spec, found ${starterPack?.previewCommand}.`
     );
     const installScript = await readFile(join(dir, "install.sh"), "utf8");
     assert(installScript.includes("Checksum mismatch"), "Release install script should verify checksums before installing.");
+    assert(installScript.includes("Install requires curl."), "Release install script should check for curl before downloading assets.");
+    assert(installScript.includes("Install requires npm."), "Release install script should check for npm before installing assets.");
+    assert(
+      installScript.includes("Install requires sha256sum or shasum."),
+      "Release install script should check for a SHA-256 checksum command."
+    );
+    assert(installScript.includes("AGENTS_MARKET_REQUIRE_ATTESTATION"), "Release install script should support required GitHub attestation verification.");
+    assert(installScript.includes("gh attestation verify \"${TMP_DIR}/SHA256SUMS\" --repo \"${REPO}\""), "Release install script should verify SHA256SUMS attestations.");
+    assert(installScript.includes("gh attestation verify \"${TMP_DIR}/${TARBALL}\" --repo \"${REPO}\""), "Release install script should verify npm tarball attestations.");
+    assert(
+      installScript.indexOf("Install requires curl.") < installScript.indexOf("curl -fsSL"),
+      "Release install script should check for curl before the first download."
+    );
+    assert(
+      installScript.indexOf("gh attestation verify") < installScript.indexOf("EXPECTED_SHA="),
+      "Release install script should verify attestations before trusting SHA256SUMS."
+    );
+    assert(
+      installScript.indexOf("Install requires npm.") < installScript.indexOf("npm install -g"),
+      "Release install script should check for npm before installing the tarball."
+    );
     assert(installScript.includes("npm install -g"), "Release install script should install the npm tarball.");
+    const sbom = JSON.parse(await readFile(join(dir, "sbom.spdx.json"), "utf8"));
+    assert(sbom.spdxVersion === "SPDX-2.3", `Expected SPDX 2.3 SBOM, found ${sbom.spdxVersion}.`);
+    assert(sbom.name === `@agents-market/cli@${packageVersion}`, `Expected SBOM package name @agents-market/cli@${packageVersion}, found ${sbom.name}.`);
+    assert(sbom.packages?.length >= 1, "Expected SBOM to include package records.");
+    assert(artifactPaths.has("sbom.spdx.json"), "Release artifacts are missing sbom.spdx.json.");
+    assert(checksums.includes("sbom.spdx.json"), "Release artifact checksums do not include sbom.spdx.json.");
     run("sh", ["-n", join(dir, "install.sh")], "Release install script syntax");
     checks.push("Release artifact contents");
+
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    const privateKeyPath = join(keyDir, "registry-private.pem");
+    const publicKeyPath = join(keyDir, "registry-public-source.pem");
+    await writeFile(privateKeyPath, privateKey.export({ format: "pem", type: "pkcs8" }).toString(), "utf8");
+    await writeFile(publicKeyPath, publicKey.export({ format: "pem", type: "spki" }).toString(), "utf8");
+    run(
+      "node",
+      [
+        "scripts/build-release-artifacts.mjs",
+        "--out",
+        signedDir,
+        "--catalog-base-url",
+        "https://example.com/agents-market",
+        "--private-key",
+        privateKeyPath,
+        "--public-key",
+        publicKeyPath,
+        "--key-id",
+        "release-artifact-test"
+      ],
+      "Signed release artifact build"
+    );
+    const signedArtifactVerification = runJson(
+      "node",
+      ["scripts/verify-release-artifacts.mjs", "--dir", signedDir, "--json"],
+      "Signed release artifact verification"
+    );
+    assert(signedArtifactVerification.ok === true, "Signed release artifact verifier failed.");
+    assert(
+      signedArtifactVerification.signatures?.registry?.ok === true &&
+        signedArtifactVerification.signatures?.registry?.keyId === "release-artifact-test",
+      "Signed release artifact verifier should verify the root registry bundle signature."
+    );
+    assert(
+      signedArtifactVerification.signatures?.catalog?.ok === true &&
+        signedArtifactVerification.signatures?.catalog?.keyId === "release-artifact-test",
+      "Signed release artifact verifier should verify the catalog registry bundle signature."
+    );
+    const signedManifest = JSON.parse(await readFile(join(signedDir, "release-artifacts.json"), "utf8"));
+    const signedArtifactPaths = new Set(signedManifest.artifacts?.map((artifact) => artifact.path));
+    assert(signedArtifactPaths.has("registry-public.pem"), "Signed release artifacts should include registry-public.pem.");
+    assert(signedArtifactPaths.has("catalog/registry-public.pem"), "Signed release catalog should include catalog/registry-public.pem.");
+    const signedBundle = JSON.parse(await readFile(join(signedDir, "registry.bundle.json"), "utf8"));
+    assert(signedBundle.signatures?.some((signature) => signature.keyId === "release-artifact-test"), "Signed release bundle is missing the expected key id.");
+    const signedCatalogBundle = JSON.parse(await readFile(join(signedDir, "catalog", "registry.bundle.json"), "utf8"));
+    const signedCatalog = JSON.parse(await readFile(join(signedDir, "catalog", "catalog.json"), "utf8"));
+    assert(
+      signedCatalogBundle.signatures?.some((signature) => signature.keyId === "release-artifact-test"),
+      "Signed release catalog bundle is missing the expected key id."
+    );
+    assert(
+      signedCatalog.registryWorkflows?.some((workflow) =>
+        workflow.command?.includes("--public-key https://example.com/agents-market/registry-public.pem --key-id release-artifact-test")
+      ),
+      "Signed release catalog should include a hosted registry signature verification command."
+    );
+    assert(
+      signedCatalog.registryWorkflows?.some((workflow) =>
+        workflow.command?.includes("registry lock --registry https://example.com/agents-market/registry.bundle.json --public-key https://example.com/agents-market/registry-public.pem --key-id release-artifact-test")
+      ),
+      "Signed release catalog should include a signature-aware registry lock command."
+    );
+    const signedVerification = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "registry",
+        "verify",
+        "--registry",
+        join(signedDir, "registry.bundle.json"),
+        "--public-key",
+        join(signedDir, "registry-public.pem"),
+        "--key-id",
+        "release-artifact-test",
+        "--json"
+      ],
+      "Signed release artifact verify"
+    );
+    assert(signedVerification.ok === true, "Signed release artifact verification failed.");
+    assert(signedVerification.signatures?.verified?.ok === true, "Signed release artifact signature should verify.");
+    const signedCatalogVerification = runJson(
+      "node",
+      [
+        "dist/index.js",
+        "registry",
+        "verify",
+        "--registry",
+        join(signedDir, "catalog", "registry.bundle.json"),
+        "--public-key",
+        join(signedDir, "catalog", "registry-public.pem"),
+        "--key-id",
+        "release-artifact-test",
+        "--json"
+      ],
+      "Signed release catalog verify"
+    );
+    assert(signedCatalogVerification.ok === true, "Signed release catalog verification failed.");
+    assert(signedCatalogVerification.signatures?.verified?.ok === true, "Signed release catalog signature should verify.");
+    await withStaticServer(signedDir, async (baseUrl) => {
+      const remoteKeyVerification = runJson(
+        "node",
+        [
+          "dist/index.js",
+          "registry",
+          "verify",
+          "--registry",
+          join(signedDir, "registry.bundle.json"),
+          "--public-key",
+          `${baseUrl}/registry-public.pem`,
+          "--key-id",
+          "release-artifact-test",
+          "--json"
+        ],
+        "Signed release artifact verify with public key URL"
+      );
+      assert(remoteKeyVerification.ok === true, "Signed release artifact verification with public key URL failed.");
+      assert(remoteKeyVerification.signatures?.verified?.ok === true, "Signed release artifact URL signature should verify.");
+      const signedLockProject = join(signedDir, "signed-lock-project");
+      await mkdir(signedLockProject, { recursive: true });
+      run(
+        "node",
+        [
+          "dist/index.js",
+          "registry",
+          "lock",
+          "--cwd",
+          signedLockProject,
+          "--registry",
+          join(signedDir, "registry.bundle.json"),
+          "--public-key",
+          `${baseUrl}/registry-public.pem`,
+          "--key-id",
+          "release-artifact-test"
+        ],
+        "Signed registry lock with public key URL"
+      );
+      const signedLock = runJson(
+        "node",
+        ["dist/index.js", "registry", "verify-lock", "--cwd", signedLockProject, "--json"],
+        "Signed registry verify lock"
+      );
+      assert(signedLock.ok === true, "Signed registry lock verification failed.");
+      assert(signedLock.lock?.signature?.publicKey === `${baseUrl}/registry-public.pem`, "Signed registry lock should record the public key URL.");
+      assert(signedLock.lock?.signature?.keyId === "release-artifact-test", "Signed registry lock should record the key id.");
+    });
+    checks.push("Signed release artifact contents");
   } finally {
     await rm(dir, { recursive: true, force: true });
+    await rm(signedDir, { recursive: true, force: true });
+    await rm(keyDir, { recursive: true, force: true });
   }
 }
 
 async function runReleaseWorkflowSmoke() {
   const workflow = await readFile(".github/workflows/release.yml", "utf8");
+  const pagesWorkflow = await readFile(".github/workflows/pages.yml", "utf8");
   assert(workflow.includes("Resolve release tag"), "Release workflow should resolve one release tag for tag pushes and manual dispatch.");
+  assert(workflow.includes('- "preview-*"'), "Release workflow should run for preview tags.");
   assert(workflow.includes("tag=${{ inputs.version }}"), "Release workflow should use the manual dispatch version as the release tag.");
   assert(workflow.includes("tag=${GITHUB_REF_NAME}"), "Release workflow should use the pushed tag name as the release tag.");
+  assert(workflow.includes('expected_preview="preview-${package_version}"'), "Release workflow should allow manual preview versions that match package.json.");
+  assert(workflow.includes('!= "$expected_release"') && workflow.includes('!= "$expected_preview"'), "Release workflow should reject manual versions unless they match the release or preview tag.");
   assert(workflow.includes('--release-tag "${{ steps.release.outputs.tag }}"'), "Release workflow should stamp artifacts with the resolved release tag.");
+  assert(workflow.includes('case "${{ steps.release.outputs.tag }}" in'), "Release workflow should select the release package spec by tag type.");
+  assert(workflow.includes('package_spec="github:tt-a1i/agents-market#${{ steps.release.outputs.tag }}"'), "Release workflow should use the tag-pinned GitHub package spec for preview artifacts.");
+  assert(workflow.includes('--package "${package_spec}"'), "Release workflow should build artifacts with the selected package spec.");
+  assert(
+    pagesWorkflow.includes('--package "github:tt-a1i/agents-market#preview-0.1.0"'),
+    "Pages workflow should use a tag-pinned GitHub package spec before npm publication."
+  );
+  assert(workflow.includes("concurrency:"), "Release workflow should serialize release runs.");
+  assert(workflow.includes("group: release-${{ github.ref_name || inputs.version }}"), "Release workflow should serialize by release ref or manual version.");
+  assert(workflow.includes("cancel-in-progress: false"), "Release workflow should not cancel an in-progress publish.");
+  assert(workflow.includes("timeout-minutes: 30"), "Release artifact job should define a timeout.");
+  assert(workflow.includes("timeout-minutes: 10"), "Release publish job should define a timeout.");
+  assert(workflow.includes("release-artifacts:"), "Release workflow should build and upload artifacts in a dedicated job.");
+  assert(workflow.includes("publish-npm:"), "Release workflow should publish npm from a dedicated protected job.");
+  assert(workflow.includes("needs: release-artifacts"), "NPM publishing should wait for release artifact verification and upload.");
+  assert(workflow.includes("environment: npm-release"), "Release workflow should use the protected npm-release environment for npm publishing.");
+  assert(
+    workflow.indexOf("release-artifacts:") < workflow.indexOf("publish-npm:") &&
+      workflow.indexOf("publish-npm:") < workflow.indexOf("environment: npm-release"),
+    "Release workflow should keep preview artifact publishing outside the npm-release environment."
+  );
+  assert(workflow.includes("persist-credentials: false"), "Release workflow checkout should not persist GitHub credentials.");
+  assert(pagesWorkflow.includes("timeout-minutes: 20"), "Pages build job should define a timeout.");
+  assert(pagesWorkflow.includes("timeout-minutes: 10"), "Pages deploy job should define a timeout.");
+  assert(pagesWorkflow.includes("persist-credentials: false"), "Pages workflow checkout should not persist GitHub credentials.");
+  assert(pagesWorkflow.includes("if: github.ref == 'refs/heads/main'"), "Pages workflow should deploy only from main while allowing branch build verification.");
   assert(
     workflow.includes("startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'"),
     "Release workflow should attach artifacts for both tag pushes and manual dispatch."
   );
+  assert(workflow.includes("Built from ${GITHUB_SHA}."), "Release workflow should stamp GitHub Release notes with the source commit.");
+  assert(workflow.includes("gh release edit"), "Release workflow should update existing GitHub Release metadata on refresh.");
+  assert(workflow.includes('--target "${GITHUB_SHA}"'), "Release workflow should align GitHub Release metadata with the source commit.");
+  assert(workflow.includes("preview-*) release_flags+=(--prerelease)"), "Release workflow should mark preview releases as prereleases.");
+  assert(workflow.includes("npm run release:verify-artifacts -- --dir ./release-artifacts"), "Release workflow should verify generated artifacts before upload or publish.");
+  assert(workflow.includes("attestations: write"), "Release workflow should be allowed to write artifact attestations.");
+  assert(workflow.includes("actions/attest@v4"), "Release workflow should create GitHub Artifact Attestations.");
+  assert(workflow.includes("subject-checksums: ./release-artifacts/SHA256SUMS"), "Release workflow should attest the generated SHA256SUMS subjects.");
+  assert(workflow.includes("Attest complete release artifact archive"), "Release workflow should separately attest the complete artifact archive.");
+  assert(
+    workflow.includes("subject-path: ./release-artifacts/agents-market-release-artifacts-*.tgz"),
+    "Release workflow should attest the complete release artifact archive subject."
+  );
+  assert(
+    workflow.indexOf("npm run release:verify-artifacts -- --dir ./release-artifacts") < workflow.indexOf("subject-checksums: ./release-artifacts/SHA256SUMS"),
+    "Release workflow should attest artifacts after local artifact verification."
+  );
+  assert(
+    workflow.indexOf("subject-checksums: ./release-artifacts/SHA256SUMS") <
+      workflow.indexOf("subject-path: ./release-artifacts/agents-market-release-artifacts-*.tgz"),
+    "Release workflow should attest the complete archive after checksum-subject attestations."
+  );
   assert(workflow.includes("release-artifacts/*.tgz"), "Release workflow should upload top-level release tarballs.");
   assert(workflow.includes("release-artifacts/npm/*.tgz"), "Release workflow should upload the npm package tarball.");
   assert(workflow.includes("release-artifacts/registry.bundle.json"), "Release workflow should upload the registry bundle.");
+  assert(workflow.includes("release-artifacts/sbom.spdx.json"), "Release workflow should upload the SPDX SBOM.");
+  assert(workflow.includes("REGISTRY_SIGNING_PRIVATE_KEY"), "Release workflow should support the registry signing private key secret.");
+  assert(workflow.includes("REGISTRY_SIGNING_PUBLIC_KEY"), "Release workflow should support the registry signing public key secret.");
+  assert(workflow.includes("REGISTRY_SIGNING_KEY_ID"), "Release workflow should support the registry signing key id secret.");
+  assert(workflow.includes("release-artifacts/registry-public.pem"), "Release workflow should upload the registry public key when present.");
+  assert(pagesWorkflow.includes("REGISTRY_SIGNING_PRIVATE_KEY"), "Pages workflow should support the registry signing private key secret.");
+  assert(pagesWorkflow.includes("REGISTRY_SIGNING_PUBLIC_KEY"), "Pages workflow should support the registry signing public key secret.");
+  assert(pagesWorkflow.includes("REGISTRY_SIGNING_KEY_ID"), "Pages workflow should support the registry signing key id secret.");
+  assert(pagesWorkflow.includes("--private-key registry-private.pem --public-key registry-public.pem --key-id"), "Pages workflow should sign the hosted catalog registry bundle when signing secrets are present.");
   assert(workflow.includes("npm publish --provenance"), "Release workflow should publish the npm package with provenance.");
+  assert(workflow.includes("if: startsWith(needs.release-artifacts.outputs.tag, 'v')"), "Release workflow should publish to npm only for v-prefixed release tags.");
   checks.push("Release workflow upload coverage");
 }
 
@@ -557,6 +1028,52 @@ async function runRegistrySignatureSmoke() {
     assert(verified.signatures?.verified?.ok === true, "Expected signed registry verification result to be ok.");
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function withStaticServer(rootDir, callback) {
+  const server = spawn(
+    "node",
+    [
+      "-e",
+      `
+const { createServer } = require("node:http");
+const { createReadStream } = require("node:fs");
+const { join, basename } = require("node:path");
+const root = process.argv[1];
+const server = createServer((request, response) => {
+  const name = basename(new URL(request.url || "/", "http://127.0.0.1").pathname);
+  createReadStream(join(root, name))
+    .on("error", () => {
+      response.statusCode = 404;
+      response.end("not found");
+    })
+    .pipe(response);
+});
+server.listen(0, "127.0.0.1", () => {
+  process.stdout.write(String(server.address().port));
+});
+`,
+      rootDir
+    ],
+    { stdio: ["ignore", "pipe", "inherit"] }
+  );
+  try {
+    const port = await new Promise((resolve, reject) => {
+      let output = "";
+      server.stdout.on("data", (chunk) => {
+        output += chunk.toString();
+        const match = output.match(/\d+/);
+        if (match) resolve(match[0]);
+      });
+      server.on("error", reject);
+      server.on("exit", (code) => {
+        if (!output) reject(new Error(`Static server exited before reporting a port: ${code ?? "unknown"}`));
+      });
+    });
+    await callback(`http://127.0.0.1:${port}`);
+  } finally {
+    server.kill();
   }
 }
 
@@ -635,6 +1152,28 @@ function verifyTarball(packOutput) {
     throw new Error(`Package dry run is missing required files: ${missing.join(", ")}`);
   }
   checks.push("Package contents");
+}
+
+async function runPackageInstallSmoke() {
+  const packDir = await mkdtemp(join(tmpdir(), "agents-market-package-pack-"));
+  const installDir = await mkdtemp(join(tmpdir(), "agents-market-package-install-"));
+  try {
+    const pack = run("npm", ["pack", "--pack-destination", packDir, "--json"], "Package install smoke pack");
+    const [tarball] = parseNpmPackJson(pack.stdout);
+    assert(tarball?.filename, "Package install smoke did not produce an npm tarball filename.");
+    const tarballPath = join(packDir, tarball.filename);
+    run("npm", ["install", "--prefix", installDir, tarballPath], "Package install smoke install");
+    const binPath = join(installDir, "node_modules", ".bin", "agents-market");
+    const version = run(binPath, ["--version"], "Package install smoke version").stdout.trim();
+    assert(version === "0.1.0", `Expected installed package version 0.1.0, found ${version}.`);
+    const list = runJson(binPath, ["list", "--json"], "Package install smoke list");
+    assert(list.packCount >= 4, `Expected installed package to list at least four packs, found ${list.packCount}.`);
+    assert(list.agentCount >= 10, `Expected installed package to list at least ten agents, found ${list.agentCount}.`);
+    checks.push("Package install smoke");
+  } finally {
+    await rm(packDir, { recursive: true, force: true });
+    await rm(installDir, { recursive: true, force: true });
+  }
 }
 
 function parseNpmPackJson(stdout) {

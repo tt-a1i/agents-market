@@ -29,6 +29,7 @@ export interface AgentDefinition {
     repository?: string;
     license?: string;
     author?: string;
+    sourceCommit?: string;
     sourceSha256?: string;
     importedAt?: string;
   };
@@ -114,6 +115,20 @@ export interface ManifestFileEntry {
   sha256: string;
 }
 
+export interface ManifestRollbackFileEntry extends ManifestFileEntry {
+  content?: string;
+}
+
+export interface ManifestHistoryEntry {
+  id: string;
+  createdAt: string;
+  reason: "update";
+  fromVersion?: string;
+  toVersion?: string;
+  previousInstall: Omit<ManifestInstallEntry, "history">;
+  files: ManifestRollbackFileEntry[];
+}
+
 export interface ManifestInstallEntry {
   packId: string;
   packVersion?: string;
@@ -125,6 +140,7 @@ export interface ManifestInstallEntry {
     sha256?: string;
   };
   files: ManifestFileEntry[];
+  history?: ManifestHistoryEntry[];
 }
 
 export interface InstallManifest {
@@ -137,5 +153,10 @@ export interface RegistryLock {
   source: string;
   version?: string;
   sha256?: string;
+  signature?: {
+    publicKey: string;
+    keyId?: string;
+    algorithm: "ed25519";
+  };
   lockedAt: string;
 }

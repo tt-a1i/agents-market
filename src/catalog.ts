@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
 import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
-import { createRegistryBundle, validateRegistry } from "./registry.js";
+import { createRegistryBundle, signRegistryBundle, validateRegistry } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
 import type { AgentDefinition, Registry, RegistryBundle, RegistryMetadata, Target } from "./types.js";
 
@@ -16,6 +16,9 @@ export interface CatalogOptions {
   repository?: string;
   releaseUrl?: string;
   commit?: string;
+  signingPrivateKeyPem?: string;
+  signingPublicKeyPem?: string;
+  signingKeyId?: string;
 }
 
 export interface CatalogVerificationFinding {
@@ -38,13 +41,18 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   await mkdir(options.outDir, { recursive: true });
 
   const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
+  const publicKeyUrl = options.signingPublicKeyPem ? assetUrl("registry-public.pem", options.baseUrl) : undefined;
   const packageSpec = options.packageSpec ?? "github:tt-a1i/agents-market";
   assertSafePackageSpec(packageSpec);
   const metadata = catalogMetadata(options, packageSpec);
-  const bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
+  let bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
+  if (options.signingPrivateKeyPem) {
+    if (!options.signingKeyId) throw new Error("signingKeyId is required when signingPrivateKeyPem is provided.");
+    bundle = signRegistryBundle(bundle, options.signingPrivateKeyPem, options.signingKeyId);
+  }
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
-  const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
+  const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl, publicKeyUrl, options.signingKeyId);
   const importWorkflows = importWorkflowCommands(packageSpec);
   const catalog = {
     title,
@@ -69,6 +77,14 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
       name: "registry.bundle.json",
       content: `${JSON.stringify(bundle, null, 2)}\n`
     },
+    ...(options.signingPublicKeyPem
+      ? [
+          {
+            name: "registry-public.pem",
+            content: options.signingPublicKeyPem
+          }
+        ]
+      : []),
     {
       name: "catalog.json",
       content: `${JSON.stringify(catalog, null, 2)}\n`
@@ -76,6 +92,18 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     {
       name: "index.html",
       content: renderHtml(title, registry, bundleUrl, packageSpec, metadata)
+    },
+    {
+      name: "site.webmanifest",
+      content: `${JSON.stringify(webManifest(title, options.baseUrl), null, 2)}\n`
+    },
+    {
+      name: "robots.txt",
+      content: "User-agent: *\nAllow: /\n"
+    },
+    {
+      name: "favicon.svg",
+      content: renderFavicon()
     }
   ];
 
@@ -90,7 +118,10 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   const findings: CatalogVerificationFinding[] = [];
   const catalog = await readJson(join(dir, "catalog.json"), findings, "catalog.json");
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
+  const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
   const html = await readText(join(dir, "index.html"), findings, "index.html");
+  await readText(join(dir, "robots.txt"), findings, "robots.txt");
+  await readText(join(dir, "favicon.svg"), findings, "favicon.svg");
 
   let registryBundle: RegistryBundle | undefined;
   if (bundle) {
@@ -126,6 +157,40 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         severity: "error",
         code: "html-missing-copy-controls",
         message: "index.html does not include copy controls for workflow commands."
+      });
+    }
+    if (!html.includes('rel="manifest"') || !html.includes('href="site.webmanifest"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-webmanifest",
+        message: "index.html does not reference site.webmanifest."
+      });
+    }
+    if (!html.includes('rel="icon"') || !html.includes('href="favicon.svg"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-favicon",
+        message: "index.html does not reference favicon.svg."
+      });
+    }
+  }
+
+  if (catalog && webManifestFile) {
+    const manifestName = stringValue(webManifestFile.name);
+    if (manifestName !== catalog.title) {
+      findings.push({
+        severity: "error",
+        code: "webmanifest-name-mismatch",
+        message: "site.webmanifest name does not match catalog title.",
+        detail: `${manifestName ?? "missing"} !== ${String(catalog.title ?? "missing")}`
+      });
+    }
+    const icons = Array.isArray(webManifestFile.icons) ? webManifestFile.icons : [];
+    if (!icons.some((icon) => isRecord(icon) && icon.src === "favicon.svg")) {
+      findings.push({
+        severity: "error",
+        code: "webmanifest-missing-favicon",
+        message: "site.webmanifest does not include favicon.svg as an icon."
       });
     }
   }
@@ -285,7 +350,12 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
   }
   const registryWorkflows = Array.isArray(catalog.registryWorkflows) ? catalog.registryWorkflows : [];
   const packageSpec = stringValue(catalog.packageSpec) ?? "github:tt-a1i/agents-market";
-  const expectedRegistryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl);
+  const expectedRegistryWorkflows = registryWorkflowCommands(
+    packageSpec,
+    bundleUrl,
+    bundle.signatures?.length ? publicKeyUrlForBundle(bundleUrl) : undefined,
+    bundle.signatures?.[0]?.keyId
+  );
   if (JSON.stringify(registryWorkflows) !== JSON.stringify(expectedRegistryWorkflows)) {
     findings.push({
       severity: "error",
@@ -450,7 +520,11 @@ function renderHtml(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode.">
   <title>${escapeHtml(title)}</title>
+  ${metadata?.catalogUrl ? `<link rel="canonical" href="${escapeAttribute(metadata.catalogUrl)}">` : ""}
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: light; --ink: #172026; --muted: #5f6b76; --line: #d7dde3; --fill: #f6f8fa; --accent: #0f766e; --good: #166534; --warn: #b45309; }
     * { box-sizing: border-box; }
@@ -585,6 +659,34 @@ function renderHtml(
 `;
 }
 
+function webManifest(title: string, baseUrl?: string) {
+  return {
+    name: title,
+    short_name: "Agents Market",
+    description: "Curated subagent packs for Claude Code, Codex, and OpenCode.",
+    start_url: baseUrl ? baseUrl.replace(/\/+$/, "") : ".",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#0f766e",
+    icons: [
+      {
+        src: "favicon.svg",
+        sizes: "any",
+        type: "image/svg+xml"
+      }
+    ]
+  };
+}
+
+function renderFavicon(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#0f766e"/>
+  <path d="M18 20h28v6H18zM18 30h20v6H18zM18 40h28v6H18z" fill="#fff"/>
+  <path d="M43 29l5 4-5 4v-8z" fill="#a7f3d0"/>
+</svg>
+`;
+}
+
 function catalogMetadata(options: CatalogOptions, packageSpec: string): RegistryMetadata | undefined {
   const catalogUrl = options.baseUrl ? options.baseUrl.replace(/\/+$/, "") : undefined;
   const metadata: RegistryMetadata = {
@@ -626,15 +728,18 @@ function escapeAttribute(value: string): string {
 }
 
 function renderProvenance(
-  provenance: { source?: string; repository?: string; license?: string; author?: string; sourceSha256?: string } | undefined
+  provenance:
+    | { source?: string; repository?: string; license?: string; author?: string; sourceCommit?: string; sourceSha256?: string }
+    | undefined
 ): string {
   if (!provenance) return "Bundled";
   const label = provenance.repository ?? provenance.author ?? provenance.license ?? provenance.source ?? "Imported";
+  const commit = provenance.sourceCommit ? ` <span title="source commit">commit:${escapeHtml(provenance.sourceCommit.slice(0, 12))}</span>` : "";
   const checksum = provenance.sourceSha256 ? ` <span title="source SHA-256">sha256:${escapeHtml(provenance.sourceSha256.slice(0, 12))}</span>` : "";
   if (provenance.source?.startsWith("http://") || provenance.source?.startsWith("https://")) {
-    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>${checksum}`;
+    return `<a href="${escapeHtml(provenance.source)}">${escapeHtml(label)}</a>${commit}${checksum}`;
   }
-  return `${escapeHtml(label)}${checksum}`;
+  return `${escapeHtml(label)}${commit}${checksum}`;
 }
 
 function packCatalogSummary(registry: Registry, packId: string, bundlePath: string, packageSpec: string) {
@@ -730,22 +835,37 @@ function summarizeProvenance(agents: AgentDefinition[]) {
   };
 }
 
-function registryWorkflowCommands(packageSpec: string, bundlePath: string) {
+function registryWorkflowCommands(packageSpec: string, bundlePath: string, publicKeyPath?: string, keyId?: string) {
   const npx = `npx ${packageSpec}`;
-  return [
+  const commands = [
     {
       label: "Inspect Hosted Registry",
       command: `${npx} registry info --registry ${bundlePath} --json`
-    },
+    }
+  ];
+  if (publicKeyPath && keyId) {
+    commands.push({
+      label: "Verify Hosted Registry Signature",
+      command: `${npx} registry verify --registry ${bundlePath} --public-key ${publicKeyPath} --key-id ${keyId}`
+    });
+  }
+  commands.push(
     {
       label: "Lock Registry In Project",
-      command: `${npx} registry lock --registry ${bundlePath}`
+      command: `${npx} registry lock --registry ${bundlePath}${publicKeyPath && keyId ? ` --public-key ${publicKeyPath} --key-id ${keyId}` : ""}`
     },
     {
       label: "Verify Project Lock",
       command: `${npx} registry verify-lock --json`
     }
-  ];
+  );
+  return commands;
+}
+
+function publicKeyUrlForBundle(bundlePath: string): string {
+  return bundlePath.endsWith("registry.bundle.json")
+    ? `${bundlePath.slice(0, -"registry.bundle.json".length)}registry-public.pem`
+    : "registry-public.pem";
 }
 
 function importWorkflowCommands(packageSpec = "github:tt-a1i/agents-market") {

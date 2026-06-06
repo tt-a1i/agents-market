@@ -78,12 +78,13 @@ agents-market import repo owner/community-agents \
   --source-license MIT
 ```
 
-The `repo` argument accepts `owner/name` or a `https://github.com/owner/name` URL. Use `--path` to scan only the directory that contains agent templates. Use `--ref` to pin a branch, tag, or commit.
+The `repo` argument accepts `owner/name` or a `https://github.com/owner/name` URL. Use `--path` to scan only the directory that contains agent templates. Use `--ref` to pin a branch, tag, or commit. Repository imports record the actual checked-out commit in provenance, so even a branch import can be reviewed against an immutable source tree later.
 
 Repository imports automatically set provenance:
 
 - `repository` from the GitHub owner/name.
-- `source` from the GitHub tree URL, unless you override it with `--source-url`.
+- `source` from the GitHub tree URL pinned to the checked-out commit, unless you override it with `--source-url`.
+- `sourceCommit` from the checked-out Git commit.
 - `license` and `author` from the explicit flags, when provided.
 - `sourceSha256` from the original Markdown content read during import.
 
@@ -99,10 +100,13 @@ agents-market import directory ./community-agents \
   --pack-out ./registry/packs \
   --source-repo owner/repo \
   --source-license MIT \
-  --tag imported community
+  --tag imported community \
+  --json
 ```
 
 The generated pack is a starting point. Review it before publishing: add recommendation signals, verify the generated `requires.agentsMarket` compatibility constraint, split large packs, and remove low-quality or overlapping agents.
+
+Use `--json` on `import markdown`, `import directory`, or `import repo` when a coding agent, CI job, or review script needs a stable summary. The JSON report includes imported and skipped counts, compact imported-agent summaries, provenance metadata with `sourceSha256` when available, and generated pack metadata. It intentionally omits full prompt bodies so automation can parse the result without echoing large third-party templates into logs.
 
 ## Validate Imported Content
 
@@ -127,4 +131,4 @@ Use provenance flags whenever the source came from a third-party collection:
 --source-author "Original Author"
 ```
 
-Agents Market stores this under `agent.provenance`. The importer automatically records `sourceSha256` when provenance is present, so reviewers can compare the registry entry against the original source content. The Web catalog displays source information, and `registry lint` warns when imported agents do not include provenance, a source license, or a source checksum.
+Agents Market stores this under `agent.provenance`. The importer automatically records `sourceSha256` when provenance is present, so reviewers can compare the registry entry against the original source content. GitHub repository imports also record `sourceCommit`. The Web catalog displays source information, and `registry lint` warns when imported agents do not include provenance, a source license, a GitHub source commit, or a source checksum.

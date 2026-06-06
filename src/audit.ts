@@ -23,8 +23,10 @@ export interface PackAudit {
     imported: number;
     withLicense: number;
     withChecksum: number;
+    withCommit: number;
     missingLicense: string[];
     missingChecksum: string[];
+    missingCommit: string[];
     repositories: string[];
   };
   agents: Array<{
@@ -56,8 +58,10 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
   };
   const missingLicense: string[] = [];
   const missingChecksum: string[] = [];
+  const missingCommit: string[] = [];
   const repositories = new Set<string>();
   let imported = 0;
+  let withCommit = 0;
 
   for (const agent of agents) {
     permissions[agent.permission] += 1;
@@ -75,6 +79,8 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
       if (agent.provenance.repository) repositories.add(agent.provenance.repository);
       if (!agent.provenance.license) missingLicense.push(agent.id);
       if (!agent.provenance.sourceSha256) missingChecksum.push(agent.id);
+      if (agent.provenance.sourceCommit) withCommit += 1;
+      if (isGitHubProvenance(agent.provenance) && !agent.provenance.sourceCommit) missingCommit.push(agent.id);
     }
   }
 
@@ -88,11 +94,12 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
   if (permissions.command > 0) warnings.push(`${permissions.command} agents use command-level permission.`);
   if (missingLicense.length > 0) warnings.push(`Imported agents missing source license: ${missingLicense.join(", ")}`);
   if (missingChecksum.length > 0) warnings.push(`Imported agents missing source checksum: ${missingChecksum.join(", ")}`);
+  if (missingCommit.length > 0) warnings.push(`GitHub-imported agents missing source commit: ${missingCommit.join(", ")}`);
 
   return {
     packId: pack.id,
     target,
-    risk: riskLevel(permissions, tools, missingLicense, missingChecksum),
+    risk: riskLevel(permissions, tools, missingLicense, missingChecksum, missingCommit),
     agentCount: agents.length,
     fileCount: agents.length * targets.length,
     permissions,
@@ -103,8 +110,10 @@ export function auditPack(registry: Registry, packId: string, target: Target | "
       imported,
       withLicense: imported - missingLicense.length,
       withChecksum: imported - missingChecksum.length,
+      withCommit,
       missingLicense,
       missingChecksum,
+      missingCommit,
       repositories: [...repositories].sort()
     },
     agents: agents.map((agent) => ({
@@ -123,9 +132,27 @@ function riskLevel(
   permissions: Record<PermissionMode, number>,
   tools: PackAudit["tools"],
   missingLicense: string[],
-  missingChecksum: string[]
+  missingChecksum: string[],
+  missingCommit: string[]
 ): PackAudit["risk"] {
-  if (permissions.command > 0 || tools.bashFull > 0 || tools.write > 0 || missingLicense.length > 0 || missingChecksum.length > 0) return "high";
+  if (
+    permissions.command > 0 ||
+    tools.bashFull > 0 ||
+    tools.write > 0 ||
+    missingLicense.length > 0 ||
+    missingChecksum.length > 0 ||
+    missingCommit.length > 0
+  ) {
+    return "high";
+  }
   if (permissions["safe-write"] > 0 || tools.edit > 0 || tools.bashSafe > 0 || tools.web > 0) return "medium";
   return "low";
+}
+
+function isGitHubProvenance(provenance: NonNullable<AgentDefinition["provenance"]>): boolean {
+  return Boolean(
+    provenance.source?.startsWith("https://github.com/") ||
+      provenance.source?.startsWith("http://github.com/") ||
+      provenance.repository?.match(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)
+  );
 }

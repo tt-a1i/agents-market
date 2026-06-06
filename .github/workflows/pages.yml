@@ -21,25 +21,57 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node dist/index.js catalog build --out ./site --title "Agents Market" --base-url "https://tt-a1i.github.io/agents-market" --package "github:tt-a1i/agents-market" --homepage "https://tt-a1i.github.io/agents-market/" --repository "https://github.com/tt-a1i/agents-market" --release-url "https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0" --commit "${GITHUB_SHA}"
+      - name: Build catalog
+        env:
+          REGISTRY_SIGNING_PRIVATE_KEY: ${{ secrets.REGISTRY_SIGNING_PRIVATE_KEY }}
+          REGISTRY_SIGNING_PUBLIC_KEY: ${{ secrets.REGISTRY_SIGNING_PUBLIC_KEY }}
+          REGISTRY_SIGNING_KEY_ID: ${{ secrets.REGISTRY_SIGNING_KEY_ID }}
+        run: |
+          args=(
+            --out ./site
+            --title "Agents Market"
+            --base-url "https://tt-a1i.github.io/agents-market"
+            --package "github:tt-a1i/agents-market#preview-0.1.0"
+            --homepage "https://tt-a1i.github.io/agents-market/"
+            --repository "https://github.com/tt-a1i/agents-market"
+            --release-url "https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0"
+            --commit "${GITHUB_SHA}"
+          )
+
+          if [ -n "${REGISTRY_SIGNING_PRIVATE_KEY}" ] || [ -n "${REGISTRY_SIGNING_PUBLIC_KEY}" ] || [ -n "${REGISTRY_SIGNING_KEY_ID}" ]; then
+            if [ -z "${REGISTRY_SIGNING_PRIVATE_KEY}" ] || [ -z "${REGISTRY_SIGNING_PUBLIC_KEY}" ] || [ -z "${REGISTRY_SIGNING_KEY_ID}" ]; then
+              echo "Registry signing requires REGISTRY_SIGNING_PRIVATE_KEY, REGISTRY_SIGNING_PUBLIC_KEY, and REGISTRY_SIGNING_KEY_ID." >&2
+              exit 1
+            fi
+            printf '%s\n' "${REGISTRY_SIGNING_PRIVATE_KEY}" > registry-private.pem
+            printf '%s\n' "${REGISTRY_SIGNING_PUBLIC_KEY}" > registry-public.pem
+            args+=(--private-key registry-private.pem --public-key registry-public.pem --key-id "${REGISTRY_SIGNING_KEY_ID}")
+          fi
+
+          node dist/index.js catalog build "${args[@]}"
       - run: node dist/index.js catalog verify --dir ./site
       - uses: actions/upload-pages-artifact@v4
         with:
           path: ./site
 
   deploy:
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - id: deployment

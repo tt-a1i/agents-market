@@ -189,11 +189,11 @@ export function renderRegistryReviewMarkdown(report: RegistryReviewReport): stri
   if (report.packs.length > 0) {
     lines.push(
       "",
-      "| Pack | Version | Risk | Agents | Files | Imported | Checksummed | Policy | Preview changes |",
-      "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |",
+      "| Pack | Version | Risk | Agents | Files | Imported | Checksummed | Committed | Policy | Preview changes |",
+      "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |",
       ...report.packs.map(
         (pack) =>
-          `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${pack.provenance.imported} | ${pack.provenance.withChecksum} | ${pack.policyOk ? "pass" : "fail"} | ${pack.previewChanges} |`
+          `| \`${pack.id}\` | ${pack.version} | ${pack.risk} | ${pack.agentCount} | ${pack.fileCount} | ${pack.provenance.imported} | ${pack.provenance.withChecksum} | ${pack.provenance.withCommit} | ${pack.policyOk ? "pass" : "fail"} | ${pack.previewChanges} |`
       )
     );
   }

@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,12 +15,13 @@ import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { auditPack } from "../src/audit.js";
 import { runDoctor } from "../src/doctor.js";
 import { createInstallPlan, generatePackFiles } from "../src/install.js";
-import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
+import { githubTreeUrl, isCommitLike, parseGitHubRepository } from "../src/git-import.js";
 import { saveManifest, saveRegistryLock, upsertInstall } from "../src/manifest.js";
 import { composePack } from "../src/pack.js";
 import { searchRegistry } from "../src/search.js";
 import { writeGeneratedFiles } from "../src/files.js";
 import { createPolicyPreset, savePolicy, policyPath } from "../src/policy.js";
+import type { Registry } from "../src/types.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -106,6 +107,49 @@ describe("registry", () => {
     expect(audit.risk).toBe("high");
   });
 
+  it("audits missing source commits for GitHub-imported agents", () => {
+    const registry: Registry = {
+      agents: [
+        {
+          id: "imported-reviewer",
+          name: "Imported Reviewer",
+          description: "Reviews imported community agents for provenance, quality, permissions, and publication readiness.",
+          version: "0.1.0",
+          category: "review",
+          tags: ["imported", "review"],
+          permission: "readonly",
+          recommendedTargets: ["claude", "codex", "opencode"],
+          prompt: "You are an imported reviewer. Inspect source provenance, permissions, and prompt quality before publishing.",
+          tools: { read: true, bash: "safe" },
+          provenance: {
+            source: "https://github.com/example/agents/tree/main/imported-reviewer.md",
+            repository: "example/agents",
+            license: "MIT",
+            sourceSha256: "a".repeat(64)
+          }
+        }
+      ],
+      packs: [
+        {
+          id: "imported-pack",
+          name: "Imported Pack",
+          description: "Imported pack for reviewing community agent provenance.",
+          version: "0.1.0",
+          tags: ["imported"],
+          agents: ["imported-reviewer"],
+          recommendedFor: { languages: ["typescript"] },
+          requires: { agentsMarket: ">=0.1.0" }
+        }
+      ]
+    };
+
+    const audit = auditPack(registry, "imported-pack", "all");
+    expect(audit.provenance.missingCommit).toEqual(["imported-reviewer"]);
+    expect(audit.provenance.withCommit).toBe(0);
+    expect(audit.warnings.some((warning) => warning.includes("missing source commit"))).toBe(true);
+    expect(audit.risk).toBe("high");
+  });
+
   it("reports doctor health for empty and installed projects", async () => {
     const registry = await loadRegistry();
     const root = await mkdtemp(join(tmpdir(), "agents-market-doctor-"));
@@ -178,6 +222,11 @@ describe("registry", () => {
     expect(githubTreeUrl(repo, "main", "agents/claude")).toBe(
       "https://github.com/owner/example-agents/tree/main/agents/claude"
     );
+    expect(githubTreeUrl(repo, "abcdef1234567890", "agents/claude")).toBe(
+      "https://github.com/owner/example-agents/tree/abcdef1234567890/agents/claude"
+    );
+    expect(isCommitLike("abcdef1")).toBe(true);
+    expect(isCommitLike("main")).toBe(false);
 
     const urlRepo = parseGitHubRepository("https://github.com/acme/templates.git");
     expect(urlRepo.repository).toBe("acme/templates");
@@ -264,7 +313,7 @@ describe("registry", () => {
       }
     };
 
-    expect(() =>
+    await expect(
       verifyRegistryLock(loaded, {
         schemaVersion: 1,
         source: "/tmp/registry.bundle.json",
@@ -272,9 +321,9 @@ describe("registry", () => {
         sha256: bundle.sha256,
         lockedAt: "2026-06-06T00:00:00.000Z"
       })
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
 
-    expect(() =>
+    await expect(
       verifyRegistryLock(loaded, {
         schemaVersion: 1,
         source: "/tmp/registry.bundle.json",
@@ -282,6 +331,71 @@ describe("registry", () => {
         sha256: "bad-checksum",
         lockedAt: "2026-06-06T00:00:00.000Z"
       })
-    ).toThrow(/checksum mismatch/);
+    ).rejects.toThrow(/checksum mismatch/);
+  });
+
+  it("verifies signed registry locks", async () => {
+    const root = await mkdtemp(join(tmpdir(), "agents-market-signed-lock-"));
+    try {
+      const registry = await loadRegistry();
+      const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+      const publicKeyPem = publicKey.export({ format: "pem", type: "spki" }).toString();
+      const publicKeyPath = join(root, "registry-public.pem");
+      await writeFile(publicKeyPath, publicKeyPem, "utf8");
+      const signed = signRegistryBundle(
+        createRegistryBundle(registry, "0.1.0", "test-registry"),
+        privateKey.export({ format: "pem", type: "pkcs8" }).toString(),
+        "test-key"
+      );
+      const loaded = {
+        registry: signed,
+        source: {
+          kind: "file" as const,
+          value: "/tmp/registry.bundle.json",
+          version: signed.version,
+          sha256: signed.sha256
+        }
+      };
+
+      await expect(
+        verifyRegistryLock(
+          loaded,
+          {
+            schemaVersion: 1,
+            source: "/tmp/registry.bundle.json",
+            version: signed.version,
+            sha256: signed.sha256,
+            signature: {
+              publicKey: "registry-public.pem",
+              keyId: "test-key",
+              algorithm: "ed25519"
+            },
+            lockedAt: "2026-06-06T00:00:00.000Z"
+          },
+          { root }
+        )
+      ).resolves.toBeUndefined();
+
+      await expect(
+        verifyRegistryLock(
+          loaded,
+          {
+            schemaVersion: 1,
+            source: "/tmp/registry.bundle.json",
+            version: signed.version,
+            sha256: signed.sha256,
+            signature: {
+              publicKey: "registry-public.pem",
+              keyId: "missing-key",
+              algorithm: "ed25519"
+            },
+            lockedAt: "2026-06-06T00:00:00.000Z"
+          },
+          { root }
+        )
+      ).rejects.toThrow(/signature mismatch/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
