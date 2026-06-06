@@ -58,6 +58,7 @@ agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
+agents-market import markdown ./agent.md --target claude --out ./registry/agents
 ```
 
 ## Install Manifest
@@ -145,6 +146,17 @@ The catalog generator writes:
 
 The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
 
+## Import Third-Party Templates
+
+Normalize Claude Code or OpenCode Markdown agents into the registry schema:
+
+```bash
+agents-market import markdown ./code-reviewer.md --target claude --out ./registry/agents
+agents-market registry lint --registry ./registry
+```
+
+See [docs/import.md](./docs/import.md).
+
 ## Repository Layout
 
 ```text
@@ -173,6 +185,7 @@ tests/        Adapter and registry tests
 - Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
 - Static catalog generation provides a first Web discovery surface without adding a heavy frontend stack.
 - Registry linting keeps marketplace content safe enough to publish and useful enough to recommend.
+- Import tooling creates a path from popular community template collections into curated, linted packs.
 
 ## Release
 

@@ -10,6 +10,7 @@ import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
+import { importMarkdownAgent } from "./importer.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
   loadManifest,
@@ -388,6 +389,46 @@ catalogCommand
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });
+
+const importCommand = program.command("import").description("Import third-party agent templates into Agents Market format");
+
+importCommand
+  .command("markdown")
+  .argument("<file>", "Claude Code or OpenCode Markdown agent file")
+  .requiredOption("-t, --target <target>", "source target format: claude, codex, or opencode")
+  .option("-o, --out <dir>", "write normalized agent JSON into this directory")
+  .option("--category <category>", "override inferred category")
+  .option("--tag <tag...>", "additional tags")
+  .option("--version <version>", "agent version", "0.1.0")
+  .description("Normalize a Markdown agent into registry/agents JSON")
+  .action(
+    async (
+      file: string,
+      options: {
+        target: string;
+        out?: string;
+        category?: string;
+        tag?: string[];
+        version: string;
+      }
+    ) => {
+      const target = parseTarget(options.target);
+      if (target === "all") throw new Error("Import target must be one of claude, codex, or opencode.");
+      const agent = await importMarkdownAgent({
+        sourcePath: resolve(file),
+        target,
+        outDir: options.out ? resolve(options.out) : undefined,
+        category: options.category,
+        tags: options.tag,
+        version: options.version
+      });
+      if (options.out) {
+        console.log(pc.green(`Imported ${agent.id} into ${resolve(options.out)}`));
+      } else {
+        console.log(JSON.stringify(agent, null, 2));
+      }
+    }
+  );
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);

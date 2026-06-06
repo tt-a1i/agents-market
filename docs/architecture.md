@@ -51,6 +51,7 @@ agents-market registry lint --strict
 agents-market integrations diff --target all
 agents-market integrations install --target all
 agents-market catalog build --out ./site
+agents-market import markdown ./agent.md --target claude --out ./registry/agents
 ```
 
 ## Manifest Lifecycle
@@ -129,6 +130,19 @@ Current checks include:
 
 CI runs `node dist/index.js registry lint --strict`, which treats warnings as failures for the bundled registry.
 
+## Import Pipeline
+
+`agents-market import markdown` normalizes third-party Claude Code and OpenCode Markdown agent templates into `registry/agents/*.json`.
+
+The importer is intentionally conservative:
+
+- It parses simple YAML frontmatter.
+- It preserves the Markdown body as the agent prompt.
+- It infers category, tags, permissions, and tools.
+- It can write normalized JSON or print to stdout.
+
+Imported agents should always go through `registry lint` before being included in a published pack.
+
 ## Future Production Requirements
 
 - Pack version constraints and update checks.
@@ -136,6 +150,7 @@ CI runs `node dist/index.js registry lint --strict`, which treats warnings as fa
 - Manifest conflict resolution and richer drift reports.
 - Prompt quality scoring beyond static heuristics.
 - Signature or checksum verification for third-party packs.
+- Batch import from GitHub template repositories with provenance metadata.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
 
