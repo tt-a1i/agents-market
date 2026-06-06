@@ -25,11 +25,7 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: node dist/index.js registry lint --strict
-      - run: npm test
-      - run: npm pack --dry-run
+      - run: npm run release:check
       - run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

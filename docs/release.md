@@ -12,12 +12,10 @@ Agents Market publishes as the npm package `@agents-market/cli`.
 
 ```bash
 npm ci
-npm run lint
-npm run build
-node dist/index.js registry lint --strict
-npm test
-npm pack --dry-run
+npm run release:check
 ```
+
+`release:check` runs typecheck, build, registry strict lint, tests, catalog build, npm package dry run, and required tarball content checks.
 
 ## Release Flow
 
@@ -30,7 +28,7 @@ npm pack --dry-run
    git push origin v0.1.0
    ```
 
-4. The Release workflow runs tests, validates the registry, checks package contents, and publishes to npm with provenance.
+4. The Release workflow runs `npm run release:check` and publishes to npm with provenance.
 
 ## Manual Dispatch
 
