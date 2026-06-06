@@ -56,6 +56,7 @@ agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market integrations diff --target all
 agents-market integrations install --target all
+agents-market catalog build --out ./site
 ```
 
 ## Install Manifest
@@ -119,6 +120,22 @@ This writes:
 
 Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `diff`, asks for confirmation, installs with the CLI, and verifies with `status`.
 
+## Web Catalog
+
+Build a static marketplace catalog:
+
+```bash
+agents-market catalog build --out ./site
+```
+
+The catalog generator writes:
+
+- `index.html`: searchable static catalog
+- `catalog.json`: machine-readable catalog summary
+- `registry.bundle.json`: portable registry bundle that users can install from
+
+The repository includes GitHub Actions for CI and GitHub Pages catalog deployment.
+
 ## Repository Layout
 
 ```text
@@ -132,6 +149,8 @@ integrations/
 src/
   adapters/   Claude Code, Codex, and OpenCode generators
   index.ts    CLI entrypoint
+.github/
+  workflows/  CI and GitHub Pages catalog publishing
 tests/        Adapter and registry tests
 ```
 
@@ -143,5 +162,6 @@ tests/        Adapter and registry tests
 - `recommend` scans local project signals and suggests packs rather than making the user browse a long catalog.
 - The install manifest protects user edits and gives the CLI a real lifecycle, not just one-way file generation.
 - Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
+- Static catalog generation provides a first Web discovery surface without adding a heavy frontend stack.
 
 See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.

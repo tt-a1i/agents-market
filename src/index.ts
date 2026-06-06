@@ -4,6 +4,7 @@ import pc from "picocolors";
 import { dirname, resolve } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
+import { buildCatalog } from "./catalog.js";
 import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
@@ -348,6 +349,25 @@ integrationsCommand
 
     await writeGeneratedFiles(root, files);
     console.log(pc.green(`Installed ${files.length} agent-native integration files into ${root}`));
+  });
+
+const catalogCommand = program.command("catalog").description("Build static marketplace catalog assets");
+
+catalogCommand
+  .command("build")
+  .requiredOption("-o, --out <path>", "output directory")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--version <version>", "catalog registry bundle version", BUNDLED_REGISTRY_VERSION)
+  .option("--title <title>", "catalog site title", "Agents Market")
+  .description("Build a static Web catalog for packs and agents")
+  .action(async (options: { out: string; registry?: string; version: string; title: string }) => {
+    const { registry } = await loadRegistryWithInfo(options.registry);
+    const files = await buildCatalog(registry, {
+      outDir: resolve(options.out),
+      version: options.version,
+      title: options.title
+    });
+    console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });
 
 program.parseAsync().catch((error: unknown) => {

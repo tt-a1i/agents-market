@@ -49,6 +49,7 @@ agents-market registry export --out ./registry.bundle.json
 agents-market registry lock --registry ./registry.bundle.json
 agents-market integrations diff --target all
 agents-market integrations install --target all
+agents-market catalog build --out ./site
 ```
 
 ## Manifest Lifecycle
@@ -96,6 +97,18 @@ The CLI supports multiple registry sources:
 
 This is the foundation for a hosted marketplace: the Web catalog can publish versioned registry bundles, and agent-native integrations can lock a project before installation.
 
+## Static Catalog
+
+`agents-market catalog build` generates a static discovery site from any registry source.
+
+Outputs:
+
+- `index.html`: searchable catalog for humans
+- `catalog.json`: compact machine-readable summary
+- `registry.bundle.json`: installable registry bundle
+
+The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. The included Pages workflow builds the catalog from the bundled registry on every push to `main`.
+
 ## Future Production Requirements
 
 - Pack version constraints and update checks.
@@ -104,4 +117,4 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 - Registry linting and prompt quality scoring.
 - Signature or checksum verification for third-party packs.
 - Packaged plugin distribution for Claude Code, Codex, and OpenCode.
-- Web catalog backed by the same registry metadata.
+- Richer Web catalog with ratings, provenance, and import flows.
