@@ -54,6 +54,7 @@ agents-market registry lock --registry ./registry.bundle.json
 agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
+agents-market integrations package --target all --out ./integration-packages
 agents-market catalog build --out ./site
 agents-market catalog verify --dir ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
@@ -188,9 +189,18 @@ Imported agents can include provenance:
 
 The catalog surfaces provenance and short source checksums, and `registry lint` warns when imported agents are missing provenance, source license data, or source checksums.
 
+## Integration Packages
+
+`agents-market integrations package` generates distributable installer bundles for Claude Code, Codex, and OpenCode.
+
+- `agents-market-claude/` contains the Claude Code skill under `.claude/skills/agents-market-installer/`.
+- `agents-market-codex/` contains a Codex plugin manifest at `.codex-plugin/plugin.json` plus the installer skill under `skills/`.
+- `agents-market-opencode/` contains the OpenCode command under `.opencode/commands/`.
+
+These packages reuse the same generated instructions as `integrations install`, but target release artifacts, team templates, or marketplace ingestion instead of writing directly into the current project.
+
 ## Future Production Requirements
 
-- Packaged plugin distribution for Claude Code, Codex, and OpenCode.
 - Richer Web catalog with ratings, provenance, and import flows.
 
 ## Release Pipeline

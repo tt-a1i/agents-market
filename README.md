@@ -94,6 +94,7 @@ agents-market registry lint --strict
 agents-market registry lint --strict --json
 agents-market integrations diff --target all
 agents-market integrations install --target all
+agents-market integrations package --target all --out ./integration-packages
 agents-market catalog build --out ./site
 agents-market catalog build --out ./site --base-url https://example.com/agents-market
 agents-market catalog verify --dir ./site
@@ -241,6 +242,7 @@ Install the installer entrypoints into a project:
 
 ```bash
 agents-market integrations install --target all
+agents-market integrations package --target all --out ./integration-packages
 ```
 
 This writes:
@@ -250,6 +252,12 @@ This writes:
 | Claude Code | `.claude/skills/agents-market-installer/SKILL.md` |
 | Codex | `.agents/skills/agents-market-installer/SKILL.md` |
 | OpenCode | `.opencode/commands/agents-market.md` |
+
+`integrations package` writes distributable bundles for release artifacts, team templates, or marketplace ingestion:
+
+- `agents-market-claude/`
+- `agents-market-codex/` with `.codex-plugin/plugin.json`
+- `agents-market-opencode/`
 
 Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `apply --json`, asks for confirmation, installs with `apply --yes`, and verifies with `status` and `doctor`.
 

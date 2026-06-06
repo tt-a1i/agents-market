@@ -81,6 +81,7 @@ Use the CLI to install agent-native entrypoints into the current project:
 ```bash
 agents-market integrations diff --target all
 agents-market integrations install --target all
+agents-market integrations package --target all --out ./integration-packages
 ```
 
 Generated files:
@@ -90,6 +91,8 @@ Generated files:
 - OpenCode: `.opencode/commands/agents-market.md`
 
 After installation, users can ask the active coding agent to recommend and install subagent packs. The installed integration tells the agent to run `apply --json`, ask for confirmation, run `apply --yes`, then verify with `status` and `doctor`.
+
+Use `integrations package` when you need distributable bundles instead of writing into the current repository. It produces Claude Code, Codex plugin, and OpenCode command packages from the same installer workflow.
 
 ## Safety Rules
 

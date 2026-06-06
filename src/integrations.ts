@@ -1,5 +1,6 @@
 import type { GeneratedFile, Target } from "./types.js";
 import { expandTargets } from "./adapters/index.js";
+import { CLI_VERSION } from "./constants.js";
 
 const INSTALLER_WORKFLOW = `You help users install specialized coding subagent packs with Agents Market.
 
@@ -37,6 +38,14 @@ export function generateIntegration(target: Target): GeneratedFile {
 
 export function generateIntegrations(target: Target | "all"): GeneratedFile[] {
   return expandTargets(target).map((currentTarget) => generateIntegration(currentTarget));
+}
+
+export function generateIntegrationPackages(target: Target | "all"): GeneratedFile[] {
+  return expandTargets(target).flatMap((currentTarget) => {
+    if (currentTarget === "claude") return generateClaudePackage();
+    if (currentTarget === "codex") return generateCodexPackage();
+    return generateOpenCodePackage();
+  });
 }
 
 function generateClaudeSkill(): GeneratedFile {
@@ -80,4 +89,86 @@ agent: build
 ${INSTALLER_WORKFLOW}
 `
   };
+}
+
+function generateClaudePackage(): GeneratedFile[] {
+  const skill = generateClaudeSkill();
+  return [
+    {
+      path: "agents-market-claude/README.md",
+      content: packageReadme("Claude Code", ".claude/skills/agents-market-installer/SKILL.md")
+    },
+    {
+      path: `agents-market-claude/${skill.path}`,
+      content: skill.content
+    }
+  ];
+}
+
+function generateCodexPackage(): GeneratedFile[] {
+  const skill = generateCodexSkill();
+  const manifest = {
+    name: "agents-market-installer",
+    version: CLI_VERSION,
+    description: "Agents Market installer plugin for Codex",
+    author: {
+      name: "Agents Market contributors"
+    },
+    skills: "./skills/",
+    interface: {
+      displayName: "Agents Market Installer",
+      shortDescription: "Recommend and install specialized coding subagents.",
+      longDescription: "Use the Agents Market CLI from Codex to preview, install, update, and audit subagent packs for Claude Code, Codex, and OpenCode.",
+      developerName: "Agents Market contributors",
+      category: "Productivity",
+      capabilities: [],
+      defaultPrompt: "Recommend specialized coding subagents for this repository."
+    }
+  };
+
+  return [
+    {
+      path: "agents-market-codex/README.md",
+      content: packageReadme("Codex", "skills/agents-market-installer/SKILL.md")
+    },
+    {
+      path: "agents-market-codex/.codex-plugin/plugin.json",
+      content: `${JSON.stringify(manifest, null, 2)}\n`
+    },
+    {
+      path: "agents-market-codex/skills/agents-market-installer/SKILL.md",
+      content: skill.content
+    }
+  ];
+}
+
+function generateOpenCodePackage(): GeneratedFile[] {
+  const command = generateOpenCodeCommand();
+  return [
+    {
+      path: "agents-market-opencode/README.md",
+      content: packageReadme("OpenCode", ".opencode/commands/agents-market.md")
+    },
+    {
+      path: `agents-market-opencode/${command.path}`,
+      content: command.content
+    }
+  ];
+}
+
+function packageReadme(toolName: string, entrypoint: string): string {
+  return `# Agents Market Installer for ${toolName}
+
+This package contains the agent-native installer integration for ${toolName}.
+
+## Contents
+
+- \`${entrypoint}\`
+
+## Usage
+
+Copy this package's contents into a project or user-level ${toolName} configuration location, then ask the coding agent to recommend or install Agents Market subagent packs. The integration previews with \`agents-market apply --json\`, asks for confirmation, installs with \`agents-market apply --yes\`, and verifies with \`agents-market status --json\` and \`agents-market doctor --strict --json\`.
+
+The local \`agents-market\` CLI must be available on PATH, or invoked through \`npx @agents-market/cli\` by the parent agent.
+`;
 }

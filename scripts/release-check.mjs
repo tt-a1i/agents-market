@@ -27,6 +27,7 @@ async function main() {
   assert(registryChangelog.entries?.[0]?.version, "Expected registry changelog latest entry to include a version.");
   await runRegistrySignatureSmoke();
   await runRegistrySubmissionGateSmoke();
+  await runIntegrationPackageSmoke();
   run("npm", ["test"], "Unit tests");
 
   const siteDir = await mkdtemp(join(tmpdir(), "agents-market-release-site-"));
@@ -317,6 +318,29 @@ async function runRegistrySubmissionGateSmoke() {
     );
     assert(summary.catalog?.ok === true, "Expected registry submission summary catalog verification to pass.");
     checks.push("Registry submission summary");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function runIntegrationPackageSmoke() {
+  const dir = await mkdtemp(join(tmpdir(), "agents-market-release-integrations-"));
+  try {
+    run("node", ["dist/index.js", "integrations", "package", "--target", "all", "--out", dir], "Integration package build");
+    const required = [
+      "agents-market-claude/.claude/skills/agents-market-installer/SKILL.md",
+      "agents-market-codex/.codex-plugin/plugin.json",
+      "agents-market-codex/skills/agents-market-installer/SKILL.md",
+      "agents-market-opencode/.opencode/commands/agents-market.md"
+    ];
+    for (const file of required) {
+      const content = await readFile(join(dir, file), "utf8");
+      assert(content.length > 0, `Expected integration package file to be non-empty: ${file}`);
+    }
+    const manifest = JSON.parse(await readFile(join(dir, "agents-market-codex/.codex-plugin/plugin.json"), "utf8"));
+    assert(manifest.name === "agents-market-installer", `Expected Codex plugin name agents-market-installer, found ${manifest.name}.`);
+    assert(manifest.skills === "./skills/", `Expected Codex plugin skills path ./skills/, found ${manifest.skills}.`);
+    checks.push("Integration package contents");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -19,7 +19,7 @@ import { recommendPackDetails, recommendPacks } from "./recommend.js";
 import { auditPack } from "./audit.js";
 import { runDoctor } from "./doctor.js";
 import { createInstallPlan, generatePackFiles } from "./install.js";
-import { generateIntegrations } from "./integrations.js";
+import { generateIntegrationPackages, generateIntegrations } from "./integrations.js";
 import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { composePack } from "./pack.js";
@@ -1711,6 +1711,17 @@ integrationsCommand
 
     await writeGeneratedFiles(root, files);
     console.log(pc.green(`Installed ${files.length} agent-native integration files into ${root}`));
+  });
+
+integrationsCommand
+  .command("package")
+  .requiredOption("-o, --out <path>", "output directory for distributable integration packages")
+  .option("-t, --target <target>", "claude, codex, opencode, or all", "all")
+  .description("Generate distributable Claude Code, Codex, and OpenCode installer packages")
+  .action(async (options: { out: string; target: string }) => {
+    const files = generateIntegrationPackages(parseTarget(options.target));
+    await writeGeneratedFiles(resolve(options.out), files);
+    console.log(pc.green(`Packaged ${files.length} integration files into ${resolve(options.out)}`));
   });
 
 const catalogCommand = program.command("catalog").description("Build static marketplace catalog assets");

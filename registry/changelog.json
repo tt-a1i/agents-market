@@ -15,7 +15,8 @@
       "Manifest drift can be reconciled with resolve strategies for registry content, local edits, or forgotten tracked files",
       "Registry lint reports explainable prompt quality scores for every agent",
       "Registry-related pull requests get an automated review summary artifact",
-      "Imported third-party agents record source SHA-256 checksums for supply-chain review"
+      "Imported third-party agents record source SHA-256 checksums for supply-chain review",
+      "Agent-native installer integrations can be packaged for Claude Code, Codex, and OpenCode distribution"
     ]
   }
 ]
