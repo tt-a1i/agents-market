@@ -185,9 +185,18 @@ describe("registry", () => {
 
   it("creates and parses portable registry bundles", async () => {
     const registry = await loadRegistry();
-    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry");
+    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry", {
+      homepage: "https://example.com/agents-market",
+      repository: "https://github.com/example/agents-market",
+      catalogUrl: "https://example.com/agents-market",
+      releaseUrl: "https://github.com/example/agents-market/releases/tag/v0.1.0",
+      packageSpec: "@agents-market/cli",
+      commit: "abcdef1234567890"
+    });
     expect(bundle.schemaVersion).toBe(1);
     expect(bundle.sha256).toHaveLength(64);
+    expect(bundle.metadata?.repository).toBe("https://github.com/example/agents-market");
+    expect(bundle.metadata?.commit).toBe("abcdef1234567890");
     expect(bundle.packs.length).toBe(registry.packs.length);
     expect(bundle.changelog?.[0]?.summary).toContain("Initial public registry");
   });
@@ -229,6 +238,17 @@ describe("registry", () => {
     expect(summary.targets.claude).toBeGreaterThan(0);
     expect(summary.targets.codex).toBeGreaterThan(0);
     expect(summary.targets.opencode).toBeGreaterThan(0);
+
+    const bundle = createRegistryBundle(registry, "0.1.0", "test-registry", {
+      homepage: "https://example.com/agents-market",
+      repository: "https://github.com/example/agents-market"
+    });
+    const bundleSummary = summarizeRegistry({
+      registry: bundle,
+      source: { kind: "file", value: "/tmp/registry.bundle.json", version: bundle.version, sha256: bundle.sha256 }
+    });
+    expect(bundleSummary.metadata?.homepage).toBe("https://example.com/agents-market");
+    expect(bundleSummary.metadata?.repository).toBe("https://github.com/example/agents-market");
   });
 
   it("verifies locked registry checksums", async () => {

@@ -124,15 +124,15 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 
 ## Static Catalog
 
-`agents-market catalog build` generates a static discovery site from any registry source. `--package` controls the package spec used in copyable `npx` commands, which lets preview catalogs use `github:tt-a1i/agents-market` before npm publication and production catalogs use `@agents-market/cli` after npm publication.
+`agents-market catalog build` generates a static discovery site from any registry source. `--package` controls the package spec used in copyable `npx` commands, which lets preview catalogs use `github:tt-a1i/agents-market` before npm publication and production catalogs use `@agents-market/cli` after npm publication. Catalog and registry bundle metadata can also record homepage, repository, catalog URL, release URL, package spec, and source commit, giving users and agent-native workflows a verifiable source trail.
 
 Outputs:
 
 - `index.html`: searchable catalog for humans with target filters, quality ratings, provenance summaries, and import workflow commands
-- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, compatibility requirements, changelog entries, import workflow commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
 - `registry.bundle.json`: installable registry bundle
 
-The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. The import workflow section gives maintainers copyable commands for normalizing Markdown, local directories, and GitHub repositories into a reviewable registry. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, quality scores, provenance summaries, import workflow commands, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main`.
+The catalog has no runtime framework dependency. It can be served from GitHub Pages, a CDN, an object bucket, or any static file host. Pack cards include copyable commands for `apply --json` preview, lower-level audit/diff inspection, and confirmed `apply --yes` installation from the generated bundle. The import workflow section gives maintainers copyable commands for normalizing Markdown, local directories, and GitHub repositories into a reviewable registry. `agents-market catalog verify` checks that `catalog.json`, `registry.bundle.json`, and `index.html` agree on pack counts, changelog metadata, audits, quality scores, provenance summaries, import workflow commands, `apply` workflow commands, and hosted bundle URLs. The included Pages workflow builds and verifies the catalog from the bundled registry on every push to `main` and stamps it with the GitHub repository, preview release URL, package spec, and commit.
 
 ## Custom Packs
 

@@ -23,6 +23,8 @@ npm run release:check
 npm run release:artifacts -- --out ./release-artifacts --catalog-base-url https://tt-a1i.github.io/agents-market --release-tag preview-0.1.0 --package github:tt-a1i/agents-market
 ```
 
+The artifact builder stamps `registry.bundle.json`, `catalog/catalog.json`, and `release-artifacts.json` with release/source metadata: homepage, repository URL, catalog URL, release URL, package spec, and the current git commit when available. Bundle metadata is included in the registry checksum.
+
 - `registry.bundle.json`
 - `catalog/` with `index.html`, `catalog.json`, and `registry.bundle.json`
 - `agents-market-claude-<version>.tgz`

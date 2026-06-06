@@ -4,7 +4,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { registryRoot } from "./paths.js";
 import { agentSchema, changelogEntrySchema, packSchema, registryBundleSchema } from "./schema.js";
 import { sha256 } from "./hash.js";
-import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock, RegistrySignature } from "./types.js";
+import type { AgentDefinition, PackDefinition, Registry, RegistryBundle, RegistryLock, RegistryMetadata, RegistrySignature } from "./types.js";
 
 export interface LoadedRegistry {
   registry: Registry;
@@ -18,6 +18,7 @@ export interface LoadedRegistry {
 
 export interface RegistrySummary {
   source: LoadedRegistry["source"];
+  metadata?: RegistryMetadata;
   packCount: number;
   agentCount: number;
   packs: Array<{
@@ -156,6 +157,7 @@ export function summarizeRegistry(loaded: LoadedRegistry): RegistrySummary {
   }
   return {
     source: loaded.source,
+    metadata: registryMetadata(loaded.registry),
     packCount: loaded.registry.packs.length,
     agentCount: loaded.registry.agents.length,
     packs: loaded.registry.packs.map((pack) => ({
@@ -180,12 +182,18 @@ export function summarizeRegistry(loaded: LoadedRegistry): RegistrySummary {
   };
 }
 
-export function createRegistryBundle(registry: Registry, version: string, name = "agents-market"): RegistryBundle {
+export function createRegistryBundle(
+  registry: Registry,
+  version: string,
+  name = "agents-market",
+  metadata?: RegistryMetadata
+): RegistryBundle {
   const bundleWithoutHash = {
     schemaVersion: 1 as const,
     name,
     version,
     exportedAt: new Date().toISOString(),
+    metadata: normalizeMetadata(metadata),
     agents: registry.agents,
     packs: registry.packs,
     changelog: registry.changelog
@@ -272,11 +280,30 @@ function registryBundleHash(bundle: RegistryBundle | Omit<RegistryBundle, "sha25
       name: bundle.name,
       version: bundle.version,
       exportedAt: bundle.exportedAt,
+      metadata: bundle.metadata,
       agents: bundle.agents,
       packs: bundle.packs,
       changelog: bundle.changelog
     })
   );
+}
+
+function registryMetadata(registry: Registry): RegistryMetadata | undefined {
+  if ("metadata" in registry && isMetadata(registry.metadata)) {
+    return registry.metadata;
+  }
+  return undefined;
+}
+
+function normalizeMetadata(metadata: RegistryMetadata | undefined): RegistryMetadata | undefined {
+  if (!metadata) return undefined;
+  const entries = Object.entries(metadata).filter(([, value]) => value !== undefined && value !== "");
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries) as RegistryMetadata;
+}
+
+function isMetadata(value: unknown): value is RegistryMetadata {
+  return Boolean(value && typeof value === "object");
 }
 
 function registrySignaturePayload(sha: string): Buffer {

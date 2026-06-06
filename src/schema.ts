@@ -84,11 +84,21 @@ export const registrySignatureSchema = z.object({
   signature: z.string().min(1)
 });
 
+export const registryMetadataSchema = z.object({
+  homepage: z.string().url().optional(),
+  repository: z.string().url().optional(),
+  catalogUrl: z.string().url().optional(),
+  releaseUrl: z.string().url().optional(),
+  packageSpec: z.string().min(1).optional(),
+  commit: z.string().regex(/^[a-f0-9]{7,40}$/).optional()
+});
+
 export const registryBundleSchema = registrySchema.extend({
   schemaVersion: z.literal(1),
   name: z.string().min(1),
   version: z.string().min(1),
   exportedAt: z.string().min(1),
+  metadata: registryMetadataSchema.optional(),
   signatures: z.array(registrySignatureSchema).optional(),
   sha256: z.string().optional()
 });

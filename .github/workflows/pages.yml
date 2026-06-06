@@ -29,7 +29,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node dist/index.js catalog build --out ./site --title "Agents Market" --base-url "https://tt-a1i.github.io/agents-market" --package "github:tt-a1i/agents-market"
+      - run: node dist/index.js catalog build --out ./site --title "Agents Market" --base-url "https://tt-a1i.github.io/agents-market" --package "github:tt-a1i/agents-market" --homepage "https://tt-a1i.github.io/agents-market/" --repository "https://github.com/tt-a1i/agents-market" --release-url "https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0" --commit "${GITHUB_SHA}"
       - run: node dist/index.js catalog verify --dir ./site
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -10,10 +10,18 @@ const packageSpec = args.packageSpec ?? "github:tt-a1i/agents-market";
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 const version = packageJson.version;
 const defaultReleaseTag = args.releaseTag ?? `v${version}`;
+const repositoryUrl = args.repository ?? normalizeRepositoryUrl(packageJson.repository?.url) ?? "https://github.com/tt-a1i/agents-market";
+const homepageUrl = args.homepage ?? packageJson.homepage ?? catalogBaseUrl;
+const releaseUrl = args.releaseUrl ?? `${repositoryUrl.replace(/\/+$/, "")}/releases/tag/${defaultReleaseTag}`;
+const commit = args.commit ?? gitCommit();
 const artifactManifest = {
   version,
   catalogBaseUrl,
   packageSpec,
+  homepageUrl,
+  repositoryUrl,
+  releaseUrl,
+  commit,
   releaseTag: defaultReleaseTag,
   generatedAt: new Date().toISOString(),
   artifacts: []
@@ -22,7 +30,30 @@ const artifactManifest = {
 await rm(outDir, { recursive: true, force: true });
 await mkdir(outDir, { recursive: true });
 
-run("node", ["dist/index.js", "registry", "export", "--out", join(outDir, "registry.bundle.json"), "--bundle-version", version], "Export registry bundle");
+run(
+  "node",
+  [
+    "dist/index.js",
+    "registry",
+    "export",
+    "--out",
+    join(outDir, "registry.bundle.json"),
+    "--bundle-version",
+    version,
+    "--homepage",
+    homepageUrl,
+    "--repository",
+    repositoryUrl,
+    "--catalog-url",
+    catalogBaseUrl,
+    "--release-url",
+    releaseUrl,
+    "--package",
+    packageSpec,
+    ...(commit ? ["--commit", commit] : [])
+  ],
+  "Export registry bundle"
+);
 run("node", ["dist/index.js", "registry", "verify", "--registry", join(outDir, "registry.bundle.json"), "--json"], "Verify registry bundle");
 run(
   "node",
@@ -37,7 +68,14 @@ run(
     "--base-url",
     catalogBaseUrl,
     "--package",
-    packageSpec
+    packageSpec,
+    "--homepage",
+    homepageUrl,
+    "--repository",
+    repositoryUrl,
+    "--release-url",
+    releaseUrl,
+    ...(commit ? ["--commit", commit] : [])
   ],
   "Build catalog"
 );
@@ -107,11 +145,30 @@ function parseArgs(values) {
       parsed.releaseTag = values[++index];
     } else if (value === "--package") {
       parsed.packageSpec = values[++index];
+    } else if (value === "--homepage") {
+      parsed.homepage = values[++index];
+    } else if (value === "--repository") {
+      parsed.repository = values[++index];
+    } else if (value === "--release-url") {
+      parsed.releaseUrl = values[++index];
+    } else if (value === "--commit") {
+      parsed.commit = values[++index];
     } else {
       throw new Error(`Unknown argument: ${value}`);
     }
   }
   return parsed;
+}
+
+function gitCommit() {
+  const result = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  if (result.status !== 0) return undefined;
+  return result.stdout.trim() || undefined;
+}
+
+function normalizeRepositoryUrl(value) {
+  if (!value || typeof value !== "string") return undefined;
+  return value.replace(/^git\+/, "").replace(/\.git$/, "");
 }
 
 function installScript(version, releaseTag) {

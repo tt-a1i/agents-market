@@ -66,6 +66,15 @@ export interface RegistrySignature {
   signature: string;
 }
 
+export interface RegistryMetadata {
+  homepage?: string;
+  repository?: string;
+  catalogUrl?: string;
+  releaseUrl?: string;
+  packageSpec?: string;
+  commit?: string;
+}
+
 export interface Registry {
   agents: AgentDefinition[];
   packs: PackDefinition[];
@@ -77,6 +86,7 @@ export interface RegistryBundle {
   name: string;
   version: string;
   exportedAt: string;
+  metadata?: RegistryMetadata;
   agents: AgentDefinition[];
   packs: PackDefinition[];
   changelog?: RegistryChangelogEntry[];

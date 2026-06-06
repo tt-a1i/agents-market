@@ -414,6 +414,8 @@ async function runReleaseArtifactsSmoke() {
     );
     const manifest = JSON.parse(await readFile(join(dir, "release-artifacts.json"), "utf8"));
     assert(manifest.packageSpec === "github:tt-a1i/agents-market", `Expected release artifact packageSpec github:tt-a1i/agents-market, found ${manifest.packageSpec}.`);
+    assert(manifest.repositoryUrl === "https://github.com/tt-a1i/agents-market", `Expected release artifact repository URL, found ${manifest.repositoryUrl}.`);
+    assert(manifest.releaseUrl?.endsWith(`/releases/tag/${manifest.releaseTag}`), `Expected release artifact release URL to match release tag, found ${manifest.releaseUrl}.`);
     const artifactPaths = new Set(manifest.artifacts?.map((artifact) => artifact.path));
     for (const required of [
       "registry.bundle.json",
@@ -431,8 +433,12 @@ async function runReleaseArtifactsSmoke() {
     const checksums = await readFile(join(dir, "SHA256SUMS"), "utf8");
     assert(checksums.includes("registry.bundle.json"), "Release artifact checksums do not include registry.bundle.json.");
     const catalog = JSON.parse(await readFile(join(dir, "catalog", "catalog.json"), "utf8"));
+    const bundle = JSON.parse(await readFile(join(dir, "registry.bundle.json"), "utf8"));
     const starterPack = catalog.packs?.find((pack) => pack.id === "starter-dev-pack");
     assert(catalog.packageSpec === "github:tt-a1i/agents-market", `Expected release catalog packageSpec github:tt-a1i/agents-market, found ${catalog.packageSpec}.`);
+    assert(catalog.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release catalog repository metadata, found ${catalog.metadata?.repository}.`);
+    assert(bundle.metadata?.repository === "https://github.com/tt-a1i/agents-market", `Expected release bundle repository metadata, found ${bundle.metadata?.repository}.`);
+    assert(bundle.metadata?.packageSpec === "github:tt-a1i/agents-market", `Expected release bundle packageSpec metadata, found ${bundle.metadata?.packageSpec}.`);
     assert(
       starterPack?.previewCommand?.startsWith("npx github:tt-a1i/agents-market apply starter-dev-pack"),
       `Expected release catalog preview command to use GitHub npx package spec, found ${starterPack?.previewCommand}.`

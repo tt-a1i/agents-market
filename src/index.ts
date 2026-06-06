@@ -1554,6 +1554,12 @@ registryCommand
     console.log(`- kind: ${summary.source.kind}`);
     if (summary.source.version) console.log(`- version: ${summary.source.version}`);
     if (summary.source.sha256) console.log(`- sha256: ${summary.source.sha256}`);
+    if (summary.metadata?.homepage) console.log(`- homepage: ${summary.metadata.homepage}`);
+    if (summary.metadata?.repository) console.log(`- repository: ${summary.metadata.repository}`);
+    if (summary.metadata?.catalogUrl) console.log(`- catalog: ${summary.metadata.catalogUrl}`);
+    if (summary.metadata?.releaseUrl) console.log(`- release: ${summary.metadata.releaseUrl}`);
+    if (summary.metadata?.packageSpec) console.log(`- package: ${summary.metadata.packageSpec}`);
+    if (summary.metadata?.commit) console.log(`- commit: ${summary.metadata.commit}`);
     console.log(`- packs: ${summary.packCount}`);
     console.log(`- agents: ${summary.agentCount}`);
     console.log(`- changelog entries: ${summary.changelog.count}`);
@@ -1613,6 +1619,12 @@ registryCommand
   .option("--bundle-version <version>", "bundle version", BUNDLED_REGISTRY_VERSION)
   .option("--private-key <path>", "Ed25519 private key PEM used to sign the exported bundle")
   .option("--key-id <id>", "signature key id")
+  .option("--homepage <url>", "homepage URL stored in bundle metadata")
+  .option("--repository <url>", "source repository URL stored in bundle metadata")
+  .option("--catalog-url <url>", "catalog URL stored in bundle metadata")
+  .option("--release-url <url>", "release URL stored in bundle metadata")
+  .option("--package <spec>", "package spec stored in bundle metadata")
+  .option("--commit <sha>", "source commit stored in bundle metadata")
   .description("Export a registry source as a single portable JSON bundle")
   .action(
     async (options: {
@@ -1622,9 +1634,22 @@ registryCommand
       bundleVersion: string;
       privateKey?: string;
       keyId?: string;
+      homepage?: string;
+      repository?: string;
+      catalogUrl?: string;
+      releaseUrl?: string;
+      package?: string;
+      commit?: string;
     }) => {
       const { registry } = await loadRegistryWithInfo(options.registry);
-      let bundle = createRegistryBundle(registry, options.bundleVersion, options.name);
+      let bundle = createRegistryBundle(registry, options.bundleVersion, options.name, {
+        homepage: options.homepage,
+        repository: options.repository,
+        catalogUrl: options.catalogUrl,
+        releaseUrl: options.releaseUrl,
+        packageSpec: options.package,
+        commit: options.commit
+      });
       if (options.privateKey) {
         if (!options.keyId) throw new Error("--key-id is required when --private-key is provided.");
         const privateKey = await readFile(resolve(options.privateKey), "utf8");
@@ -1936,15 +1961,34 @@ catalogCommand
   .option("--title <title>", "catalog site title", "Agents Market")
   .option("--base-url <url>", "public base URL used in copyable registry commands")
   .option("--package <spec>", "package spec used by catalog npx commands", "github:tt-a1i/agents-market")
+  .option("--homepage <url>", "homepage URL stored in catalog and registry bundle metadata")
+  .option("--repository <url>", "source repository URL stored in catalog and registry bundle metadata")
+  .option("--release-url <url>", "release URL stored in catalog and registry bundle metadata")
+  .option("--commit <sha>", "source commit stored in catalog and registry bundle metadata")
   .description("Build a static Web catalog for packs and agents")
-  .action(async (options: { out: string; registry?: string; version: string; title: string; baseUrl?: string; package: string }) => {
+  .action(async (options: {
+    out: string;
+    registry?: string;
+    version: string;
+    title: string;
+    baseUrl?: string;
+    package: string;
+    homepage?: string;
+    repository?: string;
+    releaseUrl?: string;
+    commit?: string;
+  }) => {
     const { registry } = await loadRegistryWithInfo(options.registry);
     const files = await buildCatalog(registry, {
       outDir: resolve(options.out),
       version: options.version,
       title: options.title,
       baseUrl: options.baseUrl,
-      packageSpec: options.package
+      packageSpec: options.package,
+      homepage: options.homepage,
+      repository: options.repository,
+      releaseUrl: options.releaseUrl,
+      commit: options.commit
     });
     console.log(pc.green(`Built catalog with ${files.length} files in ${resolve(options.out)}`));
   });

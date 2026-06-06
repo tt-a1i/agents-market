@@ -4,7 +4,7 @@ import { auditPack } from "./audit.js";
 import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
 import { createRegistryBundle, validateRegistry } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
-import type { AgentDefinition, Registry, RegistryBundle, Target } from "./types.js";
+import type { AgentDefinition, Registry, RegistryBundle, RegistryMetadata, Target } from "./types.js";
 
 export interface CatalogOptions {
   outDir: string;
@@ -12,6 +12,10 @@ export interface CatalogOptions {
   title?: string;
   baseUrl?: string;
   packageSpec?: string;
+  homepage?: string;
+  repository?: string;
+  releaseUrl?: string;
+  commit?: string;
 }
 
 export interface CatalogVerificationFinding {
@@ -33,10 +37,11 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
   const title = options.title ?? "Agents Market";
   await mkdir(options.outDir, { recursive: true });
 
-  const bundle = createRegistryBundle(registry, options.version, "agents-market");
   const bundleUrl = assetUrl("registry.bundle.json", options.baseUrl);
   const packageSpec = options.packageSpec ?? "github:tt-a1i/agents-market";
   assertSafePackageSpec(packageSpec);
+  const metadata = catalogMetadata(options, packageSpec);
+  const bundle = createRegistryBundle(registry, options.version, "agents-market", metadata);
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const importWorkflows = importWorkflowCommands(packageSpec);
@@ -45,6 +50,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     generatedAt: new Date().toISOString(),
     baseUrl: options.baseUrl,
     packageSpec,
+    metadata,
     registryBundleUrl: bundleUrl,
     packCount: registry.packs.length,
     agentCount: registry.agents.length,
@@ -67,7 +73,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     },
     {
       name: "index.html",
-      content: renderHtml(title, registry, bundleUrl, packageSpec)
+      content: renderHtml(title, registry, bundleUrl, packageSpec, metadata)
     }
   ];
 
@@ -324,7 +330,13 @@ export function assertSafePackageSpec(packageSpec: string): void {
   }
 }
 
-function renderHtml(title: string, registry: Registry, bundlePath: string, packageSpec: string): string {
+function renderHtml(
+  title: string,
+  registry: Registry,
+  bundlePath: string,
+  packageSpec: string,
+  metadata?: RegistryMetadata
+): string {
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const importWorkflows = importWorkflowCommands(packageSpec);
@@ -469,6 +481,7 @@ function renderHtml(title: string, registry: Registry, bundlePath: string, packa
       <h1>${escapeHtml(title)}</h1>
       <p>Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode. Preview, lock, install, update, and uninstall with one CLI.</p>
       <p class="muted">Copyable commands use <code>npx ${escapeHtml(packageSpec)}</code>.</p>
+      ${renderMetadata(metadata)}
       <div class="stats">
         <div class="stat"><strong>${registry.packs.length}</strong><span>packs</span></div>
         <div class="stat"><strong>${registry.agents.length}</strong><span>agents</span></div>
@@ -545,6 +558,33 @@ function renderHtml(title: string, registry: Registry, bundlePath: string, packa
 `;
 }
 
+function catalogMetadata(options: CatalogOptions, packageSpec: string): RegistryMetadata | undefined {
+  const catalogUrl = options.baseUrl ? options.baseUrl.replace(/\/+$/, "") : undefined;
+  const metadata: RegistryMetadata = {
+    homepage: options.homepage ?? catalogUrl,
+    repository: options.repository,
+    catalogUrl,
+    releaseUrl: options.releaseUrl,
+    packageSpec,
+    commit: options.commit
+  };
+  const entries = Object.entries(metadata).filter(([, value]) => value !== undefined && value !== "");
+  return entries.length > 0 ? (Object.fromEntries(entries) as RegistryMetadata) : undefined;
+}
+
+function renderMetadata(metadata: RegistryMetadata | undefined): string {
+  if (!metadata) return "";
+  const links = [
+    metadata.homepage ? `<a href="${escapeAttribute(metadata.homepage)}">homepage</a>` : "",
+    metadata.repository ? `<a href="${escapeAttribute(metadata.repository)}">source</a>` : "",
+    metadata.catalogUrl ? `<a href="${escapeAttribute(metadata.catalogUrl)}">catalog</a>` : "",
+    metadata.releaseUrl ? `<a href="${escapeAttribute(metadata.releaseUrl)}">release</a>` : "",
+    metadata.commit ? `<span>commit <code>${escapeHtml(metadata.commit.slice(0, 12))}</code></span>` : ""
+  ].filter(Boolean);
+  if (links.length === 0) return "";
+  return `<p class="muted provenance-links">${links.join(" | ")}</p>`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -552,6 +592,10 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
 }
 
 function renderProvenance(

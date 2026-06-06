@@ -207,10 +207,11 @@ Sign and verify a portable bundle:
 
 ```bash
 agents-market registry export --out ./registry.bundle.json --private-key ./registry-private.pem --key-id main
+agents-market registry export --out ./registry.bundle.json --homepage https://example.com/agents-market --repository https://github.com/acme/agents-market --catalog-url https://example.com/agents-market --release-url https://github.com/acme/agents-market/releases/tag/v0.1.0 --package @agents-market/cli
 agents-market registry verify --registry ./registry.bundle.json --public-key ./registry-public.pem --key-id main --json
 ```
 
-Bundle signatures use Ed25519 and cover the registry bundle checksum. `registry verify` always validates the bundle checksum while loading the source; when a public key is provided, it also verifies the matching signature. Hosted marketplace catalogs can publish the public key separately so agent-native installers can verify a bundle before locking or installing from it.
+Bundle signatures use Ed25519 and cover the registry bundle checksum. `registry verify` always validates the bundle checksum while loading the source; when a public key is provided, it also verifies the matching signature. Hosted marketplace catalogs can publish the public key separately so agent-native installers can verify a bundle before locking or installing from it. Registry bundles can also include optional `metadata` such as homepage, repository, catalog URL, release URL, package spec, and source commit; this metadata is included in the bundle checksum and appears in `registry info --json`.
 
 Lint a registry before publishing:
 
@@ -338,7 +339,7 @@ Build a static marketplace catalog:
 
 ```bash
 agents-market catalog build --out ./site
-agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market
+agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market --repository https://github.com/acme/agents-market
 agents-market catalog verify --dir ./site
 ```
 
@@ -347,7 +348,7 @@ Use `--package github:tt-a1i/agents-market` for preview catalogs before npm publ
 The catalog generator writes:
 
 - `index.html`: searchable static catalog with target filters, quality ratings, provenance summaries, and import workflow commands
-- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, pack compatibility requirements, changelog entries, import workflow commands, and agent metadata
+- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, pack compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
 - `registry.bundle.json`: portable registry bundle that users can install from
 
 Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path.

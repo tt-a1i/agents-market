@@ -22,7 +22,10 @@ describe("catalog", () => {
       outDir: cleanupPath,
       version: "0.1.0",
       title: "Agents Market Test",
-      baseUrl: "https://example.com/agents-market"
+      baseUrl: "https://example.com/agents-market",
+      repository: "https://github.com/example/agents-market",
+      releaseUrl: "https://github.com/example/agents-market/releases/tag/v0.1.0",
+      commit: "abcdef1234567890"
     });
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
@@ -56,11 +59,22 @@ describe("catalog", () => {
     );
     expect(html).toContain("data-copy=");
     expect(html).toContain("navigator.clipboard.writeText");
+    expect(html).toContain("href=\"https://github.com/example/agents-market\"");
+    expect(html).toContain("href=\"https://github.com/example/agents-market/releases/tag/v0.1.0\"");
+    expect(html).toContain("commit <code>abcdef123456</code>");
 
     const catalog = JSON.parse(await readFile(join(cleanupPath, "catalog.json"), "utf8")) as {
       packCount: number;
       agentCount: number;
       packageSpec: string;
+      metadata: {
+        homepage?: string;
+        repository?: string;
+        catalogUrl?: string;
+        releaseUrl?: string;
+        packageSpec?: string;
+        commit?: string;
+      };
       registryBundleUrl: string;
       promptQuality: { averageScore: number; minScore: number };
       provenance: { withProvenance: number; withChecksum: number };
@@ -101,10 +115,23 @@ describe("catalog", () => {
     expect(catalog.promptQuality.averageScore).toBeGreaterThanOrEqual(90);
     expect(catalog.promptQuality.minScore).toBeGreaterThanOrEqual(80);
     expect(catalog.packageSpec).toBe("github:tt-a1i/agents-market");
+    expect(catalog.metadata.homepage).toBe("https://example.com/agents-market");
+    expect(catalog.metadata.repository).toBe("https://github.com/example/agents-market");
+    expect(catalog.metadata.catalogUrl).toBe("https://example.com/agents-market");
+    expect(catalog.metadata.releaseUrl).toBe("https://github.com/example/agents-market/releases/tag/v0.1.0");
+    expect(catalog.metadata.packageSpec).toBe("github:tt-a1i/agents-market");
+    expect(catalog.metadata.commit).toBe("abcdef1234567890");
     expect(catalog.provenance.withProvenance).toBe(0);
     expect(catalog.importWorkflows.map((workflow) => workflow.label)).toContain("Import GitHub Repository");
     expect(catalog.importWorkflows.map((workflow) => workflow.command).join("\n")).toContain("import repo owner/community-agents");
     expect(catalog.registryBundleUrl).toBe("https://example.com/agents-market/registry.bundle.json");
+    const bundle = JSON.parse(await readFile(join(cleanupPath, "registry.bundle.json"), "utf8")) as {
+      metadata: { repository?: string; releaseUrl?: string; packageSpec?: string; commit?: string };
+    };
+    expect(bundle.metadata.repository).toBe("https://github.com/example/agents-market");
+    expect(bundle.metadata.releaseUrl).toBe("https://github.com/example/agents-market/releases/tag/v0.1.0");
+    expect(bundle.metadata.packageSpec).toBe("github:tt-a1i/agents-market");
+    expect(bundle.metadata.commit).toBe("abcdef1234567890");
     const starterPack = catalog.packs.find((pack) => pack.id === "starter-dev-pack");
     expect(starterPack?.previewCommand).toContain(
       "npx github:tt-a1i/agents-market apply starter-dev-pack --target all --registry https://example.com/agents-market/registry.bundle.json --policy-preset balanced --json"
