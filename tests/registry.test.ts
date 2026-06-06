@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createRegistryBundle, loadRegistry } from "../src/registry.js";
 import { recommendPackDetails, recommendPacks } from "../src/recommend.js";
 import { createInstallPlan } from "../src/install.js";
+import { githubTreeUrl, parseGitHubRepository } from "../src/git-import.js";
 
 describe("registry", () => {
   it("loads bundled agents and packs", async () => {
@@ -40,6 +41,18 @@ describe("registry", () => {
     expect(plan.agentCount).toBe(4);
     expect(plan.fileCount).toBe(12);
     expect(plan.files[0]).toHaveProperty("agentId");
+  });
+
+  it("parses GitHub repositories for import", () => {
+    const repo = parseGitHubRepository("owner/example-agents");
+    expect(repo.repository).toBe("owner/example-agents");
+    expect(repo.cloneUrl).toBe("https://github.com/owner/example-agents.git");
+    expect(githubTreeUrl(repo, "main", "agents/claude")).toBe(
+      "https://github.com/owner/example-agents/tree/main/agents/claude"
+    );
+
+    const urlRepo = parseGitHubRepository("https://github.com/acme/templates.git");
+    expect(urlRepo.repository).toBe("acme/templates");
   });
 
   it("creates and parses portable registry bundles", async () => {

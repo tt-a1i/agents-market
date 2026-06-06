@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import pc from "picocolors";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRegistryBundle, loadRegistryWithInfo } from "./registry.js";
 import { buildCatalog } from "./catalog.js";
@@ -10,6 +10,7 @@ import { detectProject } from "./project.js";
 import { recommendPackDetails, recommendPacks } from "./recommend.js";
 import { createInstallPlan, generatePackFiles } from "./install.js";
 import { generateIntegrations } from "./integrations.js";
+import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { importMarkdownAgent, importMarkdownDirectory } from "./importer.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import {
@@ -581,6 +582,97 @@ importCommand
       }
       if (result.pack) {
         console.log(pc.green(`Wrote pack ${result.pack.id} with ${result.pack.agents.length} agents.`));
+      }
+    }
+  );
+
+importCommand
+  .command("repo")
+  .argument("<repo>", "GitHub repository, for example owner/name or https://github.com/owner/name")
+  .requiredOption("-t, --target <target>", "source target format: claude, codex, or opencode")
+  .requiredOption("-o, --out <dir>", "write normalized agent JSON into this registry/agents directory")
+  .option("--ref <ref>", "branch, tag, or commit to import")
+  .option("--path <path>", "subdirectory inside the repository to scan")
+  .option("--no-recursive", "only scan the selected top-level directory")
+  .option("--overwrite", "overwrite existing normalized agent JSON files")
+  .option("--category <category>", "override inferred category for all imported agents")
+  .option("--tag <tag...>", "additional tags for all imported agents")
+  .option("--version <version>", "agent version", "0.1.0")
+  .option("--source-url <url>", "override original template collection URL")
+  .option("--source-license <license>", "source template license")
+  .option("--source-author <author>", "source template author")
+  .option("--pack <id>", "also write a pack containing imported agents")
+  .option("--pack-out <dir>", "registry/packs output directory for --pack")
+  .option("--pack-name <name>", "pack display name")
+  .option("--pack-description <description>", "pack description")
+  .description("Clone a GitHub repository and normalize Markdown agents into registry JSON")
+  .action(
+    async (
+      repo: string,
+      options: {
+        target: string;
+        out: string;
+        ref?: string;
+        path?: string;
+        recursive: boolean;
+        overwrite?: boolean;
+        category?: string;
+        tag?: string[];
+        version: string;
+        sourceUrl?: string;
+        sourceLicense?: string;
+        sourceAuthor?: string;
+        pack?: string;
+        packOut?: string;
+        packName?: string;
+        packDescription?: string;
+      }
+    ) => {
+      const target = parseTarget(options.target);
+      if (target === "all") throw new Error("Import target must be one of claude, codex, or opencode.");
+      if (options.pack && !options.packOut) throw new Error("--pack-out is required when --pack is provided.");
+
+      const cloned = await cloneGitHubRepository(repo, options.ref);
+      try {
+        const checkoutRoot = resolve(cloned.checkoutDir);
+        const scanPath = options.path ? resolve(checkoutRoot, options.path) : checkoutRoot;
+        if (scanPath !== checkoutRoot && !scanPath.startsWith(`${checkoutRoot}${sep}`)) {
+          throw new Error(`Import path escapes the cloned repository: ${options.path}`);
+        }
+        const sourceUrl = options.sourceUrl ?? githubTreeUrl(cloned.repository, options.ref ?? "HEAD", options.path);
+        const result = await importMarkdownDirectory({
+          sourceDir: scanPath,
+          target,
+          outDir: resolve(options.out),
+          recursive: options.recursive,
+          overwrite: options.overwrite,
+          category: options.category,
+          tags: options.tag,
+          version: options.version,
+          provenance: provenanceFromOptions({
+            sourceUrl,
+            sourceRepo: cloned.repository.repository,
+            sourceLicense: options.sourceLicense,
+            sourceAuthor: options.sourceAuthor
+          }),
+          pack: options.pack
+            ? {
+                id: options.pack,
+                name: options.packName,
+                description: options.packDescription,
+                outDir: resolve(options.packOut!)
+              }
+            : undefined
+        });
+        console.log(pc.green(`Imported ${result.imported.length} agents from ${cloned.repository.repository} into ${resolve(options.out)}`));
+        if (result.skipped.length > 0) {
+          console.log(pc.yellow(`Skipped ${result.skipped.length} files due to duplicate ids or existing outputs.`));
+        }
+        if (result.pack) {
+          console.log(pc.green(`Wrote pack ${result.pack.id} with ${result.pack.agents.length} agents.`));
+        }
+      } finally {
+        await cloned.cleanup();
       }
     }
   );

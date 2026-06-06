@@ -63,6 +63,7 @@ agents-market integrations install --target all
 agents-market catalog build --out ./site
 agents-market import markdown ./agent.md --target claude --out ./registry/agents
 agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
+agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
 ```
 
 ## Install Manifest
@@ -165,6 +166,7 @@ Normalize Claude Code or OpenCode Markdown agents into the registry schema:
 ```bash
 agents-market import markdown ./code-reviewer.md --target claude --out ./registry/agents
 agents-market import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs
+agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
 agents-market registry lint --registry ./registry
 ```
 
@@ -177,6 +179,17 @@ agents-market import directory ./community-agents \
   --source-repo owner/repo \
   --source-license MIT \
   --source-url https://github.com/owner/repo
+```
+
+For public GitHub template repositories, `import repo` derives the repository provenance automatically:
+
+```bash
+agents-market import repo owner/repo \
+  --target claude \
+  --path agents \
+  --ref main \
+  --out ./registry/agents \
+  --source-license MIT
 ```
 
 See [docs/import.md](./docs/import.md).

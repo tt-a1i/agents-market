@@ -63,6 +63,29 @@ By default, directory imports scan recursively. Use `--no-recursive` to scan onl
 
 Existing normalized agents are not overwritten unless you pass `--overwrite`.
 
+## Import A GitHub Repository
+
+Clone a public GitHub template repository and import Markdown agents directly:
+
+```bash
+agents-market import repo owner/community-agents \
+  --target claude \
+  --path agents \
+  --ref main \
+  --out ./registry/agents \
+  --pack community-agents \
+  --pack-out ./registry/packs \
+  --source-license MIT
+```
+
+The `repo` argument accepts `owner/name` or a `https://github.com/owner/name` URL. Use `--path` to scan only the directory that contains agent templates. Use `--ref` to pin a branch, tag, or commit.
+
+Repository imports automatically set provenance:
+
+- `repository` from the GitHub owner/name.
+- `source` from the GitHub tree URL, unless you override it with `--source-url`.
+- `license` and `author` from the explicit flags, when provided.
+
 ## Generate A Pack During Import
 
 Create a pack that contains the imported agents:
