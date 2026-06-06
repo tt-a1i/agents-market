@@ -20,7 +20,8 @@ Shall I install it?
 4. Run `agents-market diff <pack> --target <target>`.
 5. Explain files, permissions, and command-running risk.
 6. After confirmation, run `agents-market install <pack> --target <target>`.
-7. Tell the user how to invoke the installed agents.
+7. Run `agents-market status` and summarize the installed files.
+8. Tell the user how to invoke the installed agents.
 
 ## Integration Strategy
 
@@ -33,7 +34,9 @@ The CLI remains the stable execution layer. Agent-native integrations should be 
 ## Safety Rules
 
 - Always run `diff` before `install`.
+- Run `status` after install/update.
 - Prefer curated packs over installing many individual agents.
 - Explain permissions for command-capable agents like `test-runner` and `frontend-verifier`.
 - Never overwrite unrelated user files silently.
+- Do not use `--force` unless the user explicitly asks to overwrite or remove modified generated files.
 - Keep installed agent count small unless the user explicitly asks for a broad pack.

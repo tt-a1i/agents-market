@@ -57,3 +57,22 @@ export interface GeneratedFile {
   path: string;
   content: string;
 }
+
+export interface ManifestFileEntry {
+  path: string;
+  target: Target;
+  agentId: string;
+  sha256: string;
+}
+
+export interface ManifestInstallEntry {
+  packId: string;
+  target: Target | "all";
+  installedAt: string;
+  files: ManifestFileEntry[];
+}
+
+export interface InstallManifest {
+  schemaVersion: 1;
+  installs: ManifestInstallEntry[];
+}

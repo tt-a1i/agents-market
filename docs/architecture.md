@@ -22,7 +22,7 @@ Agents Market is built around one invariant: the registry is tool-neutral, and a
 
 4. CLI
 
-   `src/index.ts` is the execution layer. It can run locally in a repo, print diffs, install packs, or export generated files.
+   `src/index.ts` is the execution layer. It can run locally in a repo, print diffs, install packs, export generated files, show install status, update existing installs, and uninstall generated files.
 
 5. Agent-native integrations
 
@@ -35,14 +35,39 @@ agents-market list
 agents-market recommend
 agents-market diff <pack> --target all
 agents-market install <pack> --target all
+agents-market status
+agents-market update
+agents-market uninstall <pack> --target all
 agents-market export <pack> --target all --out ./generated
 ```
+
+## Manifest Lifecycle
+
+Installing a pack writes `.agents-market/manifest.json`.
+
+The manifest records:
+
+- pack id
+- target
+- install timestamp
+- generated file paths
+- target platform per file
+- source agent id per file
+- sha256 hash of generated content
+
+This gives the installer a lifecycle:
+
+- `status` compares current files with stored hashes.
+- `update` regenerates installed packs and skips user-modified files unless `--force` is set.
+- `uninstall` removes generated files and skips user-modified files unless `--force` is set.
+
+The manifest is intentionally not ignored. Teams can commit it when they want deterministic pack lifecycle tracking.
 
 ## Future Production Requirements
 
 - Remote registry download and lockfile support.
 - Pack version constraints and update checks.
-- Install manifests for uninstall and drift detection.
+- Manifest conflict resolution and richer drift reports.
 - Registry linting and prompt quality scoring.
 - Signature or checksum verification for third-party packs.
 - Agent-native integrations for Claude Code, Codex, and OpenCode.

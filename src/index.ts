@@ -6,7 +6,9 @@ import { loadRegistry } from "./registry.js";
 import { detectProject } from "./project.js";
 import { recommendPacks } from "./recommend.js";
 import { generatePackFiles } from "./install.js";
-import { readExisting, summarizeFileChange, writeGeneratedFiles } from "./files.js";
+import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
+import { loadManifest, removeInstall, saveManifest, upsertInstall } from "./manifest.js";
+import { sha256 } from "./hash.js";
 import type { Target } from "./types.js";
 
 const program = new Command();
@@ -112,7 +114,117 @@ program
     }
 
     await writeGeneratedFiles(root, files);
+    const manifest = await loadManifest(root);
+    await saveManifest(root, upsertInstall(manifest, packId, target, files));
     console.log(pc.green(`Installed ${files.length} files for ${packId} into ${root}`));
+  });
+
+program
+  .command("status")
+  .description("Show installed packs and whether generated files drifted")
+  .option("--cwd <path>", "project root to inspect")
+  .action(async (options: { cwd?: string }) => {
+    const root = cwd(options.cwd);
+    const manifest = await loadManifest(root);
+
+    if (manifest.installs.length === 0) {
+      console.log("No packs installed by Agents Market.");
+      return;
+    }
+
+    for (const install of manifest.installs) {
+      console.log(`${pc.bold(install.packId)} (${install.target}) installed ${install.installedAt}`);
+      for (const file of install.files) {
+        const current = await readExisting(root, { path: file.path, content: "" });
+        const state =
+          current === undefined ? pc.red("missing") : sha256(current) === file.sha256 ? pc.green("clean") : pc.yellow("modified");
+        console.log(`  ${state} ${file.path}`);
+      }
+    }
+  });
+
+program
+  .command("uninstall")
+  .argument("<pack>", "pack id to uninstall")
+  .option("-t, --target <target>", "claude, codex, opencode, or all")
+  .option("--cwd <path>", "project root to uninstall from")
+  .option("--force", "remove files even if they were modified")
+  .description("Uninstall files previously installed by Agents Market")
+  .action(async (packId: string, options: { target?: string; cwd?: string; force?: boolean }) => {
+    const root = cwd(options.cwd);
+    const target = options.target ? parseTarget(options.target) : undefined;
+    const manifest = await loadManifest(root);
+    const installs = manifest.installs.filter((entry) => entry.packId === packId && (!target || entry.target === target));
+
+    if (installs.length === 0) {
+      console.log(pc.yellow(`No matching install found for ${packId}.`));
+      return;
+    }
+
+    let removed = 0;
+    let skipped = 0;
+    for (const install of installs) {
+      for (const file of install.files) {
+        const current = await readExisting(root, { path: file.path, content: "" });
+        if (current === undefined) continue;
+        const changed = sha256(current) !== file.sha256;
+        if (changed && !options.force) {
+          skipped += 1;
+          console.log(`${pc.yellow("skip modified")} ${file.path}`);
+          continue;
+        }
+        await removeFile(root, file.path);
+        removed += 1;
+        console.log(`${pc.green("removed")} ${file.path}`);
+      }
+    }
+
+    await saveManifest(root, removeInstall(manifest, packId, target));
+    console.log(pc.green(`Uninstalled ${packId}: removed ${removed}, skipped ${skipped}.`));
+  });
+
+program
+  .command("update")
+  .argument("[pack]", "optional pack id to update; updates all installed packs when omitted")
+  .option("--cwd <path>", "project root to update")
+  .option("--force", "overwrite modified generated files")
+  .description("Update installed packs from the current registry")
+  .action(async (packId: string | undefined, options: { cwd?: string; force?: boolean }) => {
+    const root = cwd(options.cwd);
+    const registry = await loadRegistry();
+    const manifest = await loadManifest(root);
+    const installs = manifest.installs.filter((entry) => !packId || entry.packId === packId);
+
+    if (installs.length === 0) {
+      console.log(pc.yellow(packId ? `No matching install found for ${packId}.` : "No packs installed by Agents Market."));
+      return;
+    }
+
+    let written = 0;
+    let skipped = 0;
+    let nextManifest = manifest;
+    for (const install of installs) {
+      const files = generatePackFiles(registry, install.packId, install.target);
+      const safeFiles = [];
+      for (const file of files) {
+        const previous = install.files.find((entry) => entry.path === file.path);
+        const current = await readExisting(root, file);
+        const modified = previous && current !== undefined && sha256(current) !== previous.sha256;
+        if (modified && !options.force) {
+          skipped += 1;
+          console.log(`${pc.yellow("skip modified")} ${file.path}`);
+          continue;
+        }
+        safeFiles.push(file);
+      }
+
+      await writeGeneratedFiles(root, safeFiles);
+      written += safeFiles.length;
+      nextManifest = upsertInstall(nextManifest, install.packId, install.target, files);
+    }
+
+    await saveManifest(root, nextManifest);
+    console.log(pc.green(`Updated packs: wrote ${written}, skipped ${skipped}.`));
   });
 
 program

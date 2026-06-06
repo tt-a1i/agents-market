@@ -32,6 +32,12 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 
 7. Summarize installed files and how the user can invoke the new agents.
 
+8. Verify install state:
+
+   ```bash
+   agents-market status
+   ```
+
 ## Target Selection
 
 - Use `--target claude` for Claude Code only.
@@ -42,3 +48,5 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 ## Safety
 
 Always run `diff` before `install`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
+
+Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.
