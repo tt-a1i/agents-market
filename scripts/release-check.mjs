@@ -626,6 +626,7 @@ function verifyTarball(packOutput) {
     "registry/packs/starter-dev-pack.json",
     "docs/agent-native.md",
     "docs/contributing-agents.md",
+    "docs/operations.md",
     "docs/policy.md",
     "integrations/codex-skill/SKILL.md"
   ];

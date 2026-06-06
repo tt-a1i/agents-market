@@ -2,6 +2,8 @@
 
 Agents Market publishes as the npm package `@agents-market/cli`.
 
+For repository controls, required secrets, preview refresh commands, and incident response, see [Operations](operations.md).
+
 ## Prerequisites
 
 - npm account with publish access to `@agents-market/cli`.
