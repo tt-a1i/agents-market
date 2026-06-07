@@ -4,6 +4,7 @@
   "description": "AI agent that automates distribution of consolidated sales reports to representatives based on territorial parameters",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

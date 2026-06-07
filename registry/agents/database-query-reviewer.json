@@ -4,6 +4,7 @@
   "description": "Reviews SQL, ORM queries, indexes, transactions, and access patterns for correctness, performance, and data consistency.",
   "version": "0.1.0",
   "category": "database",
+  "tier": "core",
   "tags": ["database", "sql", "orm", "performance", "transactions"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

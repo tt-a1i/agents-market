@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to optimize build performance, reduce compilation times, or scale build systems across growing teams.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

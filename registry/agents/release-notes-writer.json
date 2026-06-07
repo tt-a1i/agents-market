@@ -4,6 +4,7 @@
   "description": "Creates user-facing release notes from changelogs, commits, pull requests, migration notes, and compatibility changes.",
   "version": "0.1.0",
   "category": "release",
+  "tier": "core",
   "tags": ["release", "changelog", "documentation", "migration"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

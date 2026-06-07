@@ -4,6 +4,7 @@
   "description": "Use this agent when you need an idea pressure-tested with brutal honesty, competitor teardown, market validation, and clear go/no-go guidance before building.",
   "version": "0.1.0",
   "category": "research-analysis",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

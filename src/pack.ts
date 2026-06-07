@@ -30,6 +30,7 @@ export function composePack(registry: Registry, options: ComposePackOptions): Pa
     name: options.name ?? humanize(options.id),
     description: options.description ?? `Custom pack containing ${agents.length} selected agents.`,
     version: options.version ?? "0.1.0",
+    tier: "community",
     tags: options.tags ?? ["custom"],
     agents,
     requires: {

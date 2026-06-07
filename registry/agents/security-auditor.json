@@ -4,6 +4,7 @@
   "description": "Reviews code and configuration changes for authentication, authorization, input handling, data exposure, and unsafe defaults.",
   "version": "0.1.0",
   "category": "security",
+  "tier": "core",
   "tags": ["security", "auth", "validation", "risk"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

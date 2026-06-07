@@ -163,4 +163,72 @@ describe("registry lint", () => {
     expect(report.promptQuality.agents[0]?.score).toBeLessThan(70);
     expect(report.promptQuality.agents[0]?.suggestions.length).toBeGreaterThan(0);
   });
+
+  it("reports community low prompt quality as info without failing strict lint", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          tier: "community",
+          prompt: "You are a helper."
+        }
+      ]
+    });
+
+    const finding = report.findings.find((finding) => finding.code === "prompt-quality-low");
+    expect(finding?.severity).toBe("info");
+    expect(report.infoCount).toBeGreaterThanOrEqual(1);
+    expect(report.errorCount).toBe(0);
+    expect(report.warningCount).toBe(0);
+    expect(report.score).toBe(100);
+  });
+
+  it("holds core agents to the strict prompt quality bar", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [
+        {
+          ...baseRegistry.agents[0]!,
+          tier: "core",
+          prompt: "Help with code."
+        }
+      ]
+    });
+
+    const finding = report.findings.find((finding) => finding.code === "prompt-quality-low");
+    expect(finding?.severity === "warning" || finding?.severity === "error").toBe(true);
+  });
+
+  it("warns when a core pack references community agents", () => {
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: [{ ...baseRegistry.agents[0]!, tier: "community" }],
+      packs: [{ ...baseRegistry.packs[0]!, tier: "core" }]
+    });
+
+    const finding = report.findings.find((finding) => finding.code === "core-pack-community-agent");
+    expect(finding?.severity).toBe("warning");
+    expect(finding?.message).toContain("reviewer");
+  });
+
+  it("reports shared boilerplate as an info finding", () => {
+    const guardrails =
+      "Before acting, read the relevant project files, diffs, and logs. Avoid broad rewrites unless explicitly confirmed. Report findings with evidence and verify claims against sources.";
+    const report = lintRegistry({
+      ...baseRegistry,
+      agents: Array.from({ length: 6 }, (_, index) => ({
+        ...baseRegistry.agents[0]!,
+        id: `imported-${index}`,
+        name: `Imported ${index}`,
+        prompt: `You are Imported ${index}, focused on the area-${index} domain with ${index + 2} review specialties covering security and tests.\n\n${guardrails}`
+      })),
+      packs: [{ ...baseRegistry.packs[0]!, agents: ["imported-0"] }]
+    });
+
+    const finding = report.findings.find((finding) => finding.code === "prompt-boilerplate");
+    expect(finding?.severity).toBe("info");
+    expect(finding?.message).toContain("6 agents affected");
+    expect(report.promptQuality.boilerplate.paragraphCount).toBe(1);
+  });
 });

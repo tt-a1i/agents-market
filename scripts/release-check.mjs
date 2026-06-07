@@ -12,8 +12,12 @@ async function main() {
   const registryLint = runJson("node", ["dist/index.js", "registry", "lint", "--strict", "--json"], "Registry quality lint");
   assert(registryLint.ok === true, "Registry quality lint failed.");
   assert(registryLint.score === 100, `Expected registry lint score 100, found ${registryLint.score}.`);
-  assert(registryLint.promptQuality?.averageScore >= 90, `Expected prompt quality average >= 90, found ${registryLint.promptQuality?.averageScore}.`);
-  assert(registryLint.promptQuality?.minScore >= 80, `Expected prompt quality minimum >= 80, found ${registryLint.promptQuality?.minScore}.`);
+  assert(registryLint.promptQuality?.averageScore >= 85, `Expected prompt quality average >= 85, found ${registryLint.promptQuality?.averageScore}.`);
+  const corePromptScores = registryLint.promptQuality?.agents?.filter((agent) => agent.tier === "core") ?? [];
+  assert(corePromptScores.length > 0, "Expected the registry to include core-tier agents.");
+  const coreMinScore = Math.min(...corePromptScores.map((agent) => agent.score));
+  assert(coreMinScore >= 80, `Expected core-tier prompt quality minimum >= 80, found ${coreMinScore}.`);
+  assert(registryLint.promptQuality?.boilerplate, "Expected registry lint to include a prompt boilerplate report.");
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 4, `Expected registry info to report at least four packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 10, `Expected registry info to report at least ten agents, found ${registryInfo.agentCount}.`);
@@ -1470,12 +1474,19 @@ async function runPackageInstallSmoke() {
 }
 
 function parseNpmPackJson(stdout) {
-  const start = stdout.indexOf("[");
-  const end = stdout.lastIndexOf("]");
+  // npm pack --dry-run runs prepack, whose build and lint output lands in stdout
+  // before the JSON array. CI environments also force ANSI colors (picocolors
+  // enables them when CI is set), so a colored lint line would otherwise make the
+  // escape sequence's "[" look like the array start. Strip escapes and anchor on
+  // a line that begins the array.
+  const clean = stdout.replace(/\u001b\[[0-9;]*m/g, "");
+  const lineStart = clean.search(/^\[/m);
+  const start = lineStart === -1 ? clean.indexOf("[") : lineStart;
+  const end = clean.lastIndexOf("]");
   if (start === -1 || end === -1 || end <= start) {
     throw new Error("npm pack --json output did not contain a JSON array.");
   }
-  return JSON.parse(stdout.slice(start, end + 1));
+  return JSON.parse(clean.slice(start, end + 1));
 }
 
 main().catch((error) => {

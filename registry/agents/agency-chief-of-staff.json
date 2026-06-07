@@ -4,6 +4,7 @@
   "description": "Master coordinator for founders and executives — filters noise, owns processes, enforces consistency, routes decisions, and positions outputs for impact so the boss can think clearly.",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

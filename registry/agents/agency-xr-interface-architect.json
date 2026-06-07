@@ -4,6 +4,7 @@
   "description": "Spatial interaction designer and interface strategist for immersive AR/VR/XR environments",
   "version": "0.1.0",
   "category": "spatial-computing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

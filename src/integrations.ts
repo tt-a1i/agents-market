@@ -26,6 +26,7 @@ Safety:
 - Treat compatibility failures as blockers and ask the user to upgrade \`@agents-market/cli\`.
 - Treat registry lock verification failures as blockers until the user confirms a new trusted registry source.
 - Prefer curated packs over installing many individual agents.
+- Prefer core-tier packs. Community-tier packs and agents are imported collections with provenance but a lighter review bar; mention the tier and audit result before asking for install confirmation. Use \`--tier core\` with \`search\` or \`list\` to stay on curated content.
 - Do not use \`--force\` unless the user explicitly asks to overwrite or remove modified generated files.
 - Use \`outdated --json\` before update workflows, then \`update --dry-run --json\` before asking for confirmation.
 - Use \`rollback --json\` before rollback workflows, then add \`--yes\` only after user confirmation.

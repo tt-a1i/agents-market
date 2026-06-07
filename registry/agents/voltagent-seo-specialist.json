@@ -4,6 +4,7 @@
   "description": "Use this agent when you need comprehensive SEO optimization encompassing technical audits, keyword strategy, content optimization, and search rankings improvement.",
   "version": "0.1.0",
   "category": "specialized-domains",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

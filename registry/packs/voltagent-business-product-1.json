@@ -3,6 +3,7 @@
   "name": "VoltAgent Business Product 1",
   "description": "VoltAgent imported Business Product agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
   "version": "0.1.0",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

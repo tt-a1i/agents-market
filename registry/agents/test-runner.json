@@ -4,6 +4,7 @@
   "description": "Runs focused verification commands, analyzes failures, and reports actionable test results.",
   "version": "0.1.0",
   "category": "verification",
+  "tier": "core",
   "tags": ["tests", "verification", "ci"],
   "permission": "command",
   "recommendedTargets": ["claude", "codex", "opencode"],

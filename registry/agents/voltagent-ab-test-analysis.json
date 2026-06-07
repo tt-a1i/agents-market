@@ -4,6 +4,7 @@
   "description": "Use when the user wants to analyze A/B test results, interpret p-values, determine statistical significance, or make a ship/no-ship decision. Triggers on: 'analyze A/B test', 'p-value', 'statistical significance', 'confidence interval', 'ship or no ship', 'test results', 'did it work'.",
   "version": "0.1.0",
   "category": "research-analysis",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

@@ -4,6 +4,7 @@
   "description": "Use this agent when architecting, implementing, or optimizing end-to-end legal licensing systems—from OSI standard selection and dependency compliance pipelines to proprietary deployment and risk monitoring.",
   "version": "0.1.0",
   "category": "business-product",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

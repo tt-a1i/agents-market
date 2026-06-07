@@ -3,6 +3,7 @@
   "name": "Backend API Pack",
   "description": "Backend-focused agents for service architecture, API contracts, security, database access, and test planning.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["backend", "api", "services"],
   "agents": ["backend-architect", "api-contract-reviewer", "security-auditor", "database-query-reviewer", "test-coverage-planner"],
   "requires": {

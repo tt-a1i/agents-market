@@ -4,6 +4,7 @@
   "description": "Reviews LLM and agent integrations for prompt safety, tool boundaries, structured outputs, evals, privacy, and cost controls.",
   "version": "0.1.0",
   "category": "ai",
+  "tier": "core",
   "tags": ["ai", "llm", "agents", "prompts", "evals"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

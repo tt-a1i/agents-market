@@ -4,6 +4,7 @@
   "description": "Expert detection engineer specializing in SIEM rule development, MITRE ATT&CK coverage mapping, threat hunting, alert tuning, and detection-as-code pipelines for security operations teams.",
   "version": "0.1.0",
   "category": "security",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

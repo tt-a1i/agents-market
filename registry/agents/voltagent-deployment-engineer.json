@@ -4,6 +4,7 @@
   "description": "Use this agent when designing, building, or optimizing CI/CD pipelines and deployment automation strategies.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

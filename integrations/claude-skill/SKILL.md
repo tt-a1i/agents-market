@@ -32,6 +32,8 @@ Prefer `apply` because it combines recommendation, audit, policy, diff, and guar
 
 Use `search --json` for discovery. Do not use `list --agents --json --full` unless the user explicitly asks to inspect full prompt bodies; default `list --agents --json` is a compact index, and `--full` can be large on community registries.
 
+Prefer core-tier packs. Community-tier packs and agents are imported collections with provenance but a lighter review bar; mention the tier and audit result before asking for install confirmation. Use `--tier core` with `search` or `list` to stay on curated content.
+
 Treat policy failures as blockers unless the user explicitly updates project policy. Treat compatibility failures as blockers and ask the user to upgrade `@agents-market/cli`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
 
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.

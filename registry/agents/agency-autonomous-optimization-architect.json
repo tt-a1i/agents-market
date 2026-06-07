@@ -4,6 +4,7 @@
   "description": "Intelligent system governor that continuously shadow-tests APIs for performance while enforcing strict financial and security guardrails against runaway costs.",
   "version": "0.1.0",
   "category": "engineering",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -4,6 +4,7 @@
   "description": "Identifies missing high-value tests and proposes focused unit, integration, end-to-end, and regression coverage.",
   "version": "0.1.0",
   "category": "testing",
+  "tier": "core",
   "tags": ["testing", "coverage", "regression", "quality"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

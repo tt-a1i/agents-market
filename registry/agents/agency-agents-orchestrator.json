@@ -4,6 +4,7 @@
   "description": "Autonomous pipeline manager that orchestrates the entire development workflow. You are the leader of this process.",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

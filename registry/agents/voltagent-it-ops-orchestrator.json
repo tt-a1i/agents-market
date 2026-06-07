@@ -4,6 +4,7 @@
   "description": "Use for orchestrating complex IT operations tasks that span multiple domains (PowerShell automation, .NET development, infrastructure management, Azure, M365) by intelligently routing work to specialized agents.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

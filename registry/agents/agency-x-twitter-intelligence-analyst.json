@@ -4,6 +4,7 @@
   "description": "Social intelligence specialist for X/Twitter research, trend detection, account monitoring, and evidence-backed audience insights using public signals and structured data workflows.",
   "version": "0.1.0",
   "category": "marketing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

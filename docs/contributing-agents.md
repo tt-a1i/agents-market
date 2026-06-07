@@ -29,10 +29,11 @@ Each agent definition must have:
 - Specific `description` that states the task and routing trigger.
 - Semantic `version`.
 - `category` and useful `tags`.
+- A `tier`: `core` for content curated and maintained by Agents Market, `community` for imported or third-party content. New contributions and imports start as `community`; maintainers promote agents to `core` after review. Missing tiers resolve to `community`.
 - Minimal `permission`.
 - Accurate `recommendedTargets`.
 - Tool access that matches the permission.
-- Prompt beginning with a clear role such as `You are ...`.
+- Prompt beginning with a clear role such as `You are ...`. Prompt quality is scored with cross-agent boilerplate excluded, so shared guardrails text does not count toward the score.
 
 Imported or third-party agents must also include `provenance`:
 

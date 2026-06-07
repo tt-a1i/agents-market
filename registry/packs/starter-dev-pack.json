@@ -3,6 +3,7 @@
   "name": "Starter Dev Pack",
   "description": "Baseline coding agents for review, debugging, tests, and documentation research.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["starter", "development"],
   "agents": ["code-reviewer", "debugger", "test-runner", "docs-researcher"],
   "requires": {

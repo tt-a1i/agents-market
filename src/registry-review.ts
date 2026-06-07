@@ -25,6 +25,7 @@ export interface RegistryReviewReport {
     score: number;
     errorCount: number;
     warningCount: number;
+    infoCount: number;
     promptQuality?: {
       averageScore: number;
       minScore: number;
@@ -176,7 +177,7 @@ export function renderRegistryReviewMarkdown(report: RegistryReviewReport): stri
     `- Status: ${status}`,
     `- Registry: \`${report.registrySource}\``,
     `- Checks completed: ${report.checks.length}`,
-    `- Lint score: ${formatScore(lint?.score)}`,
+    `- Lint score: ${formatScore(lint?.score)}${lint ? ` (${lint.errorCount} errors, ${lint.warningCount} warnings, ${lint.infoCount} info)` : ""}`,
     `- Prompt quality: ${formatPromptQuality(lint?.promptQuality)}`,
     `- Inventory: ${formatInventory(inventory)}`,
     `- Catalog verify: ${catalog ? (catalog.ok ? "pass" : "fail") : "not run"}`
@@ -208,6 +209,7 @@ function lintSummary(lint: LintReport, strict: boolean): NonNullable<RegistryRev
     score: lint.score,
     errorCount: lint.errorCount,
     warningCount: lint.warningCount,
+    infoCount: lint.infoCount,
     promptQuality: lint.promptQuality
       ? {
           averageScore: lint.promptQuality.averageScore,

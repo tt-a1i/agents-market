@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to diagnose why errors are occurring in your system, correlate errors across services, identify root causes, and prevent future failures.",
   "version": "0.1.0",
   "category": "quality-security",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

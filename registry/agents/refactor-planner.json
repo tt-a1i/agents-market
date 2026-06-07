@@ -4,6 +4,7 @@
   "description": "Plans low-risk refactors by identifying boundaries, sequencing changes, preserving behavior, and defining verification checkpoints.",
   "version": "0.1.0",
   "category": "maintenance",
+  "tier": "core",
   "tags": ["refactor", "maintenance", "architecture", "tests", "planning"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

@@ -4,6 +4,7 @@
   "description": "Use when developing firmware for resource-constrained microcontrollers, implementing RTOS-based applications, or optimizing real-time systems where hardware constraints, latency guarantees, and reliability are critical.",
   "version": "0.1.0",
   "category": "specialized-domains",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

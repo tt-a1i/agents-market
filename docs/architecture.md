@@ -155,6 +155,9 @@ Current checks include:
 - short descriptions
 - missing prompt role framing
 - prompt quality scores for role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture
+- template boilerplate detection: paragraphs shared verbatim across five or more agents are excluded from prompt quality scoring and reported in a `prompt-boilerplate` finding
+- tier-aware severity: low prompt quality is a warning or error for core-tier agents and an `info` finding for community-tier agents, so imported collections surface honestly without blocking strict CI
+- core packs referencing community-tier agents
 - imported agents without provenance
 - provenance without source license
 - GitHub provenance without source commit

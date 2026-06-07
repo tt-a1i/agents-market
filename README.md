@@ -1,514 +1,481 @@
 # Agents Market
 
-Agents Market is an agent-native marketplace and installer for specialized coding subagents.
+> 🧩 面向 Agent 的 Subagent 市场与安装器。把专业 coding subagents 安全、可验证、可维护地安装到 Claude Code、Codex、OpenCode 项目里。
 
-It solves a simple product problem: specialized subagents are useful, but most developers will not discover, write, validate, adapt, and maintain agent files for every coding tool they use. Agents Market keeps a curated registry of agent packs and installs them into a project in each tool's native format.
+[English](./README.en.md) | [在线市场](https://tt-a1i.github.io/agents-market) | [Preview Release](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0) | [隐私说明](./PRIVACY.md) | [支持](./SUPPORT.md)
 
-## Targets
+Agents Market 解决的问题很直接：专业 subagent 很有价值，但大多数用户不会自己发现、编写、验证、适配并长期维护每一个 agent 文件。这个项目提供一个带治理能力的 agent 市场，让编码 Agent 或开发者可以按项目场景推荐、预览、安装、更新、回滚和审计 agent packs。
 
-Agents Market currently generates:
+## ✨ 核心能力
 
-| Tool | Output |
-| --- | --- |
-| Claude Code | `.claude/agents/*.md` |
-| Codex | `.codex/agents/*.toml` |
-| OpenCode | `.opencode/agents/*.md` |
+| 图标 | 能力 | 说明 |
+| --- | --- | --- |
+| 🤖 | Agent-native | CLI 输出结构化 JSON，适合 Claude Code、Codex、OpenCode 或未来 MCP/Agent 调用 |
+| 🧰 | 多端生成 | 同一套 registry 可以生成 Claude Code、Codex、OpenCode 原生 agent 文件 |
+| 🏷️ | 市场分层 | `core` 是深度维护的精选 coding agents，`community` 是带 provenance 的社区导入内容 |
+| 🛡️ | 安全预览 | `apply --json` 默认只预览推荐、审计、策略、diff，不直接写文件 |
+| 🔁 | 生命周期管理 | manifest 记录安装内容，支持 drift 检测、resolve、update、rollback、uninstall |
+| 🔐 | 供应链信任 | registry bundle 支持 Ed25519 签名、checksum、lock、verify-lock、doctor 闭环 |
+| 🧾 | Provenance | 社区导入 agent 带 source、license、commit、source checksum |
+| ⚙️ | CI 自动化 | 可生成 GitHub workflow，持续检查 registry lock、drift、outdated、update preview、doctor |
+| 🌐 | 静态市场 | 生成 `index.html`、`catalog.json`、`agents-market.json`，可部署到 GitHub Pages |
+| 🚫 | 零遥测 | no telemetry or analytics；不采集遥测或分析数据，只在显式远程 registry/catalog/import/release 场景访问网络 |
 
-## Quick Start
+## 🎯 支持目标
 
-Try the CLI directly from GitHub:
+| 图标 | 工具 | 输出位置 |
+| --- | --- | --- |
+| 🟣 | Claude Code | `.claude/agents/*.md` |
+| ⚫ | Codex | `.codex/agents/*.toml` |
+| 🔵 | OpenCode | `.opencode/agents/*.md` |
+
+## 🚀 快速开始
+
+直接从 GitHub preview tag 使用：
 
 ```bash
 npx github:tt-a1i/agents-market#preview-0.1.0 init --target all
 npx github:tt-a1i/agents-market#preview-0.1.0 recommend
 npx github:tt-a1i/agents-market#preview-0.1.0 apply --target all
-npx github:tt-a1i/agents-market#preview-0.1.0 apply frontend-pack --target all --yes
 ```
 
-Preview release artifacts are available at [preview-0.1.0](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0), including the registry bundle, npm tarball, SPDX SBOM, checksum manifest, a complete verifiable artifact bundle, and Claude Code, Codex, and OpenCode installer archives. Workflow-produced preview releases also include GitHub Artifact Attestations.
+安装推荐 pack 前先看预览：
 
-Production publishing and repository governance are covered in [docs/operations.md](docs/operations.md).
+```bash
+npx github:tt-a1i/agents-market#preview-0.1.0 apply --target all --json
+```
 
-When registry signing is configured, GitHub Releases and the hosted catalog include `registry-public.pem` so users and agent-native integrations can verify the registry bundle before locking or installing it.
+确认后再写入文件：
 
-Agents Market has no telemetry or analytics. See [PRIVACY.md](./PRIVACY.md) for local file and network access boundaries.
+```bash
+npx github:tt-a1i/agents-market#preview-0.1.0 apply starter-dev-pack --target all --yes
+```
 
-For usage questions, pack proposals, bug reports, and release artifact issues, see [SUPPORT.md](./SUPPORT.md).
-
-Package release notes are tracked in [CHANGELOG.md](./CHANGELOG.md). Registry content history is also available through `agents-market registry changelog`.
-
-Install the preview CLI from the GitHub Release with checksum verification:
+从 GitHub Release 安装 preview CLI：
 
 ```bash
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
 ```
 
-The installer verifies checksums before installation and installs the tarball with `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed.
-
-For workflow-produced releases, install GitHub CLI and require release asset attestations:
+要求 GitHub Artifact Attestation 验证：
 
 ```bash
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | AGENTS_MARKET_REQUIRE_ATTESTATION=1 sh
 ```
 
-For local development:
+本地开发：
 
 ```bash
 npm install
 npm run build
 npm run dev -- init --target all
-npm run dev -- list --agents
 npm run dev -- recommend
-npm run dev -- install starter-dev-pack --target all --dry-run
+npm run dev -- apply --target all --json
 npm run dev -- status
 ```
 
-After npm publication, use the package name:
+npm 发布后使用包名：
 
 ```bash
 npx @agents-market/cli init --target all
 npx @agents-market/cli recommend
 npx @agents-market/cli apply --target all
-npx @agents-market/cli apply frontend-pack --target all --yes
 ```
 
-## Product Shape
+## 🧭 推荐工作流
 
-The final product has three layers:
-
-- Registry: source-of-truth agent and pack definitions.
-- CLI: reliable local execution for recommend, install, diff, export, update, rollback, and uninstall.
-- Agent-native adapters: Claude Code, Codex, OpenCode, and future coding agents can call the installer from inside the coding session.
-
-## Commands
-
-```bash
-agents-market list
-agents-market list --agents
-agents-market list --agents --json
-agents-market list --agents --json --limit 20 --fields id,name,description,category,permission
-agents-market list --agents --json --full --limit 1 --fields id,prompt
-agents-market init --target all
-agents-market init --target all --dry-run --json
-agents-market search accessibility --target claude
-agents-market search --type agents --category frontend --json
-agents-market recommend
-agents-market recommend --json
-agents-market apply --target all
-agents-market apply nextjs-pack --target all --json
-agents-market apply nextjs-pack --target all --policy-preset balanced --yes
-agents-market plan starter-dev-pack --target all
-agents-market plan security-pack --target claude --policy-preset balanced --json
-agents-market audit starter-dev-pack --target all
-agents-market policy init --preset balanced
-agents-market policy check starter-dev-pack --target all
-agents-market policy check starter-dev-pack --target all --json
-agents-market diff starter-dev-pack --target all
-agents-market diff starter-dev-pack --target all --json
-agents-market install starter-dev-pack --target claude
-agents-market install starter-dev-pack --target all --enforce-policy
-agents-market pack create frontend-lite --agent code-reviewer accessibility-auditor --out ./registry/packs
-agents-market status
-agents-market status --json
-agents-market status --diff --json
-agents-market resolve starter-dev-pack --target claude --strategy keep-local --yes
-agents-market resolve starter-dev-pack --target claude --strategy accept-registry --file .claude/agents/code-reviewer.md --json
-agents-market doctor
-agents-market doctor --strict --json
-agents-market outdated
-agents-market outdated --json
-agents-market outdated --fail-on-outdated --json
-agents-market update
-agents-market update --dry-run --json
-agents-market update --dry-run --fail-on-skipped --json
-agents-market rollback starter-dev-pack --target claude --json
-agents-market rollback starter-dev-pack --target claude --yes
-agents-market uninstall starter-dev-pack --target claude
-agents-market uninstall starter-dev-pack --target claude --dry-run --json
-agents-market export frontend-pack --target all --out ./generated
-agents-market registry info
-agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
-agents-market registry changelog
-agents-market registry changelog --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
-agents-market registry export --out ./registry.bundle.json
-agents-market registry export --out ./registry.bundle.json --private-key ./registry-private.pem --key-id main
-agents-market registry verify --registry ./registry.bundle.json --public-key ./registry-public.pem --key-id main --json
-agents-market registry verify --registry https://example.com/registry.bundle.json --public-key https://example.com/registry-public.pem --key-id main --json
-agents-market registry lock --registry ./registry.bundle.json
-agents-market registry verify-lock
-agents-market registry lint --strict
-agents-market registry lint --strict --json
-agents-market registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md
-agents-market integrations diff --target all
-agents-market integrations install --target all
-agents-market integrations package --target all --out ./integration-packages
-agents-market ci diff
-agents-market ci init --provider github --yes
-agents-market catalog build --out ./site
-agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0
-agents-market catalog info --url https://example.com/agents-market/agents-market.json --json
-agents-market catalog init --url https://example.com/agents-market/agents-market.json --target all --json
-agents-market catalog init --url https://example.com/agents-market/agents-market.json --target codex --pack security-pack --json
-agents-market catalog init --url https://example.com/agents-market/agents-market.json --target all --ci --yes
-agents-market catalog verify --dir ./site
-agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
-agents-market import markdown ./agent.md --target claude --out ./registry/agents
-agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
-agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
-```
-
-## Install Manifest
-
-Installs write `.agents-market/manifest.json`. The manifest records installed packs, pack versions, targets, generated files, and content hashes.
-
-This enables drift-aware operations:
-
-- `status` reports clean, modified, and missing generated files; use `status --json` for automation and `status --diff --json` when you need line-level drift summaries for modified or missing generated files.
-- `resolve` reconciles manifest drift after review. Use `--strategy accept-registry` to restore generated content from the registry, `--strategy keep-local` to record intentional local edits as the new tracked hash, or `--strategy forget` to stop tracking selected files.
-- `doctor` runs manifest, registry lock, policy, drift, and target directory health checks; use `doctor --strict --json` in CI.
-- `outdated` compares installed pack versions with the current registry; use `outdated --json` before update automation.
-- `update` refreshes installed packs from the current registry and stores a bounded rollback snapshot before writing changed generated files.
-- `rollback` restores the previous update snapshot. It previews by default, requires `--yes` to write, and skips user-modified generated files unless `--force` is set.
-- `uninstall` removes generated files while skipping and continuing to track user-modified files by default.
-
-Use `status --diff --json`, `resolve --json`, `outdated --json`, `update --dry-run --json`, `rollback --json`, and `uninstall --dry-run --json` before changing installed packs in automation. Add `--fail-on-outdated` or `--fail-on-skipped` when CI should block stale or blocked maintenance. Use `--force` with `update`, `rollback`, or `uninstall` only when you intentionally want to overwrite or remove modified generated files.
-
-## Initialize A Project
-
-Use `init` as the first-run setup:
+### 1. 🧱 初始化项目
 
 ```bash
 agents-market init --target all
 agents-market init --target claude --dry-run --json
 ```
 
-`init` locks the selected registry, installs the agent-native installer entrypoints, detects the project, recommends a pack, and prints the next `apply --json`, `apply --yes`, and `doctor --strict --json` commands. Dry-run output first shows the confirming `init ...` command and does not suggest `registry verify-lock` until a lock has actually been written. It does not install the recommended pack automatically; pack installation still requires explicit confirmation with `apply --yes`.
+`init` 会预览或写入：
 
-## Registry Sources
+- `.agents-market/registry-lock.json`
+- Claude/Codex/OpenCode 的 agent-native installer 入口
+- 项目信号检测结果
+- 推荐 pack
+- 下一步 `apply` 和 `doctor` 命令
 
-Commands that read packs support a registry source:
+### 2. 🤖 让 Agent 选择 pack
 
 ```bash
-agents-market list --registry bundled
-agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json
-agents-market diff starter-dev-pack --registry ./registry.bundle.json
-agents-market install starter-dev-pack --registry https://example.com/registry.bundle.json
+agents-market recommend --json
+agents-market apply --target all --json
 ```
 
-Supported sources:
+`apply --json` 是推荐的 agent-native 主入口。它会一次性返回：
 
-- `bundled`: the registry shipped with the CLI.
-- Directory: a local registry directory with `agents/` and `packs/`.
-- Bundle file: a portable JSON bundle created by `agents-market registry export`.
-- URL: an HTTP(S) registry bundle.
+- 项目信号
+- 推荐或指定 pack
+- audit 风险
+- compatibility 结果
+- policy 结果
+- 文件 diff
+- `nextCommands`
 
-Lock a project to a registry source:
+### 3. 🔎 搜索具体能力
+
+```bash
+agents-market search accessibility --target claude
+agents-market search "next performance" --type packs
+agents-market search review --tier core --json
+agents-market search --type agents --category frontend --json
+```
+
+### 4. 🧪 安装前审计
+
+```bash
+agents-market audit security-pack --target all --json
+agents-market policy check security-pack --target all --json
+agents-market diff security-pack --target all --json
+agents-market plan security-pack --target claude --policy-preset balanced --json
+```
+
+### 5. ✅ 确认安装
+
+```bash
+agents-market apply security-pack --target all --policy-preset balanced --yes
+agents-market status --json
+agents-market doctor --strict --json
+```
+
+## 🏷️ 市场分层
+
+每个 agent 和 pack 都有 tier：
+
+| 图标 | Tier | 含义 |
+| --- | --- | --- |
+| ⭐ | `core` | Agents Market 深度维护的精选 coding agents。用于默认推荐，prompt 质量门槛更高 |
+| 🌍 | `community` | 从社区集合导入的 agents。保留 provenance、license、source checksum，但审核标准更轻 |
+
+默认建议优先使用 `core`：
+
+```bash
+agents-market list --tier core
+agents-market search security --tier core --json
+```
+
+需要探索大规模社区内容时使用 `community`：
+
+```bash
+agents-market list --tier community
+agents-market search seo --tier community --json
+```
+
+## 🤖 Agent 友好的 JSON 契约
+
+所有 CLI JSON 输出都包含 `schemaVersion`。当命令带 `--json` 且失败时，CLI 返回结构化错误，而不是让 Agent 解析裸 stderr：
+
+```json
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "error": {
+    "code": "PACK_NOT_FOUND",
+    "message": "Unknown pack: nonexistent-pack",
+    "hint": "Run `agents-market list --json` or `agents-market search <query> --json` to see available packs.",
+    "nextCommands": [
+      "agents-market search <keywords> --json",
+      "agents-market list --json"
+    ]
+  }
+}
+```
+
+发现 agent 时不要默认拉完整 prompt：
+
+```bash
+agents-market search review --json
+agents-market list --agents --json --limit 20 --fields id,name,description,category,permission,tier
+```
+
+只有在明确需要审查 prompt body 时才使用：
+
+```bash
+agents-market list --agents --json --full --limit 1 --fields id,prompt
+```
+
+## ⌨️ 常用命令
+
+```bash
+# 市场浏览
+agents-market list
+agents-market list --agents --json
+agents-market search accessibility --target claude
+agents-market recommend --json
+
+# 安装预览与确认
+agents-market apply --target all --json
+agents-market apply nextjs-pack --target all --policy-preset balanced --yes
+agents-market plan starter-dev-pack --target all --json
+agents-market diff starter-dev-pack --target all --json
+
+# 策略与健康检查
+agents-market policy init --preset balanced
+agents-market policy check starter-dev-pack --target all --json
+agents-market status --diff --json
+agents-market doctor --strict --json
+
+# 生命周期
+agents-market outdated --json
+agents-market update --dry-run --json
+agents-market rollback starter-dev-pack --target claude --json
+agents-market uninstall starter-dev-pack --target claude --dry-run --json
+
+# Registry 信任链
+agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --json
+agents-market registry verify --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --public-key https://tt-a1i.github.io/agents-market/registry-public.pem --key-id main --json
+agents-market registry lock --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --public-key https://tt-a1i.github.io/agents-market/registry-public.pem --key-id main
+agents-market registry verify-lock --json
+
+# 集成与 CI
+agents-market integrations install --target all
+agents-market ci init --provider github --yes
+
+# 静态 catalog
+agents-market catalog build --out ./site
+agents-market catalog verify --dir ./site
+agents-market catalog init --url https://tt-a1i.github.io/agents-market/agents-market.json --target all --json
+
+# 导入社区 agent
+agents-market import markdown ./agent.md --target claude --out ./registry/agents
+agents-market import directory ./third-party-agents --target claude --out ./registry/agents --pack imported-pack --pack-out ./registry/packs
+agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
+```
+
+完整命令参考见 [英文 README](./README.en.md) 和 `agents-market --help`。
+
+## 🔁 安装 Manifest 与生命周期
+
+安装 pack 会写入 `.agents-market/manifest.json`，记录：
+
+- pack id 和版本
+- target
+- 生成文件路径
+- 文件内容 hash
+- registry source/version/checksum
+
+这让后续维护可控：
+
+| 图标 | 命令 | 用途 |
+| --- | --- | --- |
+| 🔍 | `status` | 检查生成文件是否 clean、modified、missing |
+| 🧩 | `resolve` | 接受 registry 内容、保留本地修改、或停止跟踪某个文件 |
+| 🕒 | `outdated` | 比较已安装 pack 和当前 registry 版本 |
+| ⬆️ | `update` | 预览或更新已安装 pack，并保存 rollback 快照 |
+| ↩️ | `rollback` | 回滚上一次 update |
+| 🧹 | `uninstall` | 删除生成文件，默认跳过用户改过的文件 |
+| 🩺 | `doctor` | 检查 manifest、registry lock、policy、drift、target directory |
+
+自动化里优先使用：
+
+```bash
+agents-market status --diff --json
+agents-market outdated --fail-on-outdated --json
+agents-market update --dry-run --fail-on-skipped --json
+agents-market doctor --strict --json
+```
+
+## 🔐 Registry 来源与签名
+
+命令支持这些 registry source：
+
+| 图标 | Source | 说明 |
+| --- | --- | --- |
+| 📦 | `bundled` | CLI 自带 registry |
+| 📁 | directory | 本地 `agents/` + `packs/` registry 目录 |
+| 🧳 | bundle file | `agents-market registry export` 生成的 JSON bundle |
+| 🌐 | URL | HTTP(S) registry bundle |
+
+锁定 registry：
 
 ```bash
 agents-market registry lock --registry ./registry.bundle.json
 ```
 
-This writes `.agents-market/registry-lock.json`. Project commands use the lockfile automatically when `--registry` is omitted and verify the locked checksum when the lock includes one.
-
-Installed packs also remember the registry source used at install time. If a project has no lockfile, maintenance commands such as `update` and policy-aware `doctor` checks fall back to the install manifest's registry source before using the bundled registry.
-
-Verify a lock explicitly:
+验证 lock：
 
 ```bash
-agents-market registry verify-lock
 agents-market registry verify-lock --json
 ```
 
-Inspect a registry before locking or installing:
-
-```bash
-agents-market registry info --registry https://tt-a1i.github.io/agents-market/registry.bundle.json
-agents-market registry info --registry ./registry.bundle.json --json
-```
-
-`registry info` reports source type, source URL/path, version, checksum, pack count, agent count, target support, changelog status, and pack inventory. Agent-native workflows can use the JSON output to summarize a hosted registry before asking the user to lock or install from it.
-
-For signed hosted registries, include the public key when locking so `verify-lock`, `doctor`, and CI keep enforcing signature verification:
-
-```bash
-agents-market registry lock --registry https://tt-a1i.github.io/agents-market/registry.bundle.json --public-key https://tt-a1i.github.io/agents-market/registry-public.pem --key-id main
-```
-
-View registry release history:
-
-```bash
-agents-market registry changelog
-agents-market registry changelog --registry ./registry.bundle.json --json
-```
-
-Sign and verify a portable bundle:
+签名 bundle：
 
 ```bash
 agents-market registry export --out ./registry.bundle.json --private-key ./registry-private.pem --key-id main
-agents-market registry export --out ./registry.bundle.json --homepage https://example.com/agents-market --repository https://github.com/acme/agents-market --catalog-url https://example.com/agents-market --release-url https://github.com/acme/agents-market/releases/tag/v0.1.0 --package @agents-market/cli
+```
+
+验证签名：
+
+```bash
 agents-market registry verify --registry ./registry.bundle.json --public-key ./registry-public.pem --key-id main --json
 ```
 
-Bundle signatures use Ed25519 and cover the registry bundle checksum. `registry verify` always validates the bundle checksum while loading the source; when a public key file path or URL is provided, it also verifies the matching signature. `registry lock --public-key <path-or-url> --key-id <id>` records the signature policy in `.agents-market/registry-lock.json`, so `registry verify-lock` and `doctor` continue to verify the signed bundle later. Hosted marketplace catalogs can publish the public key separately so agent-native installers can verify a bundle before locking or installing from it. Registry bundles can also include optional `metadata` such as homepage, repository, catalog URL, release URL, package spec, and source commit; this metadata is included in the bundle checksum and appears in `registry info --json`.
+签名使用 Ed25519，覆盖 registry bundle checksum。签名 lock 会把 public key 和 key id 写进 `.agents-market/registry-lock.json`，后续 `verify-lock`、`doctor`、CI 会继续验证同一条信任链。
 
-Lint a registry before publishing:
+## 🧪 Prompt 质量与导入治理
 
-```bash
-agents-market registry lint --strict
-agents-market registry lint --strict --json
-```
+`registry lint --strict` 会检查：
 
-The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt quality, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings, promptQuality }`.
+- 引用完整性
+- 重复 ID
+- tier 一致性
+- permission/tool 一致性
+- 推荐信号
+- pack 大小
+- provenance/license/source checksum
+- prompt quality
+- 跨 agent 重复段落
 
-`promptQuality` is a deterministic, explainable score for every agent prompt. It grades role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture. Low-scoring prompts create lint findings so imported or third-party templates can be improved before publication.
+Prompt quality 是确定性评分，覆盖角色、任务、上下文获取、安全边界、输出格式、领域词、验证姿态。重复出现在多个 agent 里的模板段落会被识别为 boilerplate，不会给大批量导入内容刷分。
 
-Published packs declare `requires.agentsMarket`, for example `>=0.1.0`. `apply`, `install`, and `update` check this constraint before writing files so older CLIs reject incompatible registry content cleanly.
-
-## Built-In Packs
-
-- `starter-dev-pack`: review, debugging, tests, and documentation research.
-- `frontend-pack`: visual verification, accessibility, review, tests, and debugging.
-- `nextjs-pack`: Next.js performance, frontend verification, accessibility, tests, and review.
-- `security-pack`: application security audit, dependency risk, secrets scanning, and review.
-
-## Discover Agents
-
-Search packs and individual agents before installing:
+导入社区模板：
 
 ```bash
-agents-market search accessibility
-agents-market search "next performance" --type packs
-agents-market search --type agents --target claude --category frontend
-agents-market search review --json
+agents-market import repo VoltAgent/awesome-claude-code-subagents \
+  --target claude \
+  --path categories \
+  --out ./registry/agents \
+  --pack community-pack \
+  --pack-out ./registry/packs
 ```
 
-Search supports bundled, local, bundle-file, and URL registries through `--registry`, the same as install commands.
-
-For agent-native discovery, prefer `search --json`, `recommend --json`, or `apply --json` over enumerating the whole registry. `list --agents --json` returns compact agent summaries and omits prompt bodies by default; use `--full` only when a workflow explicitly needs full prompts. Use `--limit` and `--fields` to keep machine-readable output bounded.
-
-Create a small project-specific pack from individual search results:
+导入后必须跑：
 
 ```bash
-agents-market pack create frontend-lite \
-  --agent code-reviewer accessibility-auditor \
-  --tag custom frontend \
-  --framework react \
-  --language typescript \
-  --out ./registry/packs
+agents-market registry lint --registry ./registry --strict --json
+agents-market registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md
 ```
 
-After creating the pack, run `agents-market registry lint --registry ./registry --json`, then preview it with `agents-market apply frontend-lite --registry ./registry --json`.
+## 🔌 Agent-native 集成
 
-`pack create` adds a default `requires.agentsMarket` constraint for the current CLI version. Keep that constraint accurate when manually editing pack JSON.
-
-## Agent-Native Integrations
-
-Install the installer entrypoints into a project:
+安装 agent-native 入口：
 
 ```bash
 agents-market integrations install --target all
+```
+
+会生成：
+
+| 图标 | 工具 | 入口 |
+| --- | --- | --- |
+| 🟣 | Claude Code | `.claude/skills/agents-market-installer/SKILL.md` |
+| ⚫ | Codex | `.codex/skills/agents-market-installer/SKILL.md` |
+| 🔵 | OpenCode | `.opencode/commands/agents-market.md` |
+
+打包集成：
+
+```bash
 agents-market integrations package --target all --out ./integration-packages
 ```
 
-This writes:
-
-| Tool | Integration file |
-| --- | --- |
-| Claude Code | `.claude/skills/agents-market-installer/SKILL.md` |
-| Codex | `.codex/skills/agents-market-installer/SKILL.md` |
-| OpenCode | `.opencode/commands/agents-market.md` |
-
-`integrations package` writes distributable bundles for release artifacts, team templates, or marketplace ingestion:
+输出：
 
 - `agents-market-claude/`
-- `agents-market-codex/` with `.codex-plugin/plugin.json`
+- `agents-market-codex/`，包含 `.codex-plugin/plugin.json`
 - `agents-market-opencode/`
 
-Once installed, the user can ask their coding agent to recommend and install subagent packs from inside the coding session. The integration workflow previews with `apply --json`, asks for confirmation, installs with `apply --yes`, and verifies with `status` and `doctor`.
-
-## Project CI
-
-Generate a GitHub Actions workflow that keeps installed packs healthy in pull requests and on `main`:
-
-```bash
-agents-market ci diff
-agents-market ci init --provider github --yes
-```
-
-The generated workflow runs `registry verify-lock --json`, `status --diff --json`, `outdated --fail-on-outdated --json`, `update --dry-run --fail-on-skipped --json`, and `doctor --strict --json` through `npx @agents-market/cli@<version>`. It pins minimal permissions, disables persisted checkout credentials, defines a job timeout, and cancels superseded runs on the same ref. Use `--package github:tt-a1i/agents-market#<tag-or-sha>` only for preview workflows before npm publication.
-
-Agent-native wrappers can use structured output:
+Agent 调用时应优先走：
 
 ```bash
 agents-market apply --target all --json
-agents-market apply nextjs-pack --target all --json
-agents-market recommend --json
-agents-market plan nextjs-pack --target all
-agents-market audit nextjs-pack --target all --json
-agents-market diff nextjs-pack --target all --json
+agents-market search <query> --json
+agents-market plan <pack> --target all --json
+agents-market doctor --strict --json
 ```
 
-JSON command output includes `schemaVersion`. When a command is invoked with `--json` and fails before producing a normal result, it returns a structured error payload with `ok: false`, a stable `error.code`, a human-readable `message`, a repair-oriented `hint`, and `nextCommands` where useful.
+## 🌐 静态市场 Catalog
 
-Use `apply` as the high-level agent-native workflow. Without a pack id, it detects the project and selects the top recommendation. By default it previews the audit, policy check, file diff, and `changeSummary` without writing files. Add `--yes` only after confirmation to install the selected pack and record it in `.agents-market/manifest.json`.
-
-Use `plan --json` before installation when you need a project-aware confirmation payload. It includes registry source, pack metadata, file changes, audit risk, compatibility, optional policy results, readiness, and next `apply`/`doctor` commands.
-
-Use `audit` before installation to summarize permissions, tool access, target support, provenance, and source license coverage.
-
-## Project Policy
-
-Create a team policy before installing packs from a shared or hosted registry:
+构建：
 
 ```bash
-agents-market policy init --preset balanced
-agents-market policy check frontend-pack --target all --json
+agents-market catalog build --out ./site --base-url https://example.com/agents-market
 ```
 
-This writes `.agents-market/policy.json` and lets CI or agent-native workflows block packs that exceed project rules for max permission, full bash, web access, allowed targets, blocked agents, or blocked packs.
+产物：
 
-Use `policy check` after `audit` and before `diff`/`install`. It exits non-zero on policy violations, so it is safe to run in CI.
+| 图标 | 文件 | 用途 |
+| --- | --- | --- |
+| 🖥️ | `index.html` | 面向人类的搜索页面 |
+| 🧠 | `catalog.json` | 面向机器的完整 catalog |
+| 🤖 | `agents-market.json` | 面向 Agent 的紧凑入口 |
+| 📦 | `registry.bundle.json` | 可验证 registry bundle |
+| 🔑 | `registry-public.pem` | hosted signature public key |
+| 🧭 | `site.webmanifest` / `robots.txt` / `sitemap.xml` / `favicon.svg` | 静态站点元数据 |
 
-Use `install --enforce-policy` when a project has `.agents-market/policy.json`; the CLI will block installation before writing files if the pack violates policy.
-
-`doctor --strict --json` also checks installed packs against policy, so CI can detect policy drift after installation.
-
-See [docs/policy.md](./docs/policy.md).
-
-## Web Catalog
-
-Build a static marketplace catalog:
+部署后验证：
 
 ```bash
-agents-market catalog build --out ./site
-agents-market catalog build --out ./site --base-url https://example.com/agents-market --package github:tt-a1i/agents-market#preview-0.1.0 --repository https://github.com/acme/agents-market
-agents-market catalog info --url https://example.com/agents-market/agents-market.json --json
-agents-market catalog init --url https://example.com/agents-market/agents-market.json --target all --json
-agents-market catalog verify --dir ./site
 agents-market catalog verify --url https://example.com/agents-market/catalog.json --json
 ```
 
-Use a tag- or SHA-pinned GitHub package spec such as `--package github:tt-a1i/agents-market#preview-0.1.0` for preview catalogs before npm publication. Use `--package @agents-market/cli` for production catalogs after the npm package is published.
-
-The catalog generator writes:
-
-- `index.html`: searchable static catalog with target filters, quality ratings, provenance summaries, social preview metadata, copyable workflow commands, and import workflow commands
-- `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, registry trust workflow commands, pack compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
-- `agents-market.json`: compact agent-readable marketplace manifest with registry bundle/public-key URLs, trust commands, agent-native integration install commands, CI setup commands, import commands, and pack summaries
-- `registry.bundle.json`: portable registry bundle that users can install from
-- `site.webmanifest`, `robots.txt`, `sitemap.xml`, and `favicon.svg`: static site metadata and discovery files for Pages, CDN, or object-storage hosting
-
-Use `--base-url` when publishing the catalog to GitHub Pages or another static host. Pack cards and `catalog.json` will then include copyable `apply --json` preview commands, confirmed `apply --yes` install commands, and lower-level audit/diff commands that use the hosted `registry.bundle.json` URL instead of a local relative path. The catalog also includes registry trust workflow commands for `registry info`, signature verification when signing is configured, `registry lock`, and `registry verify-lock` so teams can inspect and lock the hosted registry before installing packs.
-
-Use `catalog info --url <catalog>` when an agent or automation wants to discover a hosted marketplace before installing anything. The URL can be the catalog base URL, `catalog.json`, or `agents-market.json`; JSON output returns the compact manifest with trust, integration install, CI setup, import, and pack-selection commands.
-
-Use `catalog init --url <catalog>` to connect a project to a hosted marketplace. By default it previews the registry lock, agent-native integration files, project signals, the recommended pack, pack audit, install plan, file diff, and next `apply` commands; add `--pack <pack>` to preview a specific pack. Dry-run next commands first show how to confirm the catalog connection with `catalog init ... --yes`, and the preview/install commands include the hosted registry URL because no lock has been written yet. After `--yes` writes the lock, next commands switch to `registry verify-lock` and lock-backed `apply` commands. Add `--ci` to install the generated GitHub maintenance workflow. Signed catalogs verify the hosted registry bundle with `registry-public.pem` before writing a signature-aware lock.
-
-Run `catalog verify` before publishing static assets, and use `catalog verify --url` after deployment to verify the hosted catalog directly. It checks that `catalog.json`, `agents-market.json`, `registry.bundle.json`, `index.html`, and static site metadata agree on pack counts, audits, quality scores, provenance summaries, registry trust workflow commands, agent-readable install/automation commands, import workflow commands, `apply` workflow commands, hosted bundle URLs, copy controls and runtime fallbacks, manifest metadata, favicon/sitemap wiring, social preview metadata, and hosted registry signatures when `registry-public.pem` is present.
-
-The repository includes GitHub Actions for CI, CodeQL/dependency security scanning, and GitHub Pages catalog deployment.
-
-## Import Third-Party Templates
-
-Normalize Claude Code or OpenCode Markdown agents into the registry schema:
+连接项目到 hosted catalog：
 
 ```bash
-agents-market import markdown ./code-reviewer.md --target claude --out ./registry/agents
-agents-market import directory ./community-agents --target claude --out ./registry/agents --pack community-pack --pack-out ./registry/packs
-agents-market import repo owner/community-agents --target claude --path agents --out ./registry/agents --pack community-pack --pack-out ./registry/packs
-agents-market registry lint --registry ./registry --json
+agents-market catalog init --url https://tt-a1i.github.io/agents-market/agents-market.json --target all --json
 ```
 
-Add `--json` to `import markdown`, `import directory`, or `import repo` when a coding agent or CI job needs a compact machine-readable import report without echoing full prompt bodies into logs.
+## 🚢 发布与供应链
 
-Preserve provenance when importing community templates:
+Preview release 包含：
+
+- registry bundle
+- npm tarball
+- SPDX SBOM
+- SHA256SUMS
+- 完整可验证 artifact archive
+- Claude/Codex/OpenCode installer archives
+- GitHub Artifact Attestations
+
+验证 release artifact：
 
 ```bash
-agents-market import directory ./community-agents \
-  --target claude \
-  --out ./registry/agents \
-  --source-repo owner/repo \
-  --source-license MIT \
-  --source-url https://github.com/owner/repo
+agents-market release verify-artifacts --archive ./agents-market-release-artifacts-0.1.0.tgz
 ```
 
-For public GitHub template repositories, `import repo` derives the repository provenance automatically and records the actual checked-out commit:
+发布和仓库运维流程见 [docs/operations.md](./docs/operations.md) 和 [docs/release.md](./docs/release.md)。
 
-```bash
-agents-market import repo owner/repo \
-  --target claude \
-  --path agents \
-  --ref main \
-  --out ./registry/agents \
-  --source-license MIT
-```
-
-When provenance is present, import commands record `provenance.sourceSha256` for the original Markdown source. GitHub repository imports also record `provenance.sourceCommit` and use a commit-pinned source tree URL unless `--source-url` overrides it. Registry lint, audit output, the Web catalog, and registry review summaries surface checksum and commit coverage for imported content.
-
-See [docs/import.md](./docs/import.md).
-
-## Contributing Marketplace Content
-
-Agents Market is curated. Before adding or importing registry content, read [CONTRIBUTING.md](./CONTRIBUTING.md) and [docs/contributing-agents.md](./docs/contributing-agents.md).
-
-Registry pull requests should include provenance, source checksums, source license data for third-party content, strict registry lint output, pack audit output, and an install preview. Use `agents-market registry review --registry ./registry --summary-json registry-review.json --summary-markdown registry-review.md` to generate the same structured evidence package used by CI. The pull request template lists the required evidence.
-
-Registry-related pull requests also run the `Registry Review` GitHub Actions workflow. It uploads JSON and Markdown review artifacts, writes the same pack-by-pack report to the Actions summary, and maintains a sticky PR comment with lint, prompt quality, catalog verification, audit, and apply-preview results.
-
-Registry content changes should also update `registry/changelog.json` so hosted bundles and catalogs can explain what changed.
-
-Do not open public issues for vulnerabilities, policy bypasses, unsafe generated files, or registry supply-chain risks. Use the private reporting path in [SECURITY.md](./SECURITY.md).
-
-Agents Market does not phone home. Commands contact the network only for explicit remote registry, public key, hosted catalog, GitHub import, release, or package sources. See [PRIVACY.md](./PRIVACY.md).
-
-For non-security support, use the paths in [SUPPORT.md](./SUPPORT.md).
-
-## Repository Layout
+## 🗂️ 仓库结构
 
 ```text
 registry/
-  agents/     Standard agent source definitions
-  packs/      Curated installable packs
-  changelog.json  Versioned registry release notes
-integrations/
-  claude-skill/       Claude Code installer skill source
-  codex-skill/        Codex installer skill source
-  opencode-command/   OpenCode installer command source
+  agents/      agent definitions
+  packs/       pack definitions
+  changelog.json
 src/
-  adapters/   Claude Code, Codex, and OpenCode generators
-  index.ts    CLI entrypoint
-.github/
-  workflows/  CI, GitHub Pages catalog publishing, and npm release
-tests/        Adapter and registry tests
+  index.ts     CLI entrypoint
+  registry.ts  registry loading, bundles, signatures, locks
+  install.ts   target file generation
+  workflow.ts  apply/recommend/install orchestration
+  catalog.ts   static catalog generator and verifier
+  importer.ts  markdown/directory/github import normalization
+docs/
+integrations/
+tests/
 ```
 
-## Design Notes
+## 🧠 设计原则
 
-- The registry is intentionally tool-neutral.
-- Target adapters own platform-specific syntax and permissions.
-- Packs are curated to avoid overloading users with too many subagents.
-- `recommend` scans local project signals and suggests packs rather than making the user browse a long catalog.
-- The install manifest protects user edits and gives the CLI a real lifecycle, not just one-way file generation.
-- Registry bundles and lockfiles provide the base for a remote marketplace and reproducible team installs.
-- Static catalog generation provides a first Web discovery surface without adding a heavy frontend stack.
-- Registry linting keeps marketplace content safe enough to publish and useful enough to recommend.
-- Import tooling creates a path from popular community template collections into curated, linted packs.
+- 默认让 Agent 操作，而不是让用户手动翻几百个 agents。
+- 默认预览，不默认写入。
+- 默认推荐 `core`，社区内容可搜索、可安装，但不冒充精选内容。
+- 所有可自动化输出都必须结构化、版本化、可解析。
+- 安装不是一次性复制文件，必须有 manifest、drift、update、rollback。
+- 远程市场必须能被签名、锁定、复验。
+- 导入社区内容必须保留 provenance，而不是只复制 prompt。
 
-## Release
+## 🚫 隐私
 
-The package is prepared for npm publication as `@agents-market/cli`.
+Agents Market 不会主动上报数据。只有在你显式使用远程 registry、public key、hosted catalog、GitHub import、release 或 package source 时才访问网络。详情见 [PRIVACY.md](./PRIVACY.md)。
 
-Before release:
+## 🤝 支持与贡献
 
-```bash
-npm run lint
-npm run build
-node dist/index.js registry lint --strict --json
-npm test
-npm run release:artifacts -- --out ./release-artifacts
-npm pack --dry-run
-```
-
-Publishing is handled by the Release GitHub Actions workflow on `v*` tags. It publishes the npm package, uploads release artifacts, and attaches the registry bundle plus Claude Code, Codex, and OpenCode installer archives to the GitHub Release. See [docs/release.md](./docs/release.md).
-
-See [claude_code_agents_research.md](./claude_code_agents_research.md) for the underlying Claude Code, Codex, and OpenCode research.
+- 使用问题和 bug：见 [SUPPORT.md](./SUPPORT.md)
+- 安全问题：见 [SECURITY.md](./SECURITY.md)
+- 贡献 agent：见 [docs/contributing-agents.md](./docs/contributing-agents.md)
+- 导入第三方 agent：见 [docs/import.md](./docs/import.md)
+- Package changelog：见 [CHANGELOG.md](./CHANGELOG.md)
+- Registry changelog：`agents-market registry changelog --json`

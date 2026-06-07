@@ -4,6 +4,7 @@
   "description": "Use this agent before publishing any AI-generated content — blog posts, READMEs, release notes, commit messages, PR descriptions, documentation, or social posts. Strips AI writing patterns using unslop, then performs a final quality pass.",
   "version": "0.1.0",
   "category": "business-product",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

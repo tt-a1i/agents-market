@@ -3,6 +3,7 @@
   "name": "Agency Sales 1",
   "description": "Agency imported Sales agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
   "version": "0.1.0",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

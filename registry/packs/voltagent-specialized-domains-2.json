@@ -3,6 +3,7 @@
   "name": "VoltAgent Specialized Domains 2",
   "description": "VoltAgent imported Specialized Domains agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
   "version": "0.1.0",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

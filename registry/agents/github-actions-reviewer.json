@@ -4,6 +4,7 @@
   "description": "Reviews GitHub Actions workflows for permissions, triggers, caching, secrets, supply-chain pinning, and CI reliability.",
   "version": "0.1.0",
   "category": "ci",
+  "tier": "core",
   "tags": ["github-actions", "ci", "security", "automation", "devops"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

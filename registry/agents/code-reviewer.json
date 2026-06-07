@@ -4,6 +4,7 @@
   "description": "Reviews code changes for correctness, security, regressions, maintainability, and missing tests.",
   "version": "0.1.0",
   "category": "review",
+  "tier": "core",
   "tags": ["review", "quality", "security", "tests"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

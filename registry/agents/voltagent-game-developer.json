@@ -4,6 +4,7 @@
   "description": "Use this agent when implementing game systems, optimizing graphics rendering, building multiplayer networking, or developing gameplay mechanics for games targeting specific platforms.",
   "version": "0.1.0",
   "category": "specialized-domains",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

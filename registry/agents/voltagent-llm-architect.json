@@ -4,6 +4,7 @@
   "description": "Use when designing LLM systems for production, implementing fine-tuning or RAG architectures, optimizing inference serving infrastructure, or managing multi-model deployments.",
   "version": "0.1.0",
   "category": "data-ai",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

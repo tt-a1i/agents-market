@@ -4,6 +4,7 @@
   "description": "Interactive audio specialist - Masters FMOD/Wwise integration, adaptive music systems, spatial audio, and audio performance budgeting across all game engines",
   "version": "0.1.0",
   "category": "game-development",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

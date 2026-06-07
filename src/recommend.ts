@@ -1,7 +1,9 @@
-import type { PackDefinition, ProjectSignals, Registry } from "./types.js";
+import { resolveTier } from "./tier.js";
+import type { PackDefinition, ProjectSignals, Registry, RegistryTier } from "./types.js";
 
 export interface PackRecommendation {
   pack: PackDefinition;
+  tier: RegistryTier;
   score: number;
   reasons: string[];
 }
@@ -31,7 +33,7 @@ function scorePack(pack: PackDefinition, signals: ProjectSignals): PackRecommend
     score += 1;
     reasons.push("baseline");
   }
-  return { pack, score, reasons };
+  return { pack, tier: resolveTier(pack), score, reasons };
 }
 
 export function recommendPacks(registry: Registry, signals: ProjectSignals): PackDefinition[] {
@@ -39,8 +41,14 @@ export function recommendPacks(registry: Registry, signals: ProjectSignals): Pac
 }
 
 export function recommendPackDetails(registry: Registry, signals: ProjectSignals): PackRecommendation[] {
+  // Core packs always rank above community packs: recommendations are an endorsement,
+  // and `apply` without a pack id auto-selects the top entry.
   return registry.packs
     .map((pack) => scorePack(pack, signals))
     .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score || a.pack.id.localeCompare(b.pack.id))
+    .sort((a, b) => tierRank(a.tier) - tierRank(b.tier) || b.score - a.score || a.pack.id.localeCompare(b.pack.id));
+}
+
+function tierRank(tier: RegistryTier): number {
+  return tier === "core" ? 0 : 1;
 }

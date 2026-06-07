@@ -3,6 +3,7 @@
   "name": "DevOps CI Pack",
   "description": "DevOps and CI agents for workflow review, container builds, observability, release notes, and dependency risk.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["devops", "ci", "containers", "operations"],
   "agents": ["github-actions-reviewer", "dockerfile-reviewer", "observability-auditor", "dependency-risk-auditor", "release-notes-writer"],
   "requires": {

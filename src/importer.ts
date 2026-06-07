@@ -85,6 +85,7 @@ export async function importMarkdownAgent(options: ImportMarkdownOptions): Promi
     description,
     version: options.version ?? "0.1.0",
     category: options.category ?? inferCategory(id, description),
+    tier: "community",
     tags: options.tags ?? inferTags(id, description),
     permission,
     recommendedTargets: [options.target],
@@ -146,6 +147,7 @@ export async function importMarkdownDirectory(options: ImportDirectoryOptions): 
       name: options.pack.name ?? humanize(options.pack.id),
       description: options.pack.description ?? `Imported pack containing ${imported.length} normalized agents.`,
       version: options.version ?? "0.1.0",
+      tier: "community",
       tags: options.tags ?? ["imported"],
       agents: imported.map((agent) => agent.id),
       requires: {

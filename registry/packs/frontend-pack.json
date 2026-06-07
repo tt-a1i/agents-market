@@ -3,6 +3,7 @@
   "name": "Frontend Quality Pack",
   "description": "Frontend-focused agents for visual verification, accessibility, reviews, tests, and debugging.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["frontend", "ui", "accessibility"],
   "agents": ["code-reviewer", "frontend-verifier", "accessibility-auditor", "test-runner", "debugger"],
   "requires": {

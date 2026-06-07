@@ -4,6 +4,7 @@
   "description": "Drafts concise pull request descriptions from diffs, commits, tests, risk notes, and user-facing behavior changes.",
   "version": "0.1.0",
   "category": "workflow",
+  "tier": "core",
   "tags": ["pull-request", "documentation", "workflow", "release-notes"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

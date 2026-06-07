@@ -24,6 +24,7 @@ import { cloneGitHubRepository, githubTreeUrl } from "./git-import.js";
 import { createImportReport, importMarkdownAgent, importMarkdownDirectory, summarizeImportedAgent } from "./importer.js";
 import { composePack } from "./pack.js";
 import { searchRegistry, type SearchKind } from "./search.js";
+import { parseTier, resolveTier } from "./tier.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
 import { renderRegistryReviewMarkdown, reviewRegistry } from "./registry-review.js";
@@ -117,6 +118,7 @@ function errorCode(message: string): string {
   if (message.startsWith("Unknown agents:")) return "AGENT_NOT_FOUND";
   if (message.startsWith("Invalid target:")) return "INVALID_TARGET";
   if (message.startsWith("Invalid search type:")) return "INVALID_SEARCH_TYPE";
+  if (message.startsWith("Invalid tier:")) return "INVALID_TIER";
   if (message.startsWith("Invalid policy preset:")) return "INVALID_POLICY_PRESET";
   if (message.startsWith("Invalid resolve strategy:")) return "INVALID_RESOLVE_STRATEGY";
   if (message.includes("requires --pack-out")) return "MISSING_REQUIRED_OPTION";
@@ -132,6 +134,7 @@ function errorHint(code: string): string {
   if (code === "AGENT_NOT_FOUND") return "Run `agents-market search --type agents --json` to see available agents.";
   if (code === "INVALID_TARGET") return "Use one of: claude, codex, opencode, all.";
   if (code === "INVALID_SEARCH_TYPE") return "Use one of: all, agents, packs.";
+  if (code === "INVALID_TIER") return "Use one of: core, community, all.";
   if (code === "INVALID_POLICY_PRESET") return "Use one of: open, balanced, strict.";
   return "Run the command with `--help` for supported arguments, or use `--json` commands that include nextCommands.";
 }
@@ -162,10 +165,15 @@ function summarizeAgent(agent: AgentDefinition): Record<string, unknown> {
     description: agent.description,
     version: agent.version,
     category: agent.category,
+    tier: resolveTier(agent),
     tags: agent.tags,
     permission: agent.permission,
     recommendedTargets: agent.recommendedTargets
   };
+}
+
+function tierLabel(tier: "core" | "community"): string {
+  return tier === "community" ? pc.dim(" [community]") : "";
 }
 
 function selectFields(record: Record<string, unknown>, fields: string[] | undefined): Record<string, unknown> {
@@ -384,6 +392,7 @@ program
           packId: selectedPack.id,
           name: selectedPack.name,
           description: selectedPack.description,
+          tier: resolveTier(selectedPack),
           score: recommendations[0]?.score ?? 0,
           reasons: recommendations[0]?.reasons ?? ["baseline"]
         },
@@ -431,20 +440,25 @@ program
   .option("--full", "include full agent prompt bodies when used with --agents --json")
   .option("--limit <number>", "maximum packs or agents to return")
   .option("--fields <fields>", "comma-separated fields to include for agent JSON records")
+  .option("--tier <tier>", "filter by tier: core, community, or all", "all")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { agents?: boolean; full?: boolean; fields?: string; limit?: string; registry?: string; json?: boolean }) => {
+  .action(async (options: { agents?: boolean; full?: boolean; fields?: string; limit?: string; tier?: string; registry?: string; json?: boolean }) => {
     const loaded = await loadRegistryWithInfo(options.registry);
     const { registry } = loaded;
     const limit = parsePositiveInteger(options.limit, "--limit");
     const fields = parseFields(options.fields);
-    const packs = registry.packs.slice(0, limit ?? registry.packs.length);
-    const agents = registry.agents.slice(0, limit ?? registry.agents.length);
+    const tier = parseTier(options.tier ?? "all");
+    const tierPacks = tier === "all" ? registry.packs : registry.packs.filter((pack) => resolveTier(pack) === tier);
+    const tierAgents = tier === "all" ? registry.agents : registry.agents.filter((agent) => resolveTier(agent) === tier);
+    const packs = tierPacks.slice(0, limit ?? tierPacks.length);
+    const agents = tierAgents.slice(0, limit ?? tierAgents.length);
     if (options.json) {
       printJson({
         source: loaded.source,
-        packCount: registry.packs.length,
-        agentCount: registry.agents.length,
+        tier,
+        packCount: tierPacks.length,
+        agentCount: tierAgents.length,
         returnedPackCount: packs.length,
         returnedAgentCount: options.agents ? agents.length : undefined,
         packs,
@@ -457,12 +471,12 @@ program
     }
     console.log(pc.bold("Packs"));
     for (const pack of packs) {
-      console.log(`${pc.cyan(pack.id)} - ${pack.description}`);
+      console.log(`${pc.cyan(pack.id)}${tierLabel(resolveTier(pack))} - ${pack.description}`);
     }
     if (options.agents) {
       console.log(`\n${pc.bold("Agents")}`);
       for (const agent of agents) {
-        console.log(`${pc.green(agent.id)} - ${agent.description}`);
+        console.log(`${pc.green(agent.id)}${tierLabel(resolveTier(agent))} - ${agent.description}`);
       }
     }
   });
@@ -475,6 +489,7 @@ program
   .option("--target <target>", "filter agents or packs by claude, codex, or opencode")
   .option("--tag <tag>", "filter by tag")
   .option("--category <category>", "filter agents or packs by agent category")
+  .option("--tier <tier>", "filter by tier: core, community, or all", "all")
   .option("--limit <number>", "maximum results to return", "20")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .option("--json", "print machine-readable JSON")
@@ -486,6 +501,7 @@ program
         target?: string;
         tag?: string;
         category?: string;
+        tier?: string;
         limit: string;
         registry?: string;
         json?: boolean;
@@ -498,6 +514,7 @@ program
         target: options.target ? parseConcreteTarget(options.target) : undefined,
         tag: options.tag,
         category: options.category,
+        tier: parseTier(options.tier ?? "all"),
         limit: Number.parseInt(options.limit, 10)
       });
 
@@ -508,13 +525,15 @@ program
             type: parseSearchKind(options.type),
             target: options.target,
             tag: options.tag,
-            category: options.category
+            category: options.category,
+            tier: parseTier(options.tier ?? "all")
           },
           results: results.map((result) => ({
             kind: result.kind,
             id: result.id,
             name: result.name,
             description: result.description,
+            tier: result.tier,
             score: result.score,
             reasons: result.reasons,
             agents: result.kind === "pack" ? result.pack.agents : undefined,
@@ -533,7 +552,7 @@ program
 
       for (const result of results) {
         const label = result.kind === "pack" ? pc.cyan("pack") : pc.green("agent");
-        console.log(`${label} ${pc.bold(result.id)} - ${result.description}`);
+        console.log(`${label} ${pc.bold(result.id)}${tierLabel(result.tier)} - ${result.description}`);
         if (result.reasons.length > 0) {
           console.log(`  ${pc.dim(result.reasons.join(", "))}`);
         }
@@ -561,6 +580,7 @@ program
           packId: recommendation.pack.id,
           name: recommendation.pack.name,
           description: recommendation.pack.description,
+          tier: recommendation.tier,
           score: recommendation.score,
           reasons: recommendation.reasons,
           agents: recommendation.pack.agents
@@ -580,8 +600,8 @@ program
       console.log(`- ${pc.cyan("starter-dev-pack")} - baseline coding agents for most projects`);
       return;
     }
-    for (const pack of packs) {
-      console.log(`- ${pc.cyan(pack.id)} - ${pack.description}`);
+    for (const recommendation of recommendations) {
+      console.log(`- ${pc.cyan(recommendation.pack.id)}${tierLabel(recommendation.tier)} - ${recommendation.pack.description}`);
     }
   });
 
@@ -882,6 +902,7 @@ program
         name: pack.name,
         description: pack.description,
         version: pack.version,
+        tier: resolveTier(pack),
         requires: pack.requires
       },
       target,
@@ -2097,10 +2118,10 @@ registryCommand
       printJson({ ok, strict: Boolean(options.strict), ...report });
     } else {
       for (const finding of report.findings) {
-        const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warning");
+        const label = finding.severity === "error" ? pc.red("error") : finding.severity === "warning" ? pc.yellow("warning") : pc.dim("info");
         console.log(`${label} ${finding.code} ${finding.subject}: ${finding.message}`);
       }
-      console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings)`);
+      console.log(`Score: ${report.score}/100 (${report.errorCount} errors, ${report.warningCount} warnings, ${report.infoCount} info)`);
       console.log(`Prompt quality: avg ${report.promptQuality.averageScore}/100, min ${report.promptQuality.minScore}/100`);
     }
     if (!ok) {

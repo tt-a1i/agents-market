@@ -4,6 +4,7 @@
   "description": "Audits UI changes for accessible labels, keyboard behavior, contrast, semantic structure, and focus states.",
   "version": "0.1.0",
   "category": "frontend",
+  "tier": "core",
   "tags": ["accessibility", "frontend", "a11y"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

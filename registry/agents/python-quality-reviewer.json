@@ -4,6 +4,7 @@
   "description": "Reviews Python code for typing, packaging, async behavior, tests, dependency management, and maintainability risks.",
   "version": "0.1.0",
   "category": "python",
+  "tier": "core",
   "tags": ["python", "typing", "pytest", "packaging", "quality"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

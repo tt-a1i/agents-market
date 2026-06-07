@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to design, build, or optimize data pipelines, ETL/ELT processes, and data infrastructure. Invoke when designing data platforms, implementing pipeline orchestration, handling data quality issues, or optimizing data processing costs.",
   "version": "0.1.0",
   "category": "data-ai",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

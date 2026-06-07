@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to make product strategy decisions, prioritize features, or define roadmap plans based on user needs and business goals.",
   "version": "0.1.0",
   "category": "business-product",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

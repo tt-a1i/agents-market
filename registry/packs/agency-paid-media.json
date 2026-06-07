@@ -2,7 +2,8 @@
   "id": "agency-paid-media",
   "name": "Agency Paid Media",
   "description": "Agency imported Paid Media agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -3,6 +3,7 @@
   "name": "VoltAgent Quality Security 2",
   "description": "VoltAgent imported Quality Security agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
   "version": "0.1.0",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

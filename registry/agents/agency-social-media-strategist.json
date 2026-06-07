@@ -4,6 +4,7 @@
   "description": "Expert social media strategist for LinkedIn, Twitter, and professional platforms. Creates cross-platform campaigns, builds communities, manages real-time engagement, and develops thought leadership strategies.",
   "version": "0.1.0",
   "category": "marketing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

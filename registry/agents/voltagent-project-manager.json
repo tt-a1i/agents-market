@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to establish project plans, track execution progress, manage risks, control budget/schedule, and coordinate stakeholders across complex initiatives.",
   "version": "0.1.0",
   "category": "business-product",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

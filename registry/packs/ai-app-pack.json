@@ -3,6 +3,7 @@
   "name": "AI App Pack",
   "description": "AI application agents for LLM integration review, security, API contracts, documentation research, and test planning.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["ai", "llm", "agents", "prompts"],
   "agents": ["ai-integration-reviewer", "security-auditor", "api-contract-reviewer", "docs-researcher", "test-coverage-planner"],
   "requires": {

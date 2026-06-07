@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to build complete features spanning database, API, and frontend layers together as a cohesive unit.",
   "version": "0.1.0",
   "category": "core-development",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

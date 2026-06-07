@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
-import { scorePromptQuality, scoreRegistryPrompts } from "./prompt-quality.js";
+import { buildBoilerplateIndex, scorePromptQuality, scoreRegistryPrompts, type BoilerplateIndex } from "./prompt-quality.js";
+import { resolveTier } from "./tier.js";
 import { createRegistryBundle, signRegistryBundle, validateRegistry, verifyRegistryBundleSignature } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
 import type { AgentDefinition, Registry, RegistryBundle, RegistryMetadata, Target } from "./types.js";
@@ -71,6 +72,7 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     if (!options.signingKeyId) throw new Error("signingKeyId is required when signingPrivateKeyPem is provided.");
     bundle = signRegistryBundle(bundle, options.signingPrivateKeyPem, options.signingKeyId);
   }
+  const boilerplate = buildBoilerplateIndex(registry.agents);
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const registryWorkflows = registryWorkflowCommands(packageSpec, bundleUrl, publicKeyUrl, options.signingKeyId);
@@ -90,8 +92,8 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     registryWorkflows,
     importWorkflows,
     changelog: registry.changelog ?? [],
-    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl, packageSpec)),
-    agents: registry.agents.map(agentCatalogSummary)
+    packs: registry.packs.map((pack) => packCatalogSummary(registry, pack.id, bundleUrl, packageSpec, boilerplate)),
+    agents: registry.agents.map((agent) => agentCatalogSummary(agent, boilerplate))
   };
 
   const files = [
@@ -419,6 +421,7 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
     return;
   }
 
+  const verifyBoilerplate = buildBoilerplateIndex(registry.agents);
   for (const pack of bundle.packs) {
     const catalogPack = catalogPacks.find((candidate) => isRecord(candidate) && candidate.id === pack.id);
     if (!isRecord(catalogPack)) {
@@ -431,7 +434,7 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
       continue;
     }
     const packageSpec = stringValue(catalog.packageSpec) ?? "github:tt-a1i/agents-market";
-    const expected = packCatalogSummary(registry, pack.id, bundleUrl, packageSpec);
+    const expected = packCatalogSummary(registry, pack.id, bundleUrl, packageSpec, verifyBoilerplate);
     if (catalogPack.previewCommand !== expected.previewCommand) {
       findings.push({
         severity: "error",
@@ -471,6 +474,14 @@ function verifyCatalogAgainstBundle(catalog: Record<string, unknown>, bundle: Re
         severity: "error",
         code: "quality-mismatch",
         message: "Catalog quality summary does not match the registry bundle.",
+        detail: pack.id
+      });
+    }
+    if (catalogPack.tier !== expected.tier) {
+      findings.push({
+        severity: "error",
+        code: "tier-mismatch",
+        message: "Catalog pack tier does not match the registry bundle.",
         detail: pack.id
       });
     }
@@ -715,6 +726,7 @@ function agentsMarketManifest(
         name: pack.name,
         version: pack.version,
         description: pack.description,
+        tier: resolveTier(pack),
         tags: pack.tags,
         agents: pack.agents,
         targets: targetCoverage(agents),
@@ -780,13 +792,14 @@ function renderHtml(
 ): string {
   const description = "Curated, cross-tool subagent packs for Claude Code, Codex, and OpenCode.";
   const catalogUrl = metadata?.catalogUrl ? normalizeSiteUrl(metadata.catalogUrl) : undefined;
+  const boilerplate = buildBoilerplateIndex(registry.agents);
   const promptQuality = scoreRegistryPrompts(registry.agents);
   const provenance = summarizeProvenance(registry.agents);
   const registryWorkflows = registryWorkflowCommands(packageSpec, bundlePath);
   const importWorkflows = importWorkflowCommands(packageSpec);
-  const packs = registry.packs
+  const renderPackCards = (packDefinitions: typeof registry.packs) => packDefinitions
     .map((pack) => {
-      const summary = packCatalogSummary(registry, pack.id, bundlePath, packageSpec);
+      const summary = packCatalogSummary(registry, pack.id, bundlePath, packageSpec, boilerplate);
       const agents = summary.agents
         .map((agent) => `<li><code>${escapeHtml(agent.id)}</code> ${escapeHtml(agent.description)}</li>`)
         .join("");
@@ -803,7 +816,7 @@ function renderHtml(
           </div>`
         )
         .join("");
-      return `<article class="card" data-targets="${escapeHtml(summary.targetCoverage.join(" "))}" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.audit.risk} ${summary.quality.grade} ${summary.targetCoverage.join(" ")}`)}">
+      return `<article class="card" data-targets="${escapeHtml(summary.targetCoverage.join(" "))}" data-search="${escapeHtml(`${pack.id} ${pack.name} ${pack.description} ${pack.tags.join(" ")} ${summary.tier} ${summary.audit.risk} ${summary.quality.grade} ${summary.targetCoverage.join(" ")}`)}">
         <div class="eyebrow">${escapeHtml(pack.tags.join(" / ") || "pack")}</div>
         <h2>${escapeHtml(pack.name)}</h2>
         <p>${escapeHtml(pack.description)}</p>
@@ -812,6 +825,7 @@ function renderHtml(
           <span>${escapeHtml(summary.rating.label)}</span>
         </div>
         <div class="meta">
+          <span>tier: <strong>${escapeHtml(summary.tier)}</strong></span>
           <span>quality: <strong>${summary.quality.averageScore}/100</strong></span>
           <span>risk: <strong>${escapeHtml(summary.audit.risk)}</strong></span>
           <span>${summary.audit.agentCount} agents</span>
@@ -826,13 +840,15 @@ function renderHtml(
       </article>`;
     })
     .join("\n");
+  const corePacks = renderPackCards(registry.packs.filter((pack) => resolveTier(pack) === "core"));
+  const communityPacks = renderPackCards(registry.packs.filter((pack) => resolveTier(pack) === "community"));
 
   const agents = registry.agents
-    .map((agent) => agentCatalogSummary(agent))
+    .map((agent) => agentCatalogSummary(agent, boilerplate))
     .map(
-      (agent) => `<tr data-targets="${escapeHtml(agent.recommendedTargets.join(" "))}" data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")} ${agent.provenance?.repository ?? ""} ${agent.provenance?.license ?? ""} ${agent.quality.grade} ${agent.recommendedTargets.join(" ")}`)}">
+      (agent) => `<tr data-targets="${escapeHtml(agent.recommendedTargets.join(" "))}" data-search="${escapeHtml(`${agent.id} ${agent.name} ${agent.description} ${agent.tags.join(" ")} ${agent.tier} ${agent.provenance?.repository ?? ""} ${agent.provenance?.license ?? ""} ${agent.quality.grade} ${agent.recommendedTargets.join(" ")}`)}">
         <td><code>${escapeHtml(agent.id)}</code></td>
-        <td>${escapeHtml(agent.category)}</td>
+        <td>${escapeHtml(agent.category)}<br><span class="muted">${escapeHtml(agent.tier)}</span></td>
         <td>${escapeHtml(agent.permission)}</td>
         <td><strong>${agent.quality.score}/100</strong><br><span class="muted">${escapeHtml(agent.quality.grade)}</span></td>
         <td>${renderProvenance(agent.provenance)}</td>
@@ -969,9 +985,19 @@ function renderHtml(
   </header>
   <main>
     <section>
-      <h2>Packs</h2>
-      <div class="grid">${packs}</div>
+      <h2>Core Packs</h2>
+      <p class="muted">Curated and maintained by Agents Market. Held to the strict registry quality bar.</p>
+      <div class="grid">${corePacks}</div>
     </section>
+    ${
+      communityPacks
+        ? `<section class="section">
+      <h2>Community Packs</h2>
+      <p class="muted">Imported from community collections with provenance and checksums. Review the audit before installing.</p>
+      <div class="grid">${communityPacks}</div>
+    </section>`
+        : ""
+    }
     ${
       changelog
         ? `<section class="section">
@@ -1162,11 +1188,11 @@ function renderProvenance(
   return `${escapeHtml(label)}${commit}${checksum}`;
 }
 
-function packCatalogSummary(registry: Registry, packId: string, bundlePath: string, packageSpec: string) {
+function packCatalogSummary(registry: Registry, packId: string, bundlePath: string, packageSpec: string, boilerplate?: BoilerplateIndex) {
   const pack = registry.packs.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error(`Unknown pack: ${packId}`);
   const agents = pack.agents.map((id) => registry.agents.find((agent) => agent.id === id)).filter((agent) => agent !== undefined);
-  const quality = summarizeQuality(agents);
+  const quality = summarizeQuality(agents, boilerplate);
   const audit = auditPack(registry, pack.id, "all");
   const npx = `npx ${packageSpec}`;
   const previewCommand = `${npx} apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --json`;
@@ -1175,6 +1201,7 @@ function packCatalogSummary(registry: Registry, packId: string, bundlePath: stri
   const installCommand = `${npx} apply ${pack.id} --target all --registry ${bundlePath} --policy-preset balanced --yes`;
   return {
     ...pack,
+    tier: resolveTier(pack),
     previewCommand,
     installCommand,
     auditCommand,
@@ -1194,10 +1221,11 @@ function packCatalogSummary(registry: Registry, packId: string, bundlePath: stri
   };
 }
 
-function agentCatalogSummary(agent: AgentDefinition) {
-  const quality = scorePromptQuality(agent);
+function agentCatalogSummary(agent: AgentDefinition, boilerplate?: BoilerplateIndex) {
+  const quality = scorePromptQuality(agent, boilerplate);
   return {
     ...agent,
+    tier: resolveTier(agent),
     quality: {
       score: quality.score,
       maxScore: quality.maxScore,
@@ -1208,8 +1236,8 @@ function agentCatalogSummary(agent: AgentDefinition) {
   };
 }
 
-function summarizeQuality(agents: AgentDefinition[]) {
-  const scores = agents.map((agent) => scorePromptQuality(agent));
+function summarizeQuality(agents: AgentDefinition[], boilerplate?: BoilerplateIndex) {
+  const scores = agents.map((agent) => scorePromptQuality(agent, boilerplate));
   const total = scores.reduce((sum, score) => sum + score.score, 0);
   const averageScore = scores.length === 0 ? 100 : Math.round(total / scores.length);
   const minScore = scores.length === 0 ? 100 : Math.min(...scores.map((score) => score.score));

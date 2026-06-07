@@ -4,6 +4,7 @@
   "description": "AppSec specialist who secures the software development lifecycle through threat modeling, secure code review, SAST/DAST integration, and developer security education that makes secure code the default.",
   "version": "0.1.0",
   "category": "security",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to design, implement, or optimize complex business process workflows with multiple states, error handling, and transaction management.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

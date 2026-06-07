@@ -4,6 +4,7 @@
   "description": "Investigates failing tests, runtime errors, stack traces, and suspicious behavior with a root-cause focus.",
   "version": "0.1.0",
   "category": "debugging",
+  "tier": "core",
   "tags": ["debugging", "tests", "logs", "root-cause"],
   "permission": "safe-write",
   "recommendedTargets": ["claude", "codex", "opencode"],

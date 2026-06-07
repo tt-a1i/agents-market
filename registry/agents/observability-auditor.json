@@ -4,6 +4,7 @@
   "description": "Reviews logging, metrics, tracing, alerting, and error reporting paths for diagnosability and production readiness.",
   "version": "0.1.0",
   "category": "operations",
+  "tier": "core",
   "tags": ["observability", "logging", "metrics", "tracing", "alerts"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],
