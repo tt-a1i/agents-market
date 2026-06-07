@@ -4,6 +4,7 @@
   "description": "Reviews REST, GraphQL, RPC, and webhook API contracts for compatibility, validation, errors, pagination, and versioning risk.",
   "version": "0.1.0",
   "category": "backend",
+  "tier": "core",
   "tags": ["api", "backend", "contracts", "rest", "graphql"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

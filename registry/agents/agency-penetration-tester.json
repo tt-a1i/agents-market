@@ -4,6 +4,7 @@
   "description": "Offensive security specialist conducting authorized penetration tests, red team operations, and vulnerability assessments across networks, web applications, and cloud infrastructure.",
   "version": "0.1.0",
   "category": "security",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

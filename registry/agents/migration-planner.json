@@ -4,6 +4,7 @@
   "description": "Plans safe database, framework, runtime, or dependency migrations with rollout, rollback, compatibility, and verification steps.",
   "version": "0.1.0",
   "category": "migration",
+  "tier": "core",
   "tags": ["migration", "database", "upgrade", "rollout", "compatibility"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

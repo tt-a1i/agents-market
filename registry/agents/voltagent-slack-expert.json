@@ -4,6 +4,7 @@
   "description": "Use this agent when developing Slack applications, implementing Slack API integrations, or reviewing Slack bot code for security and best practices.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

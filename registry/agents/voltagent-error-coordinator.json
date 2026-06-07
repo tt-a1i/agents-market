@@ -4,6 +4,7 @@
   "description": "Use this agent when distributed system errors occur and need coordinated handling across multiple components, or when you need to implement comprehensive error recovery strategies with automated failure detection and cascade prevention.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

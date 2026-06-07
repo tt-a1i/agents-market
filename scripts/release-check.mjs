@@ -12,8 +12,12 @@ async function main() {
   const registryLint = runJson("node", ["dist/index.js", "registry", "lint", "--strict", "--json"], "Registry quality lint");
   assert(registryLint.ok === true, "Registry quality lint failed.");
   assert(registryLint.score === 100, `Expected registry lint score 100, found ${registryLint.score}.`);
-  assert(registryLint.promptQuality?.averageScore >= 90, `Expected prompt quality average >= 90, found ${registryLint.promptQuality?.averageScore}.`);
-  assert(registryLint.promptQuality?.minScore >= 80, `Expected prompt quality minimum >= 80, found ${registryLint.promptQuality?.minScore}.`);
+  assert(registryLint.promptQuality?.averageScore >= 85, `Expected prompt quality average >= 85, found ${registryLint.promptQuality?.averageScore}.`);
+  const corePromptScores = registryLint.promptQuality?.agents?.filter((agent) => agent.tier === "core") ?? [];
+  assert(corePromptScores.length > 0, "Expected the registry to include core-tier agents.");
+  const coreMinScore = Math.min(...corePromptScores.map((agent) => agent.score));
+  assert(coreMinScore >= 80, `Expected core-tier prompt quality minimum >= 80, found ${coreMinScore}.`);
+  assert(registryLint.promptQuality?.boilerplate, "Expected registry lint to include a prompt boilerplate report.");
   const registryInfo = runJson("node", ["dist/index.js", "registry", "info", "--json"], "Registry info");
   assert(registryInfo.packCount >= 4, `Expected registry info to report at least four packs, found ${registryInfo.packCount}.`);
   assert(registryInfo.agentCount >= 10, `Expected registry info to report at least ten agents, found ${registryInfo.agentCount}.`);

@@ -4,6 +4,7 @@
   "description": "Expert DevOps engineer specializing in infrastructure automation, CI/CD pipeline development, and cloud operations",
   "version": "0.1.0",
   "category": "engineering",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

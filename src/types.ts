@@ -2,12 +2,15 @@ export type Target = "claude" | "codex" | "opencode";
 
 export type PermissionMode = "readonly" | "safe-write" | "write" | "command";
 
+export type RegistryTier = "core" | "community";
+
 export interface AgentDefinition {
   id: string;
   name: string;
   description: string;
   version: string;
   category: string;
+  tier?: RegistryTier;
   tags: string[];
   permission: PermissionMode;
   recommendedTargets: Target[];
@@ -40,6 +43,7 @@ export interface PackDefinition {
   name: string;
   description: string;
   version: string;
+  tier?: RegistryTier;
   tags: string[];
   agents: string[];
   recommendedFor: {

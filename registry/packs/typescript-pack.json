@@ -3,6 +3,7 @@
   "name": "TypeScript Quality Pack",
   "description": "TypeScript-focused agents for type safety, API contracts, tests, code review, and dependency risk.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["typescript", "quality", "api"],
   "agents": ["typescript-type-safety-reviewer", "api-contract-reviewer", "test-runner", "code-reviewer", "dependency-risk-auditor"],
   "requires": {

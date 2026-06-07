@@ -4,6 +4,7 @@
   "description": "Use this agent when working on legacy .NET Framework 4.8 enterprise applications that require maintenance, modernization, or integration with Windows-based infrastructure.",
   "version": "0.1.0",
   "category": "language-specialists",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

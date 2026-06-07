@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to harden PowerShell automation, secure remoting configuration, enforce least-privilege design, or align scripts with enterprise security baselines and compliance frameworks.",
   "version": "0.1.0",
   "category": "quality-security",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

@@ -4,12 +4,15 @@ const targetSchema = z.enum(["claude", "codex", "opencode"]);
 
 const permissionSchema = z.enum(["readonly", "safe-write", "write", "command"]);
 
+const tierSchema = z.enum(["core", "community"]);
+
 export const agentSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   name: z.string().min(1),
   description: z.string().min(20),
   version: z.string().min(1),
   category: z.string().min(1),
+  tier: tierSchema.optional(),
   tags: z.array(z.string()).default([]),
   permission: permissionSchema,
   recommendedTargets: z.array(targetSchema).min(1),
@@ -48,6 +51,7 @@ export const packSchema = z.object({
   name: z.string().min(1),
   description: z.string().min(20),
   version: z.string().min(1),
+  tier: tierSchema.optional(),
   tags: z.array(z.string()).default([]),
   agents: z.array(z.string()).min(1),
   recommendedFor: z

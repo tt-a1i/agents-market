@@ -1,9 +1,10 @@
 import type { AgentDefinition, PackDefinition, Registry } from "./types.js";
 import { CLI_VERSION } from "./constants.js";
 import { scoreRegistryPrompts, type PromptQualityReport } from "./prompt-quality.js";
+import { resolveTier } from "./tier.js";
 import { satisfiesVersionRange } from "./version.js";
 
-export type LintSeverity = "error" | "warning";
+export type LintSeverity = "error" | "warning" | "info";
 
 export interface LintFinding {
   severity: LintSeverity;
@@ -16,6 +17,7 @@ export interface LintReport {
   findings: LintFinding[];
   errorCount: number;
   warningCount: number;
+  infoCount: number;
   score: number;
   promptQuality: PromptQualityReport;
 }
@@ -26,13 +28,15 @@ export function lintRegistry(registry: Registry): LintReport {
   lintDuplicateIds("agent", registry.agents, findings);
   lintDuplicateIds("pack", registry.packs, findings);
   lintAgents(registry.agents, findings);
-  lintPromptQuality(promptQuality, findings);
+  lintPromptQuality(promptQuality, registry.agents, findings);
+  lintBoilerplate(promptQuality, findings);
   lintPacks(registry, findings);
 
   const errorCount = findings.filter((finding) => finding.severity === "error").length;
   const warningCount = findings.filter((finding) => finding.severity === "warning").length;
+  const infoCount = findings.filter((finding) => finding.severity === "info").length;
   const score = Math.max(0, 100 - errorCount * 20 - warningCount * 4);
-  return { findings, errorCount, warningCount, score, promptQuality };
+  return { findings, errorCount, warningCount, infoCount, score, promptQuality };
 }
 
 function lintDuplicateIds(
@@ -165,20 +169,35 @@ function isGitHubProvenance(provenance: NonNullable<AgentDefinition["provenance"
   );
 }
 
-function lintPromptQuality(promptQuality: PromptQualityReport, findings: LintFinding[]): void {
+function lintPromptQuality(promptQuality: PromptQualityReport, agents: AgentDefinition[], findings: LintFinding[]): void {
+  const tiers = new Map(agents.map((agent) => [agent.id, resolveTier(agent)]));
   for (const score of promptQuality.agents) {
     if (score.score >= 70) continue;
+    // Community content is surfaced but does not block strict CI; core content is held to the curated bar.
+    const severity: LintSeverity = tiers.get(score.agentId) === "core" ? (score.score < 50 ? "error" : "warning") : "info";
     findings.push({
-      severity: score.score < 50 ? "error" : "warning",
+      severity,
       code: "prompt-quality-low",
       subject: `agent:${score.agentId}`,
-      message: `Prompt quality score is ${score.score}/${score.maxScore}; missing: ${score.suggestions.join("; ")}`
+      message: `Prompt quality score is ${score.score}/${score.maxScore} (shared boilerplate excluded); missing: ${score.suggestions.join("; ")}`
     });
   }
 }
 
+function lintBoilerplate(promptQuality: PromptQualityReport, findings: LintFinding[]): void {
+  const boilerplate = promptQuality.boilerplate;
+  if (boilerplate.paragraphCount === 0) return;
+  findings.push({
+    severity: "info",
+    code: "prompt-boilerplate",
+    subject: "registry:prompts",
+    message: `${boilerplate.paragraphCount} paragraph(s) are shared by ${boilerplate.minAgents}+ agents (${boilerplate.affectedAgentCount} agents affected); shared text is excluded from prompt quality scoring.`
+  });
+}
+
 function lintPacks(registry: Registry, findings: LintFinding[]): void {
   const agentIds = new Set(registry.agents.map((agent) => agent.id));
+  const agentTiers = new Map(registry.agents.map((agent) => [agent.id, resolveTier(agent)]));
   for (const pack of registry.packs) {
     const missing = pack.agents.filter((id) => !agentIds.has(id));
     for (const id of missing) {
@@ -188,6 +207,18 @@ function lintPacks(registry: Registry, findings: LintFinding[]): void {
         subject: `pack:${pack.id}`,
         message: `Pack references missing agent "${id}".`
       });
+    }
+
+    if (resolveTier(pack) === "core") {
+      const communityAgents = pack.agents.filter((id) => agentTiers.get(id) === "community");
+      if (communityAgents.length > 0) {
+        findings.push({
+          severity: "warning",
+          code: "core-pack-community-agent",
+          subject: `pack:${pack.id}`,
+          message: `Core pack references community-tier agents: ${communityAgents.join(", ")}. Promote the agents to core or move the pack to community.`
+        });
+      }
     }
 
     if (pack.agents.length > 8) {

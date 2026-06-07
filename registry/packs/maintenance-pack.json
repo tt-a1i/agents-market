@@ -3,6 +3,7 @@
   "name": "Maintenance Workflow Pack",
   "description": "Maintenance agents for refactor planning, migration planning, pull requests, release notes, and test coverage.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["maintenance", "refactor", "release"],
   "agents": ["refactor-planner", "migration-planner", "test-coverage-planner", "pr-description-writer", "release-notes-writer"],
   "requires": {

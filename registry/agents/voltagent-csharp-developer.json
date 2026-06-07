@@ -4,6 +4,7 @@
   "description": "Use this agent when building ASP.NET Core web APIs, cloud-native .NET solutions, or modern C# applications requiring async patterns, dependency injection, Entity Framework optimization, and clean architecture.",
   "version": "0.1.0",
   "category": "language-specialists",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

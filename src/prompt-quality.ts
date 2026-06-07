@@ -1,4 +1,35 @@
-import type { AgentDefinition } from "./types.js";
+import { resolveTier } from "./tier.js";
+import type { AgentDefinition, RegistryTier } from "./types.js";
+
+// Paragraphs shared verbatim across this many agents are treated as template boilerplate
+// and excluded from per-agent prompt quality scoring, so a pasted guardrails block
+// cannot lift hundreds of imported prompts to identical scores.
+const BOILERPLATE_MIN_AGENTS = 5;
+const BOILERPLATE_MIN_LENGTH = 60;
+
+export interface BoilerplateIndex {
+  minAgents: number;
+  paragraphs: Map<string, number>;
+}
+
+export interface BoilerplateParagraphSummary {
+  agents: number;
+  chars: number;
+  preview: string;
+}
+
+export interface BoilerplateReport {
+  minAgents: number;
+  paragraphCount: number;
+  affectedAgentCount: number;
+  topParagraphs: BoilerplateParagraphSummary[];
+}
+
+export interface PromptBoilerplateUsage {
+  paragraphs: number;
+  chars: number;
+  ratio: number;
+}
 
 export interface PromptQualityDimension {
   id: string;
@@ -11,17 +42,20 @@ export interface PromptQualityDimension {
 
 export interface PromptQualityScore {
   agentId: string;
+  tier: RegistryTier;
   score: number;
   maxScore: number;
   grade: "excellent" | "good" | "needs-work" | "poor";
   dimensions: PromptQualityDimension[];
   suggestions: string[];
+  boilerplate?: PromptBoilerplateUsage;
 }
 
 export interface PromptQualityReport {
   averageScore: number;
   minScore: number;
   maxScore: number;
+  boilerplate: BoilerplateReport;
   agents: PromptQualityScore[];
 }
 
@@ -110,8 +144,9 @@ const rules: DimensionRule[] = [
   }
 ];
 
-export function scorePromptQuality(agent: AgentDefinition): PromptQualityScore {
-  const prompt = agent.prompt.trim();
+export function scorePromptQuality(agent: AgentDefinition, boilerplate?: BoilerplateIndex): PromptQualityScore {
+  const stripped = boilerplate ? stripBoilerplate(agent, boilerplate) : undefined;
+  const prompt = (stripped?.prompt ?? agent.prompt).trim();
   const lowerPrompt = prompt.toLowerCase();
   const dimensions = rules.map((rule) => {
     const passed = rule.test(agent, prompt, lowerPrompt);
@@ -130,23 +165,119 @@ export function scorePromptQuality(agent: AgentDefinition): PromptQualityScore {
 
   return {
     agentId: agent.id,
+    tier: resolveTier(agent),
     score,
     maxScore,
     grade: gradePrompt(score),
     dimensions,
-    suggestions
+    suggestions,
+    boilerplate: stripped?.usage
   };
 }
 
+export function buildBoilerplateIndex(agents: AgentDefinition[], minAgents = BOILERPLATE_MIN_AGENTS): BoilerplateIndex {
+  const counts = new Map<string, number>();
+  for (const agent of agents) {
+    const seen = new Set<string>();
+    for (const paragraph of splitParagraphs(agent.prompt)) {
+      seen.add(normalizeParagraph(paragraph, agent));
+    }
+    for (const key of seen) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  const paragraphs = new Map<string, number>();
+  for (const [key, count] of counts) {
+    if (count >= minAgents) paragraphs.set(key, count);
+  }
+  return { minAgents, paragraphs };
+}
+
 export function scoreRegistryPrompts(agents: AgentDefinition[]): PromptQualityReport {
-  const scores = agents.map((agent) => scorePromptQuality(agent));
+  const boilerplate = buildBoilerplateIndex(agents);
+  const scores = agents.map((agent) => scorePromptQuality(agent, boilerplate));
   const total = scores.reduce((sum, score) => sum + score.score, 0);
   return {
     averageScore: scores.length === 0 ? 100 : Math.round(total / scores.length),
     minScore: scores.length === 0 ? 100 : Math.min(...scores.map((score) => score.score)),
     maxScore: 100,
+    boilerplate: summarizeBoilerplate(agents, boilerplate),
     agents: scores
   };
+}
+
+function stripBoilerplate(
+  agent: AgentDefinition,
+  boilerplate: BoilerplateIndex
+): { prompt: string; usage: PromptBoilerplateUsage } {
+  const paragraphs = splitParagraphs(agent.prompt);
+  const kept: string[] = [];
+  let removedParagraphs = 0;
+  let removedChars = 0;
+  for (const paragraph of paragraphs) {
+    if (boilerplate.paragraphs.has(normalizeParagraph(paragraph, agent))) {
+      removedParagraphs += 1;
+      removedChars += paragraph.length;
+      continue;
+    }
+    kept.push(paragraph);
+  }
+  const totalChars = agent.prompt.trim().length;
+  return {
+    prompt: kept.join("\n\n"),
+    usage: {
+      paragraphs: removedParagraphs,
+      chars: removedChars,
+      ratio: totalChars === 0 ? 0 : Math.round((removedChars / totalChars) * 100) / 100
+    }
+  };
+}
+
+function summarizeBoilerplate(agents: AgentDefinition[], boilerplate: BoilerplateIndex): BoilerplateReport {
+  const previews = new Map<string, string>();
+  let affectedAgentCount = 0;
+  for (const agent of agents) {
+    let affected = false;
+    for (const paragraph of splitParagraphs(agent.prompt)) {
+      const key = normalizeParagraph(paragraph, agent);
+      if (!boilerplate.paragraphs.has(key)) continue;
+      affected = true;
+      if (!previews.has(key)) previews.set(key, paragraph.slice(0, 120));
+    }
+    if (affected) affectedAgentCount += 1;
+  }
+  const topParagraphs = [...boilerplate.paragraphs.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, 5)
+    .map(([key, count]) => ({
+      agents: count,
+      chars: key.length,
+      preview: previews.get(key) ?? key.slice(0, 120)
+    }));
+  return {
+    minAgents: boilerplate.minAgents,
+    paragraphCount: boilerplate.paragraphs.size,
+    affectedAgentCount,
+    topParagraphs
+  };
+}
+
+function splitParagraphs(prompt: string): string[] {
+  return prompt
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length >= BOILERPLATE_MIN_LENGTH);
+}
+
+// Normalize so the same template paragraph hashes identically across agents even when
+// it interpolates the agent's own name or id.
+function normalizeParagraph(paragraph: string, agent: AgentDefinition): string {
+  let normalized = paragraph.toLowerCase().replace(/\s+/g, " ").trim();
+  for (const marker of [agent.name.toLowerCase(), agent.id.toLowerCase()]) {
+    if (marker.length < 3) continue;
+    normalized = normalized.split(marker).join("<agent>");
+  }
+  return normalized;
 }
 
 function gradePrompt(score: number): PromptQualityScore["grade"] {

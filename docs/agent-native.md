@@ -58,6 +58,7 @@ Use the JSON output for parsing, and translate it into concise human-facing summ
 
 Use `recommend --json` when the user asks for a project-aware suggestion. Use `search --json` when the user names a domain such as accessibility, security, testing, docs, performance, frontend, or debugging.
 Do not enumerate full prompt bodies for discovery. `list --agents --json` returns a compact index by default; `list --agents --json --full` is only for explicit prompt inspection and can be large on community registries. Prefer `search --json`, `recommend --json`, and `apply --json`, and use `--limit`/`--fields` when listing agents.
+Results carry a `tier`: prefer `core` (curated) packs, and mention the tier plus audit result before asking for confirmation on `community` (imported) content. Use `--tier core` with `search` or `list` to stay on curated content.
 All CLI JSON responses include `schemaVersion`. If a `--json` command fails before producing its normal payload, parse the structured `{ ok: false, error: { code, message, hint, nextCommands } }` response instead of scraping stderr.
 Use `apply --json` as the default preview path because it combines recommendation, audit, policy, and diff into one agent-friendly response.
 Use `plan --json` when the user has already selected a pack and wants a confirmation summary before installation. Treat `ready: false` as a blocker and explain the compatibility or policy findings before offering next steps.

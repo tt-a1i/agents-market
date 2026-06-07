@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to design, evaluate, or optimize cloud infrastructure architecture at scale. Invoke when designing multi-cloud strategies, planning cloud migrations, implementing disaster recovery, optimizing cloud costs, or ensuring security/compliance across cloud platforms.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

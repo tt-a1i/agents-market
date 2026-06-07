@@ -4,6 +4,7 @@
   "description": "Expert in WebMCP readiness and agentic task completion — audits whether AI agents can actually accomplish tasks on your site (book, buy, register, subscribe), implements WebMCP declarative and imperative patterns, and measures task completion rates across AI browsing agents",
   "version": "0.1.0",
   "category": "marketing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

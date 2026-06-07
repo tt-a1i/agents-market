@@ -4,6 +4,7 @@
   "description": "Use when building complete frontend applications across React, Vue, and Angular frameworks requiring multi-framework expertise and full-stack integration.",
   "version": "0.1.0",
   "category": "core-development",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

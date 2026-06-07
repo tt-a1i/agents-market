@@ -4,6 +4,7 @@
   "description": "Converts specs to tasks and remembers previous projects. Focused on realistic scope, no background processes, exact spec requirements",
   "version": "0.1.0",
   "category": "project-management",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

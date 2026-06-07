@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to build, optimize, or secure Docker container images and orchestration for production environments.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

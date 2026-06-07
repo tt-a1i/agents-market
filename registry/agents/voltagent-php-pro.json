@@ -4,6 +4,7 @@
   "description": "Use this agent when working with PHP 8.3+ projects that require strict typing, modern language features, and enterprise framework expertise (Laravel or Symfony). Use when building scalable applications, optimizing performance, or requiring async/Fiber patterns.",
   "version": "0.1.0",
   "category": "language-specialists",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

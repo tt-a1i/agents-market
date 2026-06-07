@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to audit Active Directory security posture, evaluate privilege escalation risks, review identity delegation patterns, or assess authentication protocol hardening.",
   "version": "0.1.0",
   "category": "quality-security",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

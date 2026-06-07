@@ -4,10 +4,20 @@ All notable package and release changes are tracked here. Registry content chang
 
 ## Unreleased
 
+### Added
+
+- Registry tiers: every agent and pack now declares `tier: core` (curated, maintained by Agents Market) or `tier: community` (imported collections). Missing tiers resolve to `community` so third-party registries cannot claim the curated tier implicitly.
+- `--tier <core|community|all>` filters for `list` and `search`, and `tier` fields in `list`, `search`, `recommend`, `apply`, `plan`, `init`, and catalog JSON output.
+- Prompt boilerplate detection: paragraphs shared verbatim across five or more agents are excluded from prompt quality scoring, and the lint report includes a `prompt-boilerplate` summary finding.
+- `info` lint severity and `infoCount` in lint reports. Community-tier agents with low prompt quality produce `info` findings that surface in reports without failing strict CI; core-tier agents keep the strict warning/error bar.
+- `core-pack-community-agent` lint warning when a core pack references community-tier agents.
+
 ### Changed
 
 - CLI JSON output now includes `schemaVersion` and `--json` failures return structured `{ ok: false, error }` payloads instead of plain stderr-only messages.
 - `list --agents --json` now omits prompt bodies by default, with `--full`, `--limit`, and `--fields` available for bounded detailed output.
+- `recommend` now ranks core packs above community packs regardless of signal score, so `apply` without a pack id always auto-selects curated content when any core pack matches.
+- Prompt quality scores are now computed with shared boilerplate excluded, so imported template text no longer inflates per-agent scores. The Web catalog shows the adjusted scores and groups packs into Core and Community sections.
 
 ## 0.1.0 - Preview
 

@@ -4,6 +4,7 @@
   "description": "Specialist in designing and developing immersive cockpit-based control systems for XR environments",
   "version": "0.1.0",
   "category": "spatial-computing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -4,6 +4,7 @@
   "description": "Use when automating Microsoft 365 administrative tasks including Exchange Online mailbox provisioning, Teams collaboration management, SharePoint site configuration, license lifecycle management, and Graph API-driven identity automation.",
   "version": "0.1.0",
   "category": "specialized-domains",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

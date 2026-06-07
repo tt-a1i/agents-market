@@ -4,6 +4,7 @@
   "description": "Use this agent when developing iOS and Android mobile applications with focus on native or cross-platform implementation, performance optimization, and platform-specific user experience.",
   "version": "0.1.0",
   "category": "specialized-domains",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

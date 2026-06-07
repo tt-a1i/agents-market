@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to build or enhance developer tools including CLIs, code generators, build tools, and IDE extensions.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

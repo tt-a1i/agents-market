@@ -4,6 +4,7 @@
   "description": "Reviews Next.js and React changes for rendering, data fetching, bundle, caching, and hydration performance risks.",
   "version": "0.1.0",
   "category": "frontend",
+  "tier": "core",
   "tags": ["nextjs", "react", "performance"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

@@ -4,6 +4,7 @@
   "description": "Checks local frontend changes for rendering, responsiveness, accessibility, and obvious interaction issues.",
   "version": "0.1.0",
   "category": "frontend",
+  "tier": "core",
   "tags": ["frontend", "browser", "ui", "accessibility"],
   "permission": "command",
   "recommendedTargets": ["claude", "codex", "opencode"],

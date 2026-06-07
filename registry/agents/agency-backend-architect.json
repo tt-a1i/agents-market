@@ -4,6 +4,7 @@
   "description": "Senior backend architect specializing in scalable system design, database architecture, API development, and cloud infrastructure. Builds robust, secure, performant server-side applications and microservices",
   "version": "0.1.0",
   "category": "engineering",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

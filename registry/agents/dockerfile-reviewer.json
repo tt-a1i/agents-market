@@ -4,6 +4,7 @@
   "description": "Reviews Dockerfiles and container build configuration for security, reproducibility, image size, caching, and runtime correctness.",
   "version": "0.1.0",
   "category": "devops",
+  "tier": "core",
   "tags": ["docker", "containers", "security", "build", "devops"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

@@ -4,6 +4,7 @@
   "description": "Use this agent when you need comprehensive research across multiple sources with synthesis of findings into actionable insights, trend identification, and detailed reporting.",
   "version": "0.1.0",
   "category": "research-analysis",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

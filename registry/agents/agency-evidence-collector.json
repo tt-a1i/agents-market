@@ -4,6 +4,7 @@
   "description": "Screenshot-obsessed, fantasy-allergic QA specialist - Default to finding 3-5 issues, requires visual proof for everything",
   "version": "0.1.0",
   "category": "testing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

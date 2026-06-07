@@ -4,6 +4,7 @@
   "description": "Reviews TypeScript code for type soundness, unsafe casts, API types, generics, nullability, and runtime validation gaps.",
   "version": "0.1.0",
   "category": "typescript",
+  "tier": "core",
   "tags": ["typescript", "types", "runtime-validation", "quality"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

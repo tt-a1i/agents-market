@@ -3,6 +3,7 @@
   "name": "Python Pack",
   "description": "Python-focused agents for code quality, backend APIs, dependency risk, testing, and documentation research.",
   "version": "0.1.0",
+  "tier": "core",
   "tags": ["python", "quality", "backend"],
   "agents": ["python-quality-reviewer", "api-contract-reviewer", "dependency-risk-auditor", "test-runner", "docs-researcher"],
   "requires": {

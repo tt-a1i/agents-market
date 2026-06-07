@@ -4,6 +4,7 @@
   "description": "Use when architecting enterprise Angular 15+ applications with complex state management, optimizing RxJS patterns, designing micro-frontend systems, or solving performance and scalability challenges in large codebases.",
   "version": "0.1.0",
   "category": "language-specialists",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

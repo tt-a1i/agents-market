@@ -8,7 +8,8 @@ import { getPack } from "./registry.js";
 import { recommendPackDetails } from "./recommend.js";
 import { checkPackCompatibility, type PackCompatibilityReport } from "./compatibility.js";
 import { CLI_VERSION } from "./constants.js";
-import type { PackDefinition, ProjectSignals, Registry, Target } from "./types.js";
+import { resolveTier } from "./tier.js";
+import type { PackDefinition, ProjectSignals, Registry, RegistryTier, Target } from "./types.js";
 
 export type ApplyMode = "preview" | "install";
 export type ApplyPolicySource = "project" | "file" | "preset" | "none";
@@ -44,6 +45,7 @@ export interface ApplyWorkflowResult {
     id: string;
     name: string;
     description: string;
+    tier: RegistryTier;
     explicit: boolean;
     score: number;
     reasons: string[];
@@ -105,6 +107,7 @@ export async function runApplyWorkflow(options: ApplyWorkflowOptions): Promise<A
       id: selected.pack.id,
       name: selected.pack.name,
       description: selected.pack.description,
+      tier: resolveTier(selected.pack),
       explicit: Boolean(options.packId),
       score: selected.score,
       reasons: selected.reasons

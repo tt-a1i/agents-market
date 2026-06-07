@@ -4,6 +4,7 @@
   "description": "Use this agent when designing or evolving GraphQL schemas across microservices, implementing federation architectures, or optimizing query performance in distributed graphs.",
   "version": "0.1.0",
   "category": "core-development",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

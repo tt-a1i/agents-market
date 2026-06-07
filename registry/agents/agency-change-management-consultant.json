@@ -4,6 +4,7 @@
   "description": "Expert change management specialist using ADKAR, Kotter, and Prosci frameworks to guide organizations through technology implementations, restructuring, culture transformation, and M&A integration — managing resistance, building adoption, and ensuring changes stick long after go-live",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

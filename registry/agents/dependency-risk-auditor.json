@@ -4,6 +4,7 @@
   "description": "Audits dependency manifests, lockfiles, package scripts, and upgrade plans for supply-chain and compatibility risk.",
   "version": "0.1.0",
   "category": "security",
+  "tier": "core",
   "tags": ["dependencies", "supply-chain", "security", "packages"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

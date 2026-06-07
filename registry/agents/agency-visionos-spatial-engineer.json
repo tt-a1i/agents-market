@@ -4,6 +4,7 @@
   "description": "Native visionOS spatial computing, SwiftUI volumetric interfaces, and Liquid Glass design implementation",
   "version": "0.1.0",
   "category": "spatial-computing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

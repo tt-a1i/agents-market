@@ -4,6 +4,7 @@
   "description": "Use when designing or building desktop graphical interfaces (WinForms, WPF, Metro-style dashboards) or terminal user interfaces (TUIs) for PowerShell automation tools that need clean separation between UI and business logic.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

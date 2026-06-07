@@ -4,6 +4,7 @@
   "description": "Expert in collecting, analyzing, and synthesizing user feedback from multiple channels to extract actionable product insights. Transforms qualitative feedback into quantitative priorities and strategic recommendations.",
   "version": "0.1.0",
   "category": "product",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

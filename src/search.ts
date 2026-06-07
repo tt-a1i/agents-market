@@ -1,4 +1,5 @@
-import type { AgentDefinition, PackDefinition, Registry, Target } from "./types.js";
+import { resolveTier } from "./tier.js";
+import type { AgentDefinition, PackDefinition, Registry, RegistryTier, Target } from "./types.js";
 
 export type SearchKind = "all" | "agents" | "packs";
 
@@ -8,6 +9,7 @@ export interface SearchOptions {
   target?: Target;
   tag?: string;
   category?: string;
+  tier?: RegistryTier | "all";
   limit?: number;
 }
 
@@ -17,6 +19,7 @@ export type SearchResult =
       id: string;
       name: string;
       description: string;
+      tier: RegistryTier;
       score: number;
       reasons: string[];
       agent: AgentDefinition;
@@ -26,6 +29,7 @@ export type SearchResult =
       id: string;
       name: string;
       description: string;
+      tier: RegistryTier;
       score: number;
       reasons: string[];
       pack: PackDefinition;
@@ -51,7 +55,13 @@ export function searchRegistry(registry: Registry, options: SearchOptions): Sear
     }
   }
 
-  return results.sort((a, b) => b.score - a.score || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)).slice(0, limit);
+  return results
+    .sort((a, b) => b.score - a.score || tierRank(a.tier) - tierRank(b.tier) || a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
+    .slice(0, limit);
+}
+
+function tierRank(tier: RegistryTier): number {
+  return tier === "core" ? 0 : 1;
 }
 
 function scorePack(
@@ -61,6 +71,8 @@ function scorePack(
   options: SearchOptions
 ): SearchResult | undefined {
   if (options.tag && !hasValue(pack.tags, options.tag)) return undefined;
+  const tier = resolveTier(pack);
+  if (options.tier && options.tier !== "all" && tier !== options.tier) return undefined;
 
   const packAgents = pack.agents
     .map((id) => registry.agents.find((agent) => agent.id === id))
@@ -93,12 +105,17 @@ function scorePack(
     score += 2;
     reasons.push(`tag:${options.tag}`);
   }
+  if (tier === "core") {
+    score += 3;
+    reasons.push("tier:core");
+  }
 
   return {
     kind: "pack",
     id: pack.id,
     name: pack.name,
     description: pack.description,
+    tier,
     score,
     reasons,
     pack
@@ -109,6 +126,8 @@ function scoreAgent(agent: AgentDefinition, queryTerms: string[], options: Searc
   if (options.target && !agent.recommendedTargets.includes(options.target)) return undefined;
   if (options.category && !same(agent.category, options.category)) return undefined;
   if (options.tag && !hasValue(agent.tags, options.tag)) return undefined;
+  const tier = resolveTier(agent);
+  if (options.tier && options.tier !== "all" && tier !== options.tier) return undefined;
 
   const haystack = [agent.id, agent.name, agent.description, agent.category, agent.permission, ...agent.tags, agent.prompt.slice(0, 500)];
   const scored = scoreText(haystack, queryTerms);
@@ -128,12 +147,17 @@ function scoreAgent(agent: AgentDefinition, queryTerms: string[], options: Searc
     score += 2;
     reasons.push(`tag:${options.tag}`);
   }
+  if (tier === "core") {
+    score += 3;
+    reasons.push("tier:core");
+  }
 
   return {
     kind: "agent",
     id: agent.id,
     name: agent.name,
     description: agent.description,
+    tier,
     score,
     reasons,
     agent

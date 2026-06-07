@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to design, establish, or optimize Git workflows, branching strategies, and merge management for a project or team.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

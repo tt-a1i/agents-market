@@ -4,6 +4,7 @@
   "description": "Expert WordPress e-commerce engineer specializing in WooCommerce for product catalog management, payment gateway integration, checkout customization, order management, tax and coupon configuration, and conversion-optimized storefront delivery on WordPress",
   "version": "0.1.0",
   "category": "engineering",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

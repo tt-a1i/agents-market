@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to deploy, optimize, or serve machine learning models at scale in production environments.",
   "version": "0.1.0",
   "category": "data-ai",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

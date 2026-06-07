@@ -4,6 +4,7 @@
   "description": "Use when establishing observability infrastructure to track system metrics, detect performance anomalies, and optimize resource usage across multi-agent environments.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

@@ -4,6 +4,7 @@
   "description": "Representation expert who defeats systemic AI biases to generate culturally accurate, affirming, and non-stereotypical images and video.",
   "version": "0.1.0",
   "category": "design",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -4,6 +4,7 @@
   "description": "Researches official documentation and primary sources, then returns concise cited implementation guidance.",
   "version": "0.1.0",
   "category": "research",
+  "tier": "core",
   "tags": ["docs", "research", "citations"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

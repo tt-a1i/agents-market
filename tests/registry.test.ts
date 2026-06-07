@@ -217,6 +217,34 @@ describe("registry", () => {
     expect(results.every((result) => result.kind === "agent" && result.agent.category === "frontend")).toBe(true);
   });
 
+  it("filters marketplace search by tier and boosts core results", async () => {
+    const registry = await loadRegistry();
+    const coreOnly = searchRegistry(registry, { query: "review", tier: "core" });
+    expect(coreOnly.length).toBeGreaterThan(0);
+    expect(coreOnly.every((result) => result.tier === "core")).toBe(true);
+    expect(coreOnly.every((result) => result.reasons.includes("tier:core"))).toBe(true);
+
+    const communityOnly = searchRegistry(registry, { query: "review", tier: "community" });
+    expect(communityOnly.length).toBeGreaterThan(0);
+    expect(communityOnly.every((result) => result.tier === "community")).toBe(true);
+  });
+
+  it("ranks core packs above community packs in recommendations", async () => {
+    const registry = await loadRegistry();
+    const recommendations = recommendPackDetails(registry, {
+      root: "/tmp/project",
+      languages: ["typescript", "javascript"],
+      frameworks: [],
+      files: ["package.json", "README.md"]
+    });
+    expect(recommendations.length).toBeGreaterThan(0);
+    expect(recommendations[0]?.tier).toBe("core");
+    const firstCommunity = recommendations.findIndex((recommendation) => recommendation.tier === "community");
+    if (firstCommunity !== -1) {
+      expect(recommendations.slice(firstCommunity).every((recommendation) => recommendation.tier === "community")).toBe(true);
+    }
+  });
+
   it("parses GitHub repositories for import", () => {
     const repo = parseGitHubRepository("owner/example-agents");
     expect(repo.repository).toBe("owner/example-agents");

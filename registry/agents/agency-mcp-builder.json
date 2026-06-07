@@ -4,6 +4,7 @@
   "description": "Expert Model Context Protocol developer who designs, builds, and tests MCP servers that extend AI agent capabilities with custom tools, resources, and prompts.",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

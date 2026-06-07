@@ -4,6 +4,7 @@
   "description": "Use when building Rust systems where memory safety, ownership patterns, zero-cost abstractions, and performance optimization are critical for systems programming, embedded development, async applications, or high-performance services.",
   "version": "0.1.0",
   "category": "language-specialists",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

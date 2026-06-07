@@ -4,6 +4,7 @@
   "description": "Use this agent when you need comprehensive quality assurance strategy, test planning across the entire development cycle, or quality metrics analysis to improve overall software quality.",
   "version": "0.1.0",
   "category": "quality-security",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

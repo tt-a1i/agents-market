@@ -4,6 +4,7 @@
   "description": "Expert in extracting structured, reasoning-ready data from raw email threads for AI agents and automation systems",
   "version": "0.1.0",
   "category": "engineering",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

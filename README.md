@@ -88,10 +88,12 @@ agents-market list --agents
 agents-market list --agents --json
 agents-market list --agents --json --limit 20 --fields id,name,description,category,permission
 agents-market list --agents --json --full --limit 1 --fields id,prompt
+agents-market list --tier core --json
 agents-market init --target all
 agents-market init --target all --dry-run --json
 agents-market search accessibility --target claude
 agents-market search --type agents --category frontend --json
+agents-market search review --tier core --json
 agents-market recommend
 agents-market recommend --json
 agents-market apply --target all
@@ -258,18 +260,32 @@ agents-market registry lint --strict
 agents-market registry lint --strict --json
 ```
 
-The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt quality, pack size, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings, promptQuality }`.
+The linter checks references, duplicate IDs, routing metadata, permission/tool consistency, prompt quality, pack size, tier consistency, and recommendation signals. Use `--json` in CI or agent-native workflows to parse `{ ok, score, findings, promptQuality }`.
 
-`promptQuality` is a deterministic, explainable score for every agent prompt. It grades role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture. Low-scoring prompts create lint findings so imported or third-party templates can be improved before publication.
+`promptQuality` is a deterministic, explainable score for every agent prompt. It grades role framing, task specificity, context gathering, safety/scope constraints, expected output, domain specificity, and verification posture. Paragraphs shared verbatim across five or more agents are treated as template boilerplate and excluded from scoring, so a pasted guardrails block cannot lift hundreds of imported prompts to identical scores. Low-scoring prompts create lint findings: core-tier agents get warnings or errors, community-tier agents get `info` findings that surface in reports without blocking strict CI.
 
 Published packs declare `requires.agentsMarket`, for example `>=0.1.0`. `apply`, `install`, and `update` check this constraint before writing files so older CLIs reject incompatible registry content cleanly.
 
+## Registry Tiers
+
+Every agent and pack declares a tier:
+
+- `core`: curated and maintained by Agents Market, held to the strict registry quality bar. `recommend` ranks core packs above community packs regardless of signal score, so `apply` without a pack id always auto-selects curated content when any core pack matches the project.
+- `community`: imported from community collections with provenance, source licenses, and checksums, but a lighter review bar. Community packs are still searchable and installable, rank below core packs in recommendations, and are grouped separately in the Web catalog.
+
+Filter by tier with `list --tier core` or `search <query> --tier core --json`. Registries that omit the field resolve to `community`, so third-party content cannot claim the curated tier implicitly.
+
 ## Built-In Packs
+
+Core packs:
 
 - `starter-dev-pack`: review, debugging, tests, and documentation research.
 - `frontend-pack`: visual verification, accessibility, review, tests, and debugging.
 - `nextjs-pack`: Next.js performance, frontend verification, accessibility, tests, and review.
 - `security-pack`: application security audit, dependency risk, secrets scanning, and review.
+- `backend-api-pack`, `database-pack`, `devops-ci-pack`, `python-pack`, `typescript-pack`, `maintenance-pack`, and `ai-app-pack` for stack-specific coverage.
+
+Community packs imported from Agency Agents and VoltAgent cover marketing, sales, finance, language specialists, infrastructure, and more; run `agents-market list --tier community` to browse them.
 
 ## Discover Agents
 

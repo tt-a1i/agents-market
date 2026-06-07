@@ -4,6 +4,7 @@
   "description": "Use this agent when optimizing the complete developer workflow including build times, feedback loops, testing efficiency, and developer satisfaction metrics across the entire development environment.",
   "version": "0.1.0",
   "category": "developer-experience",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

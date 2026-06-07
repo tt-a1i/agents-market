@@ -4,6 +4,7 @@
   "description": "Stops fantasy approvals, evidence-based certification - Default to \"NEEDS WORK\", requires overwhelming proof for production readiness",
   "version": "0.1.0",
   "category": "testing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

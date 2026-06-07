@@ -4,6 +4,7 @@
   "description": "Use this agent when architecting, implementing, or optimizing end-to-end AI systems—from model selection and training pipelines to production deployment and monitoring.",
   "version": "0.1.0",
   "category": "data-ai",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

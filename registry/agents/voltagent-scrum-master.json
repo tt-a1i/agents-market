@@ -4,6 +4,7 @@
   "description": "Use when teams need facilitation, process optimization, velocity improvement, or agile ceremony management—especially for sprint planning, retrospectives, impediment removal, and scaling agile practices across multiple teams.",
   "version": "0.1.0",
   "category": "business-product",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

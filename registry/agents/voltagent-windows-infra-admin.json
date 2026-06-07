@@ -4,6 +4,7 @@
   "description": "Use when managing Windows Server infrastructure, Active Directory, DNS, DHCP, and Group Policy configurations, especially for enterprise-scale deployments requiring safe automation and compliance validation.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

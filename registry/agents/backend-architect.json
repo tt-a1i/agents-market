@@ -4,6 +4,7 @@
   "description": "Reviews backend service structure, module boundaries, data flow, error handling, and operational behavior for maintainability.",
   "version": "0.1.0",
   "category": "backend",
+  "tier": "core",
   "tags": ["backend", "architecture", "services", "maintainability"],
   "permission": "readonly",
   "recommendedTargets": ["claude", "codex", "opencode"],

@@ -4,6 +4,7 @@
   "description": "Terminal emulation, text rendering optimization, and SwiftTerm integration for modern Swift applications",
   "version": "0.1.0",
   "category": "spatial-computing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

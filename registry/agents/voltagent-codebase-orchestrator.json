@@ -4,6 +4,7 @@
   "description": "Use this agent when you need repository-wide refactor governance with explicit approval loops, weighted risk prioritization, diff previews, and deterministic fallback strategies.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

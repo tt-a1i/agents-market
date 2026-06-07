@@ -54,4 +54,28 @@ describe("CLI JSON contract", () => {
     expect(typeof body.agents?.[0]?.prompt).toBe("string");
     expect(Object.keys(body.agents?.[0] ?? {}).sort()).toEqual(["id", "prompt"]);
   });
+
+  it("filters list by tier and includes tier fields", () => {
+    const result = runCli(["list", "--tier", "core", "--agents", "--json"]);
+    const body = parseJson(result.stdout) as {
+      tier?: string;
+      packs?: Array<Record<string, unknown>>;
+      agents?: Array<Record<string, unknown>>;
+    };
+
+    expect(result.status).toBe(0);
+    expect(body.tier).toBe("core");
+    expect(body.packs?.length).toBeGreaterThan(0);
+    expect(body.packs?.every((pack) => pack.tier === "core")).toBe(true);
+    expect(body.agents?.every((agent) => agent.tier === "core")).toBe(true);
+  });
+
+  it("rejects invalid tier values with a structured error", () => {
+    const result = runCli(["list", "--tier", "premium", "--json"]);
+    const body = parseJson(result.stdout);
+
+    expect(result.status).toBe(1);
+    expect(body.ok).toBe(false);
+    expect((body.error as Record<string, unknown>).code).toBe("INVALID_TIER");
+  });
 });

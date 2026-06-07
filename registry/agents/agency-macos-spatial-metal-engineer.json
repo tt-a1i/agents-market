@@ -4,6 +4,7 @@
   "description": "Native Swift and Metal specialist building high-performance 3D rendering systems and spatial computing experiences for macOS and Vision Pro",
   "version": "0.1.0",
   "category": "spatial-computing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

@@ -4,6 +4,7 @@
   "description": "Use when actively responding to production incidents, diagnosing critical service failures, or conducting incident postmortems to implement permanent fixes and preventative measures.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

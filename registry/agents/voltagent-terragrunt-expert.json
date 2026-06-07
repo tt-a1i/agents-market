@@ -4,6 +4,7 @@
   "description": "Expert Terragrunt specialist mastering infrastructure orchestration, DRY configurations, and multi-environment deployments. Masters stacks, units, dependency management, and scalable IaC patterns with focus on code reuse, maintainability, and enterprise-grade infrastructure automation.",
   "version": "0.1.0",
   "category": "infrastructure",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

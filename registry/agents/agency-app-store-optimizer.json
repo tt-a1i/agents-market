@@ -4,6 +4,7 @@
   "description": "Expert app store marketing specialist focused on App Store Optimization (ASO), conversion rate optimization, and app discoverability",
   "version": "0.1.0",
   "category": "marketing",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

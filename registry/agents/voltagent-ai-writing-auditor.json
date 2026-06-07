@@ -4,6 +4,7 @@
   "description": "Use this agent when you need to audit content for AI writing patterns and rewrite text to remove them.",
   "version": "0.1.0",
   "category": "quality-security",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",

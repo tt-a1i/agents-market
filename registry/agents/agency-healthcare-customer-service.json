@@ -4,6 +4,7 @@
   "description": "Empathetic healthcare customer service specialist for patient support, billing inquiries, appointment management, insurance questions, complaint resolution, and seamless escalation to clinical or administrative staff",
   "version": "0.1.0",
   "category": "specialized",
+  "tier": "community",
   "tags": [
     "imported",
     "agency",

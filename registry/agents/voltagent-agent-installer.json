@@ -4,6 +4,7 @@
   "description": "Use this agent when the user wants to discover, browse, or install Claude Code agents from the awesome-claude-code-subagents repository.",
   "version": "0.1.0",
   "category": "meta-orchestration",
+  "tier": "community",
   "tags": [
     "imported",
     "voltagent",
