@@ -9,7 +9,8 @@
     ],
     "changed": [
       "Prompt quality scores now exclude paragraphs shared across five or more agents, so imported guardrails boilerplate no longer inflates community prompt scores",
-      "The Web catalog groups packs into Core and Community sections and shows the tier on every pack card and agent row"
+      "The Web catalog groups packs into Core and Community sections and shows the tier on every pack card and agent row",
+      "Six imported agents whose adjusted prompt quality fell below the review bar gained domain-specific working-method sections covering role, context gathering, scope constraints, and expected output: growth-hacker, ad-creative-strategist, terminal-integration-specialist, visionos-spatial-engineer, xr-cockpit-interaction-specialist, and xr-immersive-developer, with version bumps for the agency-marketing-2, agency-paid-media, and agency-spatial-computing packs"
     ]
   },
   {
