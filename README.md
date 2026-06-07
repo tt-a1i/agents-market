@@ -57,6 +57,12 @@ npx github:tt-a1i/agents-market#preview-0.1.0 apply starter-dev-pack --target al
 curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
 ```
 
+用 Homebrew 安装：
+
+```bash
+brew install tt-a1i/tap/agents-market
+```
+
 要求 GitHub Artifact Attestation 验证：
 
 ```bash
