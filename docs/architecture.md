@@ -131,7 +131,8 @@ This is the foundation for a hosted marketplace: the Web catalog can publish ver
 
 Outputs:
 
-- `index.html`: searchable catalog for humans with target filters, quality ratings, provenance summaries, social preview metadata, copyable workflow commands, and import workflow commands
+- `index.html`: marketing landing page generated from the registry (real agent/pack counts, featured tiers, install methods, trust chain) linking to the browse catalog
+- `catalog.html`: searchable catalog for humans with target filters, quality ratings, provenance summaries, social preview metadata, copyable workflow commands, and import workflow commands
 - `catalog.json`: machine-readable catalog with pack audits, prompt quality scores, ratings, provenance coverage, `apply` preview/install commands, safety workflow commands, registry trust workflow commands, compatibility requirements, changelog entries, import workflow commands, release/source metadata, and agent metadata
 - `agents-market.json`: compact agent-readable marketplace manifest with registry bundle/public-key URLs, trust commands, agent-native integration install commands, CI setup commands, import commands, and pack summaries
 - `registry.bundle.json`: installable registry bundle

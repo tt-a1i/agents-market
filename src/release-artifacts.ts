@@ -64,6 +64,7 @@ export async function verifyReleaseArtifacts(root: string): Promise<ReleaseArtif
     "registry.bundle.json",
     "catalog/agents-market.json",
     "catalog/index.html",
+    "catalog/catalog.html",
     "catalog/catalog.json",
     "catalog/favicon.svg",
     "catalog/registry.bundle.json",

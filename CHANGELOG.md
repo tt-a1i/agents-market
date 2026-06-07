@@ -9,6 +9,7 @@ All notable package and release changes are tracked here. Registry content chang
 - Claude Code plugin marketplace: `/plugin marketplace add tt-a1i/agents-market` followed by `/plugin install agents-market-installer@agents-market` installs the installer skill without touching project files. The marketplace manifest lives at `.claude-plugin/marketplace.json` and the plugin source under `integrations/claude-plugin/`.
 - The Claude installer skill now documents the `npx` fallback for environments where the `agents-market` CLI is not installed.
 - Homebrew tap: `brew install tt-a1i/tap/agents-market` installs the CLI from a commit-pinned source archive ([tt-a1i/homebrew-tap](https://github.com/tt-a1i/homebrew-tap)); the formula switches to the npm registry tarball once `@agents-market/cli` is published.
+- Marketing landing page: `catalog build` now generates a dark-first landing page as `index.html` (IBM Plex, live registry stats, featured packs/agents, install methods, trust chain) and moves the searchable browse catalog to `catalog.html`. `catalog verify` checks both pages, including landing stats consistency with the registry bundle.
 
 ## 0.1.0
 

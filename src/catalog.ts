@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { auditPack } from "./audit.js";
 import { buildBoilerplateIndex, scorePromptQuality, scoreRegistryPrompts, type BoilerplateIndex } from "./prompt-quality.js";
+import { renderLandingHtml } from "./landing.js";
 import { resolveTier } from "./tier.js";
 import { createRegistryBundle, signRegistryBundle, validateRegistry, verifyRegistryBundleSignature } from "./registry.js";
 import { registryBundleSchema } from "./schema.js";
@@ -119,6 +120,15 @@ export async function buildCatalog(registry: Registry, options: CatalogOptions):
     },
     {
       name: "index.html",
+      content: renderLandingHtml(registry, {
+        title,
+        bundleUrl,
+        siteUrl: metadata?.catalogUrl ? normalizeSiteUrl(metadata.catalogUrl) : undefined,
+        metadata
+      })
+    },
+    {
+      name: "catalog.html",
       content: renderHtml(title, registry, bundleUrl, packageSpec, metadata)
     },
     {
@@ -154,6 +164,7 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
   const bundle = await readJson(join(dir, "registry.bundle.json"), findings, "registry.bundle.json");
   const webManifestFile = await readJson(join(dir, "site.webmanifest"), findings, "site.webmanifest");
   const html = await readText(join(dir, "index.html"), findings, "index.html");
+  const browseHtml = await readText(join(dir, "catalog.html"), findings, "catalog.html");
   const robots = await readText(join(dir, "robots.txt"), findings, "robots.txt");
   const sitemap = await readText(join(dir, "sitemap.xml"), findings, "sitemap.xml");
   await readText(join(dir, "favicon.svg"), findings, "favicon.svg");
@@ -195,6 +206,39 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
     verifyAgentsMarketManifest(catalog, siteManifest, registryBundle, findings);
   }
 
+  if (catalog && browseHtml) {
+    const bundleUrl = stringValue(catalog.registryBundleUrl);
+    if (bundleUrl && !browseHtml.includes(bundleUrl)) {
+      findings.push({
+        severity: "error",
+        code: "browse-html-missing-bundle-url",
+        message: "catalog.html does not reference the catalog registry bundle URL.",
+        detail: bundleUrl
+      });
+    }
+    if (!browseHtml.includes("data-copy=")) {
+      findings.push({
+        severity: "error",
+        code: "browse-html-missing-copy-controls",
+        message: "catalog.html does not include copy controls for workflow commands."
+      });
+    }
+    if (!browseHtml.includes('const itemTargets = item.dataset.targets || "";')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-target-filter-fallback",
+        message: "catalog.html target filter does not tolerate searchable entries without target metadata."
+      });
+    }
+    if (!browseHtml.includes('document.execCommand("copy")') || !browseHtml.includes("Copy failed")) {
+      findings.push({
+        severity: "error",
+        code: "browse-html-missing-copy-fallback",
+        message: "catalog.html copy controls do not include a fallback for restricted Clipboard API contexts."
+      });
+    }
+  }
+
   if (catalog && html) {
     const bundleUrl = stringValue(catalog.registryBundleUrl);
     if (bundleUrl && !html.includes(bundleUrl)) {
@@ -205,6 +249,13 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         detail: bundleUrl
       });
     }
+    if (!html.includes('href="catalog.html"')) {
+      findings.push({
+        severity: "error",
+        code: "html-missing-catalog-link",
+        message: "index.html landing page does not link to the catalog.html browse page."
+      });
+    }
     if (!html.includes("data-copy=")) {
       findings.push({
         severity: "error",
@@ -212,18 +263,21 @@ export async function verifyCatalog(dir: string): Promise<CatalogVerificationRep
         message: "index.html does not include copy controls for workflow commands."
       });
     }
-    if (!html.includes('const itemTargets = item.dataset.targets || "";')) {
-      findings.push({
-        severity: "error",
-        code: "html-missing-target-filter-fallback",
-        message: "index.html target filter does not tolerate searchable entries without target metadata."
-      });
-    }
     if (!html.includes('document.execCommand("copy")') || !html.includes("Copy failed")) {
       findings.push({
         severity: "error",
         code: "html-missing-copy-fallback",
         message: "index.html copy controls do not include a fallback for restricted Clipboard API contexts."
+      });
+    }
+    const agentCountMarker = `data-count="${String(catalog.agentCount)}"`;
+    const packCountMarker = `data-count="${String(catalog.packCount)}"`;
+    if (!html.includes(agentCountMarker) || !html.includes(packCountMarker)) {
+      findings.push({
+        severity: "error",
+        code: "html-stats-mismatch",
+        message: "index.html landing stats do not match the catalog agent and pack counts.",
+        detail: `${agentCountMarker}, ${packCountMarker}`
       });
     }
     if (!html.includes('rel="manifest"') || !html.includes('href="site.webmanifest"')) {
@@ -335,6 +389,7 @@ export async function verifyCatalogUrl(url: string): Promise<CatalogVerification
       fetchCatalogAsset(baseUrl, "catalog.json").then((content) => writeFile(join(dir, "catalog.json"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "agents-market.json").then((content) => writeFile(join(dir, "agents-market.json"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "index.html").then((content) => writeFile(join(dir, "index.html"), content, "utf8")),
+      fetchCatalogAsset(baseUrl, "catalog.html").then((content) => writeFile(join(dir, "catalog.html"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "robots.txt").then((content) => writeFile(join(dir, "robots.txt"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "sitemap.xml").then((content) => writeFile(join(dir, "sitemap.xml"), content, "utf8")),
       fetchCatalogAsset(baseUrl, "favicon.svg").then((content) => writeFile(join(dir, "favicon.svg"), content, "utf8")),
@@ -1112,7 +1167,9 @@ function robotsTxt(baseUrl?: string): string {
 
 function sitemapXml(baseUrl?: string): string {
   const siteUrl = baseUrl ? normalizeSiteUrl(baseUrl) : undefined;
-  const urls = siteUrl ? `  <url>\n    <loc>${escapeXml(siteUrl)}</loc>\n  </url>\n` : "";
+  const urls = siteUrl
+    ? `  <url>\n    <loc>${escapeXml(siteUrl)}</loc>\n  </url>\n  <url>\n    <loc>${escapeXml(`${siteUrl}/catalog.html`)}</loc>\n  </url>\n`
+    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}</urlset>\n`;
 }
 
