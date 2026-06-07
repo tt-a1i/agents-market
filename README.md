@@ -86,6 +86,8 @@ The final product has three layers:
 agents-market list
 agents-market list --agents
 agents-market list --agents --json
+agents-market list --agents --json --limit 20 --fields id,name,description,category,permission
+agents-market list --agents --json --full --limit 1 --fields id,prompt
 agents-market init --target all
 agents-market init --target all --dry-run --json
 agents-market search accessibility --target claude
@@ -282,6 +284,8 @@ agents-market search review --json
 
 Search supports bundled, local, bundle-file, and URL registries through `--registry`, the same as install commands.
 
+For agent-native discovery, prefer `search --json`, `recommend --json`, or `apply --json` over enumerating the whole registry. `list --agents --json` returns compact agent summaries and omits prompt bodies by default; use `--full` only when a workflow explicitly needs full prompts. Use `--limit` and `--fields` to keep machine-readable output bounded.
+
 Create a small project-specific pack from individual search results:
 
 ```bash
@@ -343,6 +347,8 @@ agents-market plan nextjs-pack --target all
 agents-market audit nextjs-pack --target all --json
 agents-market diff nextjs-pack --target all --json
 ```
+
+JSON command output includes `schemaVersion`. When a command is invoked with `--json` and fails before producing a normal result, it returns a structured error payload with `ok: false`, a stable `error.code`, a human-readable `message`, a repair-oriented `hint`, and `nextCommands` where useful.
 
 Use `apply` as the high-level agent-native workflow. Without a pack id, it detects the project and selects the top recommendation. By default it previews the audit, policy check, file diff, and `changeSummary` without writing files. Add `--yes` only after confirmation to install the selected pack and record it in `.agents-market/manifest.json`.
 

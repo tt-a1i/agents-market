@@ -49,9 +49,10 @@ import {
   upsertInstallEntry
 } from "./manifest.js";
 import { sha256 } from "./hash.js";
-import type { ManifestFileEntry, ManifestInstallEntry, ManifestRollbackFileEntry, RegistryBundle, Target } from "./types.js";
+import type { AgentDefinition, ManifestFileEntry, ManifestInstallEntry, ManifestRollbackFileEntry, RegistryBundle, Target } from "./types.js";
 
 const program = new Command();
+const JSON_SCHEMA_VERSION = 1;
 
 function cwd(value?: string): string {
   return resolve(value ?? process.cwd());
@@ -96,6 +97,99 @@ function collectOption(value: string, previous: string[] = []): string[] {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function withSchemaVersion<T>(value: T): T | { schemaVersion: number; data: T } {
+  if (isPlainRecord(value)) return { schemaVersion: JSON_SCHEMA_VERSION, ...value } as T;
+  return { schemaVersion: JSON_SCHEMA_VERSION, data: value };
+}
+
+function printJson(value: unknown): void {
+  console.log(JSON.stringify(withSchemaVersion(value), null, 2));
+}
+
+function wantsJsonOutput(argv = process.argv): boolean {
+  return argv.includes("--json");
+}
+
+function errorCode(message: string): string {
+  if (message.startsWith("Unknown pack:")) return "PACK_NOT_FOUND";
+  if (message.startsWith("Unknown agents:")) return "AGENT_NOT_FOUND";
+  if (message.startsWith("Invalid target:")) return "INVALID_TARGET";
+  if (message.startsWith("Invalid search type:")) return "INVALID_SEARCH_TYPE";
+  if (message.startsWith("Invalid policy preset:")) return "INVALID_POLICY_PRESET";
+  if (message.startsWith("Invalid resolve strategy:")) return "INVALID_RESOLVE_STRATEGY";
+  if (message.includes("requires --pack-out")) return "MISSING_REQUIRED_OPTION";
+  if (message.includes("already exists")) return "ALREADY_EXISTS";
+  if (message.includes("signature verification failed")) return "SIGNATURE_VERIFICATION_FAILED";
+  if (message.includes("checksum mismatch")) return "CHECKSUM_MISMATCH";
+  if (message.includes("not contain any packs")) return "EMPTY_REGISTRY";
+  return "COMMAND_FAILED";
+}
+
+function errorHint(code: string): string {
+  if (code === "PACK_NOT_FOUND") return "Run `agents-market list --json` or `agents-market search <query> --json` to see available packs.";
+  if (code === "AGENT_NOT_FOUND") return "Run `agents-market search --type agents --json` to see available agents.";
+  if (code === "INVALID_TARGET") return "Use one of: claude, codex, opencode, all.";
+  if (code === "INVALID_SEARCH_TYPE") return "Use one of: all, agents, packs.";
+  if (code === "INVALID_POLICY_PRESET") return "Use one of: open, balanced, strict.";
+  return "Run the command with `--help` for supported arguments, or use `--json` commands that include nextCommands.";
+}
+
+function printStructuredError(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = errorCode(message);
+  printJson({
+    ok: false,
+    error: {
+      code,
+      message,
+      hint: errorHint(code),
+      nextCommands:
+        code === "PACK_NOT_FOUND"
+          ? ["agents-market search <keywords> --json", "agents-market list --json"]
+          : code === "AGENT_NOT_FOUND"
+            ? ["agents-market search --type agents --json"]
+            : ["agents-market --help"]
+    }
+  });
+}
+
+function summarizeAgent(agent: AgentDefinition): Record<string, unknown> {
+  return {
+    id: agent.id,
+    name: agent.name,
+    description: agent.description,
+    version: agent.version,
+    category: agent.category,
+    tags: agent.tags,
+    permission: agent.permission,
+    recommendedTargets: agent.recommendedTargets
+  };
+}
+
+function selectFields(record: Record<string, unknown>, fields: string[] | undefined): Record<string, unknown> {
+  if (!fields || fields.length === 0) return record;
+  const selected: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (field in record) selected[field] = record[field];
+  }
+  return selected;
+}
+
+function parsePositiveInteger(value: string | undefined, label: string): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) throw new Error(`Invalid ${label}: ${value}`);
+  return parsed;
+}
+
+function parseFields(value: string | undefined): string[] | undefined {
+  if (!value) return undefined;
+  return value
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
 }
 
 function summarizeChanges(changes: Array<{ state: string }>): Record<"create" | "update" | "same", number> {
@@ -305,7 +399,7 @@ program
       };
 
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
         return;
       }
 
@@ -334,34 +428,40 @@ program
   .command("list")
   .description("List available agent packs and agents")
   .option("--agents", "show individual agents")
+  .option("--full", "include full agent prompt bodies when used with --agents --json")
+  .option("--limit <number>", "maximum packs or agents to return")
+  .option("--fields <fields>", "comma-separated fields to include for agent JSON records")
   .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
   .option("--json", "print machine-readable JSON")
-  .action(async (options: { agents?: boolean; registry?: string; json?: boolean }) => {
+  .action(async (options: { agents?: boolean; full?: boolean; fields?: string; limit?: string; registry?: string; json?: boolean }) => {
     const loaded = await loadRegistryWithInfo(options.registry);
     const { registry } = loaded;
+    const limit = parsePositiveInteger(options.limit, "--limit");
+    const fields = parseFields(options.fields);
+    const packs = registry.packs.slice(0, limit ?? registry.packs.length);
+    const agents = registry.agents.slice(0, limit ?? registry.agents.length);
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            source: loaded.source,
-            packCount: registry.packs.length,
-            agentCount: registry.agents.length,
-            packs: registry.packs,
-            agents: options.agents ? registry.agents : undefined
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        source: loaded.source,
+        packCount: registry.packs.length,
+        agentCount: registry.agents.length,
+        returnedPackCount: packs.length,
+        returnedAgentCount: options.agents ? agents.length : undefined,
+        packs,
+        agents: options.agents
+          ? agents.map((agent) => selectFields(options.full ? ({ ...agent } as Record<string, unknown>) : summarizeAgent(agent), fields))
+          : undefined,
+        agentDetail: options.agents ? (options.full ? "full" : "summary") : undefined
+      });
       return;
     }
     console.log(pc.bold("Packs"));
-    for (const pack of registry.packs) {
+    for (const pack of packs) {
       console.log(`${pc.cyan(pack.id)} - ${pack.description}`);
     }
     if (options.agents) {
       console.log(`\n${pc.bold("Agents")}`);
-      for (const agent of registry.agents) {
+      for (const agent of agents) {
         console.log(`${pc.green(agent.id)} - ${agent.description}`);
       }
     }
@@ -402,33 +502,27 @@ program
       });
 
       if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              query: query ?? "",
-              filters: {
-                type: parseSearchKind(options.type),
-                target: options.target,
-                tag: options.tag,
-                category: options.category
-              },
-              results: results.map((result) => ({
-                kind: result.kind,
-                id: result.id,
-                name: result.name,
-                description: result.description,
-                score: result.score,
-                reasons: result.reasons,
-                agents: result.kind === "pack" ? result.pack.agents : undefined,
-                tags: result.kind === "pack" ? result.pack.tags : result.agent.tags,
-                category: result.kind === "agent" ? result.agent.category : undefined,
-                recommendedTargets: result.kind === "agent" ? result.agent.recommendedTargets : undefined
-              }))
-            },
-            null,
-            2
-          )
-        );
+        printJson({
+          query: query ?? "",
+          filters: {
+            type: parseSearchKind(options.type),
+            target: options.target,
+            tag: options.tag,
+            category: options.category
+          },
+          results: results.map((result) => ({
+            kind: result.kind,
+            id: result.id,
+            name: result.name,
+            description: result.description,
+            score: result.score,
+            reasons: result.reasons,
+            agents: result.kind === "pack" ? result.pack.agents : undefined,
+            tags: result.kind === "pack" ? result.pack.tags : result.agent.tags,
+            category: result.kind === "agent" ? result.agent.category : undefined,
+            recommendedTargets: result.kind === "agent" ? result.agent.recommendedTargets : undefined
+          }))
+        });
         return;
       }
 
@@ -461,23 +555,17 @@ program
     const packs = recommendations.map((recommendation) => recommendation.pack);
 
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            signals,
-            recommendations: recommendations.map((recommendation) => ({
-              packId: recommendation.pack.id,
-              name: recommendation.pack.name,
-              description: recommendation.pack.description,
-              score: recommendation.score,
-              reasons: recommendation.reasons,
-              agents: recommendation.pack.agents
-            }))
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        signals,
+        recommendations: recommendations.map((recommendation) => ({
+          packId: recommendation.pack.id,
+          name: recommendation.pack.name,
+          description: recommendation.pack.description,
+          score: recommendation.score,
+          reasons: recommendation.reasons,
+          agents: recommendation.pack.agents
+        }))
+      });
       return;
     }
 
@@ -547,7 +635,7 @@ program
       });
 
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
         if (!result.compatibility.ok) process.exitCode = 1;
         if (result.policy && !result.policy.ok) process.exitCode = 1;
         return;
@@ -607,7 +695,7 @@ program
           state: summarizeFileChange(existing, file.content)
         });
       }
-      console.log(JSON.stringify({ packId, target: parseTarget(options.target), changes }, null, 2));
+      printJson({ packId, target: parseTarget(options.target), changes });
       return;
     }
 
@@ -667,7 +755,7 @@ program
             state: summarizeFileChange(existing, file.content)
           });
         }
-        console.log(JSON.stringify({ packId, target, dryRun: true, compatibility, policy: policyReport, changes }, null, 2));
+        printJson({ packId, target, dryRun: true, compatibility, policy: policyReport, changes });
         if (!compatibility.ok) process.exitCode = 1;
         if (policyReport && !policyReport.ok) process.exitCode = 1;
         return;
@@ -693,7 +781,7 @@ program
 
     if (!compatibility.ok) {
       if (options.json) {
-        console.log(JSON.stringify({ packId, target, dryRun: false, compatibility, installed: false }, null, 2));
+        printJson({ packId, target, dryRun: false, compatibility, installed: false });
       } else {
         printCompatibilityReport(compatibility);
       }
@@ -703,7 +791,7 @@ program
 
     if (policyReport && !policyReport.ok) {
       if (options.json) {
-        console.log(JSON.stringify({ packId, target, dryRun: false, policy: policyReport, installed: false }, null, 2));
+        printJson({ packId, target, dryRun: false, policy: policyReport, installed: false });
       } else {
         printPolicyReport(policyReport);
       }
@@ -730,7 +818,7 @@ program
       )
     );
     if (options.json) {
-      console.log(JSON.stringify({ packId, target, dryRun: false, compatibility, policy: policyReport, installed: true, fileCount: files.length, root }, null, 2));
+      printJson({ packId, target, dryRun: false, compatibility, policy: policyReport, installed: true, fileCount: files.length, root });
       return;
     }
     if (policyReport) printPolicyReport(policyReport);
@@ -811,7 +899,7 @@ program
       ]
     };
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      printJson(result);
       if (!result.ready) process.exitCode = 1;
       return;
     }
@@ -849,7 +937,7 @@ program
     const { registry } = await loadRegistryWithInfo(options.registry);
     const audit = auditPack(registry, packId, parseTarget(options.target));
     if (options.json) {
-      console.log(JSON.stringify(audit, null, 2));
+      printJson(audit);
       return;
     }
 
@@ -913,7 +1001,7 @@ policyCommand
       policy
     };
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      printJson(result);
       return;
     }
     console.log(`${pc.green(options.dryRun ? "Would write" : "Wrote")} ${path}`);
@@ -937,7 +1025,7 @@ policyCommand
     const report = checkPackPolicy(loaded.registry, packId, target, policy);
 
     if (options.json) {
-      console.log(JSON.stringify(report, null, 2));
+      printJson(report);
       if (!report.ok) process.exitCode = 1;
       return;
     }
@@ -1005,17 +1093,11 @@ program
     }
 
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            root,
-            installCount: installs.length,
-            installs
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        root,
+        installCount: installs.length,
+        installs
+      });
       return;
     }
 
@@ -1094,7 +1176,7 @@ program
       };
 
       if (options.json) {
-        console.log(JSON.stringify(summary, null, 2));
+        printJson(summary);
         return;
       }
 
@@ -1168,7 +1250,7 @@ program
     const shouldFail = summary.errorCount > 0 || Boolean(options.failOnOutdated && (summary.outdatedCount > 0 || summary.missingCount > 0));
 
     if (options.json) {
-      console.log(JSON.stringify(summary, null, 2));
+      printJson(summary);
       if (shouldFail) process.exitCode = 1;
       return;
     }
@@ -1205,7 +1287,7 @@ program
     const root = cwd(options.cwd);
     const report = await runDoctor(root);
     if (options.json) {
-      console.log(JSON.stringify(report, null, 2));
+      printJson(report);
       if (options.strict && report.health !== "ok") process.exitCode = 1;
       return;
     }
@@ -1310,18 +1392,12 @@ program
     }
 
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            dryRun: Boolean(options.dryRun),
-            removed,
-            skipped,
-            uninstalls: summaries
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        dryRun: Boolean(options.dryRun),
+        removed,
+        skipped,
+        uninstalls: summaries
+      });
     } else {
       console.log(pc.green(`${options.dryRun ? "Previewed uninstall" : "Uninstalled"} ${packId}: removed ${removed}, skipped ${skipped}.`));
     }
@@ -1467,20 +1543,14 @@ program
     if (options.json) {
       const incompatibleCount = summaries.filter((summary) => summary.compatibility && !summary.compatibility.ok).length;
       const blockedCount = incompatibleCount + skipped;
-      console.log(
-        JSON.stringify(
-          {
-            dryRun: Boolean(options.dryRun),
-            written,
-            skipped,
-            incompatibleCount,
-            blockedCount,
-            updates: summaries
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        dryRun: Boolean(options.dryRun),
+        written,
+        skipped,
+        incompatibleCount,
+        blockedCount,
+        updates: summaries
+      });
       if (incompatibleCount > 0 || (options.failOnSkipped && blockedCount > 0)) process.exitCode = 1;
     } else {
       console.log(pc.green(`${options.dryRun ? "Previewed" : "Updated"} packs: wrote ${written}, skipped ${skipped}.`));
@@ -1511,7 +1581,7 @@ program
 
     if (installs.length === 0) {
       if (options.json) {
-        console.log(JSON.stringify({ dryRun, restored: 0, removed: 0, skipped: 0, rollbacks: [] }, null, 2));
+        printJson({ dryRun, restored: 0, removed: 0, skipped: 0, rollbacks: [] });
       } else {
         console.log(pc.yellow(packId ? `No matching install found for ${packId}.` : "No packs installed by Agents Market."));
       }
@@ -1636,19 +1706,13 @@ program
     }
 
     if (options.json) {
-      console.log(
-        JSON.stringify(
-          {
-            dryRun,
-            restored,
-            removed,
-            skipped,
-            rollbacks: summaries
-          },
-          null,
-          2
-        )
-      );
+      printJson({
+        dryRun,
+        restored,
+        removed,
+        skipped,
+        rollbacks: summaries
+      });
       return;
     }
 
@@ -1737,7 +1801,7 @@ packCommand
       await mkdir(dirname(outPath), { recursive: true });
       await writeFile(outPath, `${JSON.stringify(pack, null, 2)}\n`, "utf8");
       if (options.json) {
-        console.log(JSON.stringify({ pack, path: outPath }, null, 2));
+        printJson({ pack, path: outPath });
       } else {
         console.log(pc.green(`Wrote custom pack ${pack.id} with ${pack.agents.length} agents to ${outPath}`));
       }
@@ -1755,7 +1819,7 @@ registryCommand
     const loaded = await loadRegistryWithInfo(options.registry);
     const summary = summarizeRegistry(loaded);
     if (options.json) {
-      console.log(JSON.stringify(summary, null, 2));
+      printJson(summary);
       return;
     }
     console.log(pc.bold("Registry"));
@@ -1799,7 +1863,7 @@ registryCommand
       entries
     };
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      printJson(result);
       return;
     }
     console.log(pc.bold("Registry changelog"));
@@ -1901,7 +1965,7 @@ registryCommand
         }
       };
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
       } else {
         console.log(pc.bold("Registry verification"));
         console.log(`- source: ${loaded.source.value}`);
@@ -1920,7 +1984,7 @@ registryCommand
         error: message
       };
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
       } else {
         console.log(pc.red(`Registry verification failed: ${message}`));
       }
@@ -1980,7 +2044,7 @@ registryCommand
         path: ".agents-market/registry-lock.json"
       };
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
       } else {
         console.log(pc.yellow(`No registry lock found in ${root}`));
       }
@@ -1998,7 +2062,7 @@ registryCommand
         loaded: loaded.source
       };
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
       } else {
         console.log(pc.green(`Registry lock verified: ${lock.source}`));
       }
@@ -2011,7 +2075,7 @@ registryCommand
         error: message
       };
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        printJson(result);
       } else {
         console.log(pc.red(`Registry lock verification failed: ${message}`));
       }
@@ -2030,7 +2094,7 @@ registryCommand
     const report = lintRegistry(registry);
     const ok = report.errorCount === 0 && (!options.strict || report.warningCount === 0);
     if (options.json) {
-      console.log(JSON.stringify({ ok, strict: Boolean(options.strict), ...report }, null, 2));
+      printJson({ ok, strict: Boolean(options.strict), ...report });
     } else {
       for (const finding of report.findings) {
         const label = finding.severity === "error" ? pc.red("error") : pc.yellow("warning");
@@ -2077,7 +2141,7 @@ registryCommand
         await writeFile(resolve(options.summaryMarkdown), renderRegistryReviewMarkdown(report), "utf8");
       }
       if (options.json) {
-        console.log(JSON.stringify(report, null, 2));
+        printJson(report);
       } else {
         console.log(renderRegistryReviewMarkdown(report));
       }
@@ -2158,7 +2222,7 @@ ciCommand
       state: summarizeFileChange(existing, workflow.content)
     };
     if (options.json) {
-      console.log(JSON.stringify({ root, provider: options.provider, package: options.package, strict: options.strict !== false, changes: [change] }, null, 2));
+      printJson({ root, provider: options.provider, package: options.package, strict: options.strict !== false, changes: [change] });
       return;
     }
     const label = change.state === "create" ? pc.green("create") : change.state === "update" ? pc.yellow("update") : pc.dim("same");
@@ -2208,7 +2272,7 @@ ciCommand
     }
 
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      printJson(result);
       return;
     }
 
@@ -2285,7 +2349,7 @@ catalogCommand
   .action(async (options: { url: string; json?: boolean }) => {
     const report = await readCatalogManifestUrl(options.url);
     if (options.json) {
-      console.log(JSON.stringify(report, null, 2));
+      printJson(report);
       return;
     }
 
@@ -2447,7 +2511,7 @@ catalogCommand
       ]
     };
     if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
+      printJson(result);
       return;
     }
     console.log(`${pc.bold(options.yes ? "Connected catalog" : "Catalog init preview")} ${pc.dim(manifestReport.source.value)}`);
@@ -2476,7 +2540,7 @@ catalogCommand
     if (options.dir && options.url) throw new Error("catalog verify accepts only one of --dir or --url.");
     const report = options.url ? await verifyCatalogUrl(options.url) : await verifyCatalog(resolve(options.dir!));
     if (options.json) {
-      console.log(JSON.stringify(report, null, 2));
+      printJson(report);
       if (!report.ok) process.exitCode = 1;
       return;
     }
@@ -2540,24 +2604,18 @@ importCommand
         provenance: provenanceFromOptions(options)
       });
       if (options.json) {
-        console.log(
-          JSON.stringify(
-            {
-              importedCount: 1,
-              skippedCount: 0,
-              imported: [summarizeImportedAgent(agent)],
-              skipped: []
-            },
-            null,
-            2
-          )
-        );
+        printJson({
+          importedCount: 1,
+          skippedCount: 0,
+          imported: [summarizeImportedAgent(agent)],
+          skipped: []
+        });
         return;
       }
       if (options.out) {
         console.log(pc.green(`Imported ${agent.id} into ${resolve(options.out)}`));
       } else {
-        console.log(JSON.stringify(agent, null, 2));
+        printJson(agent);
       }
     }
   );
@@ -2627,7 +2685,7 @@ importCommand
           : undefined
       });
       if (options.json) {
-        console.log(JSON.stringify(createImportReport(result), null, 2));
+        printJson(createImportReport(result));
         return;
       }
       console.log(pc.green(`Imported ${result.imported.length} agents into ${resolve(options.out)}`));
@@ -2723,20 +2781,14 @@ importCommand
             : undefined
         });
         if (options.json) {
-          console.log(
-            JSON.stringify(
-              {
-                repository: cloned.repository.repository,
-                source: sourceUrl,
-                ref: options.ref,
-                commit: cloned.commit,
-                path: options.path,
-                ...createImportReport(result)
-              },
-              null,
-              2
-            )
-          );
+          printJson({
+            repository: cloned.repository.repository,
+            source: sourceUrl,
+            ref: options.ref,
+            commit: cloned.commit,
+            path: options.path,
+            ...createImportReport(result)
+          });
           return;
         }
         console.log(pc.green(`Imported ${result.imported.length} agents from ${cloned.repository.repository} into ${resolve(options.out)}`));
@@ -2765,7 +2817,7 @@ releaseCommand
     try {
       const report = await verifyReleaseArtifactInput(resolve(input), { archive: Boolean(options.archive) });
       if (options.json) {
-        console.log(JSON.stringify({ ...report, input }, null, 2));
+        printJson({ ...report, input });
         return;
       }
       console.log(pc.bold("Release artifact verification"));
@@ -2779,7 +2831,7 @@ releaseCommand
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (options.json) {
-        console.log(JSON.stringify({ ok: false, input, findings: [message] }, null, 2));
+        printJson({ ok: false, input, findings: [message] });
       } else {
         console.error(pc.red(`Release artifact verification failed: ${message}`));
       }
@@ -2817,6 +2869,10 @@ async function readTextSource(source: string): Promise<string> {
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(pc.red(message));
+  if (wantsJsonOutput()) {
+    printStructuredError(error);
+  } else {
+    console.error(pc.red(message));
+  }
   process.exitCode = 1;
 });

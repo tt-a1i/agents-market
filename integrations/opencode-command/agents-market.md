@@ -20,6 +20,7 @@ Workflow:
 Safety:
 
 - Prefer `apply` because it combines recommendation, audit, policy, diff, and guarded install.
+- Use `search --json` for discovery. Do not use `list --agents --json --full` unless the user explicitly asks to inspect full prompt bodies; default `list --agents --json` is a compact index, and `--full` can be large on community registries.
 - Treat policy failures as blockers unless the user explicitly updates the project policy.
 - Treat compatibility failures as blockers and ask the user to upgrade `@agents-market/cli`.
 - Prefer curated packs.
