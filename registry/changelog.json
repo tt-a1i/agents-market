@@ -14,7 +14,7 @@
       "Fourteen new native agents covering backend, database, migration, containers, CI, observability, Python, TypeScript, refactoring, PR writing, release notes, AI integrations, and test coverage planning"
     ],
     "changed": [
-      "The bundled registry now covers ten focused packs and twenty-four agents across Claude Code, Codex, and OpenCode targets"
+      "The bundled registry now covers eleven focused packs and twenty-four agents across Claude Code, Codex, and OpenCode targets"
     ]
   },
   {
