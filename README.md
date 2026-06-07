@@ -82,6 +82,17 @@ npx @agents-market/cli recommend
 npx @agents-market/cli apply --target all
 ```
 
+## 🔌 Claude Code 插件市场
+
+Claude Code 用户可以不碰项目文件，直接装 installer skill：
+
+```
+/plugin marketplace add tt-a1i/agents-market
+/plugin install agents-market-installer@agents-market
+```
+
+装好后在会话里让 Claude 推荐并安装 subagent packs，skill 会走同样的 `apply --json` 预览 → 确认 → `apply --yes` 安装流程。插件源码在 `integrations/claude-plugin/`，市场清单在 `.claude-plugin/marketplace.json`。
+
 ## 🧭 推荐工作流
 
 ### 1. 🧱 初始化项目
