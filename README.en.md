@@ -16,15 +16,80 @@ Agents Market currently generates:
 | Codex | `.codex/agents/*.toml` |
 | OpenCode | `.opencode/agents/*.md` |
 
-## Quick Start
+## Install
 
-Try the CLI directly from GitHub:
+| Method | Command | Best for |
+| --- | --- | --- |
+| Homebrew | `brew install tt-a1i/tap/agents-market` | Day-to-day use on macOS / Linux |
+| npx (no install) | `npx github:tt-a1i/agents-market#preview-0.1.0 <command>` | One-off trials and CI |
+| Verified install script | `install.sh` (below) | Environments that require checksum / attestation verification |
+| Claude Code plugin | `/plugin marketplace add tt-a1i/agents-market` | Installing packs from inside a Claude Code session |
+| npm | `npm install -g @agents-market/cli` | Coming soon |
+
+### Homebrew
+
+```bash
+brew install tt-a1i/tap/agents-market
+```
+
+The formula lives in [tt-a1i/homebrew-tap](https://github.com/tt-a1i/homebrew-tap), builds from a commit-pinned source archive of the preview release, and will switch to the npm registry tarball once `@agents-market/cli` is published.
+
+### npx (no install)
+
+Writes no global files; good for trials and CI:
 
 ```bash
 npx github:tt-a1i/agents-market#preview-0.1.0 init --target all
 npx github:tt-a1i/agents-market#preview-0.1.0 recommend
-npx github:tt-a1i/agents-market#preview-0.1.0 apply --target all
-npx github:tt-a1i/agents-market#preview-0.1.0 apply frontend-pack --target all --yes
+```
+
+### Verified install script
+
+Installs from the GitHub Release, verifies checksums before writing, and uses `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed:
+
+```bash
+curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
+```
+
+For workflow-produced releases, install GitHub CLI and require release asset attestations:
+
+```bash
+curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | AGENTS_MARKET_REQUIRE_ATTESTATION=1 sh
+```
+
+### npm (coming soon)
+
+```bash
+npm install -g @agents-market/cli
+npx @agents-market/cli init --target all
+```
+
+### Local development
+
+```bash
+npm install
+npm run build
+npm run dev -- recommend
+npm run dev -- apply --target all --json
+```
+
+## Quick Start
+
+With the CLI installed (any method above):
+
+```bash
+# 1. Initialize: lock the registry, install agent-native integrations, detect the project
+agents-market init --target all
+
+# 2. Preview the recommended pack's audit, policy check, and file diff (writes nothing)
+agents-market apply --target all --json
+
+# 3. Install after confirmation
+agents-market apply starter-dev-pack --target all --yes
+
+# 4. Verify
+agents-market status --json
+agents-market doctor --strict --json
 ```
 
 Preview release artifacts are available at [preview-0.1.0](https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0), including the registry bundle, npm tarball, SPDX SBOM, checksum manifest, a complete verifiable artifact bundle, and Claude Code, Codex, and OpenCode installer archives. Workflow-produced preview releases also include GitHub Artifact Attestations.
@@ -38,49 +103,6 @@ Agents Market has no telemetry or analytics. See [PRIVACY.md](./PRIVACY.md) for 
 For usage questions, pack proposals, bug reports, and release artifact issues, see [SUPPORT.md](./SUPPORT.md).
 
 Package release notes are tracked in [CHANGELOG.md](./CHANGELOG.md). Registry content history is also available through `agents-market registry changelog`.
-
-Install the preview CLI from the GitHub Release with checksum verification:
-
-```bash
-curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | sh
-```
-
-The installer verifies checksums before installation and installs the tarball with `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed.
-
-Install with Homebrew:
-
-```bash
-brew install tt-a1i/tap/agents-market
-```
-
-The formula builds from a commit-pinned source archive of the preview release and will switch to the npm registry tarball once `@agents-market/cli` is published.
-
-For workflow-produced releases, install GitHub CLI and require release asset attestations:
-
-```bash
-curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1.0/install.sh | AGENTS_MARKET_REQUIRE_ATTESTATION=1 sh
-```
-
-For local development:
-
-```bash
-npm install
-npm run build
-npm run dev -- init --target all
-npm run dev -- list --agents
-npm run dev -- recommend
-npm run dev -- install starter-dev-pack --target all --dry-run
-npm run dev -- status
-```
-
-After npm publication, use the package name:
-
-```bash
-npx @agents-market/cli init --target all
-npx @agents-market/cli recommend
-npx @agents-market/cli apply --target all
-npx @agents-market/cli apply frontend-pack --target all --yes
-```
 
 ## Product Shape
 
