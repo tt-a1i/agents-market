@@ -1474,12 +1474,19 @@ async function runPackageInstallSmoke() {
 }
 
 function parseNpmPackJson(stdout) {
-  const start = stdout.indexOf("[");
-  const end = stdout.lastIndexOf("]");
+  // npm pack --dry-run runs prepack, whose build and lint output lands in stdout
+  // before the JSON array. CI environments also force ANSI colors (picocolors
+  // enables them when CI is set), so a colored lint line would otherwise make the
+  // escape sequence's "[" look like the array start. Strip escapes and anchor on
+  // a line that begins the array.
+  const clean = stdout.replace(/\u001b\[[0-9;]*m/g, "");
+  const lineStart = clean.search(/^\[/m);
+  const start = lineStart === -1 ? clean.indexOf("[") : lineStart;
+  const end = clean.lastIndexOf("]");
   if (start === -1 || end === -1 || end <= start) {
     throw new Error("npm pack --json output did not contain a JSON array.");
   }
-  return JSON.parse(stdout.slice(start, end + 1));
+  return JSON.parse(clean.slice(start, end + 1));
 }
 
 main().catch((error) => {
