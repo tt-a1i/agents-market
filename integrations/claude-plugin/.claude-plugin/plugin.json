@@ -1,0 +1,13 @@
+{
+  "name": "agents-market-installer",
+  "displayName": "Agents Market Installer",
+  "version": "0.1.0",
+  "description": "Recommend, preview, audit, and install specialized coding subagent packs for Claude Code, Codex, and OpenCode.",
+  "author": {
+    "name": "Agents Market contributors"
+  },
+  "homepage": "https://tt-a1i.github.io/agents-market/",
+  "repository": "https://github.com/tt-a1i/agents-market",
+  "license": "MIT",
+  "keywords": ["agents", "subagents", "installer", "marketplace"]
+}

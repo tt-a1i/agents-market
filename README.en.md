@@ -321,6 +321,19 @@ After creating the pack, run `agents-market registry lint --registry ./registry 
 
 ## Agent-Native Integrations
 
+### Claude Code Plugin Marketplace
+
+Claude Code users can install the installer skill without touching project files:
+
+```
+/plugin marketplace add tt-a1i/agents-market
+/plugin install agents-market-installer@agents-market
+```
+
+After installing the plugin, ask Claude Code to recommend and install subagent packs; the skill drives the same `apply --json` preview and confirmed `apply --yes` workflow described below. The plugin source lives in `integrations/claude-plugin/` and the marketplace manifest in `.claude-plugin/marketplace.json`.
+
+### Project-Level Integration Files
+
 Install the installer entrypoints into a project:
 
 ```bash

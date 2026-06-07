@@ -70,6 +70,7 @@ async function main() {
   await runCodeownersSmoke();
   await runContributionTemplatesSmoke();
   await runIntegrationPackageSmoke();
+  await runPluginMarketplaceSmoke();
   await runReleaseArtifactsSmoke();
   await runReleaseWorkflowSmoke();
   run("npm", ["test"], "Unit tests");
@@ -681,6 +682,24 @@ async function runIntegrationPackageSmoke() {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function runPluginMarketplaceSmoke() {
+  const marketplace = JSON.parse(await readFile(".claude-plugin/marketplace.json", "utf8"));
+  assert(marketplace.name === "agents-market", `Expected marketplace name agents-market, found ${marketplace.name}.`);
+  assert(marketplace.owner?.name, "Marketplace manifest must declare an owner name.");
+  const entry = marketplace.plugins?.find((plugin) => plugin.name === "agents-market-installer");
+  assert(entry, "Marketplace manifest must list the agents-market-installer plugin.");
+  assert(entry.source === "./integrations/claude-plugin", `Unexpected plugin source: ${entry.source}.`);
+
+  const plugin = JSON.parse(await readFile("integrations/claude-plugin/.claude-plugin/plugin.json", "utf8"));
+  assert(plugin.name === "agents-market-installer", `Expected plugin name agents-market-installer, found ${plugin.name}.`);
+  assert(plugin.version === entry.version, `Plugin version ${plugin.version} must match the marketplace entry ${entry.version}.`);
+
+  const pluginSkill = await readFile("integrations/claude-plugin/skills/agents-market-installer/SKILL.md", "utf8");
+  const sourceSkill = await readFile("integrations/claude-skill/SKILL.md", "utf8");
+  assert(pluginSkill === sourceSkill, "Plugin skill must stay byte-identical to integrations/claude-skill/SKILL.md.");
+  checks.push("Plugin marketplace contents");
 }
 
 async function runCiWorkflowSmoke() {

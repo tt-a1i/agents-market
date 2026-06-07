@@ -2,6 +2,13 @@
 
 All notable package and release changes are tracked here. Registry content changes are also recorded in `registry/changelog.json` so hosted catalogs and agent-native workflows can expose registry history.
 
+## Unreleased
+
+### Added
+
+- Claude Code plugin marketplace: `/plugin marketplace add tt-a1i/agents-market` followed by `/plugin install agents-market-installer@agents-market` installs the installer skill without touching project files. The marketplace manifest lives at `.claude-plugin/marketplace.json` and the plugin source under `integrations/claude-plugin/`.
+- The Claude installer skill now documents the `npx` fallback for environments where the `agents-market` CLI is not installed.
+
 ## 0.1.0
 
 First npm release, published as [@agents-market/cli](https://www.npmjs.com/package/@agents-market/cli). Includes everything from the preview release plus the changes below.
