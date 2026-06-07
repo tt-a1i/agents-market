@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-core-development-1",
+  "name": "VoltAgent Core Development 1",
+  "description": "VoltAgent imported Core Development agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "core-development",
+    "core",
+    "development"
+  ],
+  "agents": [
+    "voltagent-api-designer",
+    "voltagent-backend-developer",
+    "voltagent-design-bridge",
+    "voltagent-electron-pro",
+    "voltagent-frontend-developer",
+    "voltagent-fullstack-developer",
+    "voltagent-graphql-architect",
+    "voltagent-microservices-architect"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

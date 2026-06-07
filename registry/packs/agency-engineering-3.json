@@ -1,0 +1,38 @@
+{
+  "id": "agency-engineering-3",
+  "name": "Agency Engineering 3",
+  "description": "Agency imported Engineering agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "engineering"
+  ],
+  "agents": [
+    "agency-git-workflow-master",
+    "agency-incident-response-commander",
+    "agency-it-service-manager",
+    "agency-minimal-change-engineer",
+    "agency-mobile-app-builder",
+    "agency-multi-agent-systems-architect",
+    "agency-orgscript-engineer",
+    "agency-prompt-engineer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "agency-specialized-4",
+  "name": "Agency Specialized 4",
+  "description": "Agency imported Specialized agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "specialized"
+  ],
+  "agents": [
+    "agency-hr-onboarding",
+    "agency-identity-graph-operator",
+    "agency-korean-business-navigator",
+    "agency-language-translator",
+    "agency-legal-billing-time-tracking",
+    "agency-legal-client-intake",
+    "agency-legal-document-review",
+    "agency-loan-officer-assistant"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

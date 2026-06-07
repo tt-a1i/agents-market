@@ -1,0 +1,35 @@
+{
+  "id": "agency-finance",
+  "name": "Agency Finance",
+  "description": "Agency imported Finance agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "finance"
+  ],
+  "agents": [
+    "agency-bookkeeper-controller",
+    "agency-financial-analyst",
+    "agency-fp-a-analyst",
+    "agency-investment-researcher",
+    "agency-tax-strategist"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

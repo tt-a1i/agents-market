@@ -1,0 +1,31 @@
+{
+  "id": "agency-design-2",
+  "name": "Agency Design 2",
+  "description": "Agency imported Design agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "design"
+  ],
+  "agents": [
+    "agency-whimsy-injector"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

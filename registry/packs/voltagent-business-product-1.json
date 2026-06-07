@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-business-product-1",
+  "name": "VoltAgent Business Product 1",
+  "description": "VoltAgent imported Business Product agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "business-product",
+    "business",
+    "product"
+  ],
+  "agents": [
+    "voltagent-assumption-mapping",
+    "voltagent-backlog-grooming",
+    "voltagent-business-analyst",
+    "voltagent-content-marketer",
+    "voltagent-content-quality-editor",
+    "voltagent-customer-success-manager",
+    "voltagent-growth-loops",
+    "voltagent-legal-advisor"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

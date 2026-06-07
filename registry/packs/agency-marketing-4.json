@@ -1,0 +1,38 @@
+{
+  "id": "agency-marketing-4",
+  "name": "Agency Marketing 4",
+  "description": "Agency imported Marketing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "marketing"
+  ],
+  "agents": [
+    "agency-reddit-community-builder",
+    "agency-seo-specialist",
+    "agency-short-video-editing-coach",
+    "agency-social-media-strategist",
+    "agency-tiktok-strategist",
+    "agency-twitter-engager",
+    "agency-video-optimization-specialist",
+    "agency-wechat-official-account-manager"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

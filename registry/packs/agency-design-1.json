@@ -1,0 +1,38 @@
+{
+  "id": "agency-design-1",
+  "name": "Agency Design 1",
+  "description": "Agency imported Design agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "design"
+  ],
+  "agents": [
+    "agency-brand-guardian",
+    "agency-image-prompt-engineer",
+    "agency-inclusive-visuals-specialist",
+    "agency-persona-walkthrough-specialist",
+    "agency-ui-designer",
+    "agency-ux-architect",
+    "agency-ux-researcher",
+    "agency-visual-storyteller"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

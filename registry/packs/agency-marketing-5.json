@@ -1,0 +1,34 @@
+{
+  "id": "agency-marketing-5",
+  "name": "Agency Marketing 5",
+  "description": "Agency imported Marketing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "marketing"
+  ],
+  "agents": [
+    "agency-weibo-strategist",
+    "agency-x-twitter-intelligence-analyst",
+    "agency-xiaohongshu-specialist",
+    "agency-zhihu-strategist"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

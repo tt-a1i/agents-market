@@ -1,0 +1,38 @@
+{
+  "id": "agency-specialized-5",
+  "name": "Agency Specialized 5",
+  "description": "Agency imported Specialized agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "specialized"
+  ],
+  "agents": [
+    "agency-lsp-index-engineer",
+    "agency-m-a-integration-manager",
+    "agency-mcp-builder",
+    "agency-medical-billing-coding-specialist",
+    "agency-model-qa-specialist",
+    "agency-operations-manager",
+    "agency-organizational-psychologist",
+    "agency-personal-growth-mentor"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

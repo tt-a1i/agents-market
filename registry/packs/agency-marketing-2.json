@@ -1,0 +1,38 @@
+{
+  "id": "agency-marketing-2",
+  "name": "Agency Marketing 2",
+  "description": "Agency imported Marketing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "marketing"
+  ],
+  "agents": [
+    "agency-china-e-commerce-operator",
+    "agency-china-market-localization-strategist",
+    "agency-content-creator",
+    "agency-cross-border-e-commerce-specialist",
+    "agency-douyin-strategist",
+    "agency-email-marketing-strategist",
+    "agency-global-podcast-strategist",
+    "agency-growth-hacker"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

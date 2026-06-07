@@ -1,0 +1,38 @@
+{
+  "id": "agency-spatial-computing",
+  "name": "Agency Spatial Computing",
+  "description": "Agency imported Spatial Computing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "spatial-computing",
+    "spatial",
+    "computing"
+  ],
+  "agents": [
+    "agency-macos-spatial-metal-engineer",
+    "agency-terminal-integration-specialist",
+    "agency-visionos-spatial-engineer",
+    "agency-xr-cockpit-interaction-specialist",
+    "agency-xr-immersive-developer",
+    "agency-xr-interface-architect"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

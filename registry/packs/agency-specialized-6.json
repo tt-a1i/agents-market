@@ -1,0 +1,38 @@
+{
+  "id": "agency-specialized-6",
+  "name": "Agency Specialized 6",
+  "description": "Agency imported Specialized agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "specialized"
+  ],
+  "agents": [
+    "agency-pricing-analyst",
+    "agency-real-estate-buyer-seller",
+    "agency-recruitment-specialist",
+    "agency-report-distribution-agent",
+    "agency-retail-customer-returns",
+    "agency-sales-data-extraction-agent",
+    "agency-sales-outreach",
+    "agency-salesforce-architect"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

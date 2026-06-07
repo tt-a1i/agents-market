@@ -1,0 +1,38 @@
+{
+  "id": "agency-engineering-4",
+  "name": "Agency Engineering 4",
+  "description": "Agency imported Engineering agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "engineering"
+  ],
+  "agents": [
+    "agency-rapid-prototyper",
+    "agency-senior-developer",
+    "agency-software-architect",
+    "agency-solidity-smart-contract-engineer",
+    "agency-sre-site-reliability-engineer",
+    "agency-technical-writer",
+    "agency-voice-ai-integration-engineer",
+    "agency-wechat-mini-program-developer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

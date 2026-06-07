@@ -1,0 +1,38 @@
+{
+  "id": "agency-marketing-3",
+  "name": "Agency Marketing 3",
+  "description": "Agency imported Marketing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "marketing"
+  ],
+  "agents": [
+    "agency-instagram-curator",
+    "agency-kuaishou-strategist",
+    "agency-linkedin-content-creator",
+    "agency-livestream-commerce-coach",
+    "agency-multi-platform-publisher",
+    "agency-podcast-strategist",
+    "agency-pr-communications-manager",
+    "agency-private-domain-operator"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

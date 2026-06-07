@@ -1,0 +1,38 @@
+{
+  "id": "agency-engineering-2",
+  "name": "Agency Engineering 2",
+  "description": "Agency imported Engineering agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "engineering"
+  ],
+  "agents": [
+    "agency-database-optimizer",
+    "agency-devops-automator",
+    "agency-drupal-shopping-cart-engineer",
+    "agency-email-intelligence-engineer",
+    "agency-embedded-firmware-engineer",
+    "agency-feishu-integration-developer",
+    "agency-filament-optimization-specialist",
+    "agency-frontend-developer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

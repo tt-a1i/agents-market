@@ -1,0 +1,38 @@
+{
+  "id": "agency-testing",
+  "name": "Agency Testing",
+  "description": "Agency imported Testing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "testing"
+  ],
+  "agents": [
+    "agency-accessibility-auditor",
+    "agency-api-tester",
+    "agency-evidence-collector",
+    "agency-performance-benchmarker",
+    "agency-reality-checker",
+    "agency-test-results-analyzer",
+    "agency-tool-evaluator",
+    "agency-workflow-optimizer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-research-analysis-1",
+  "name": "VoltAgent Research Analysis 1",
+  "description": "VoltAgent imported Research Analysis agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "research-analysis",
+    "research",
+    "analysis"
+  ],
+  "agents": [
+    "voltagent-ab-test-analysis",
+    "voltagent-cohort-analysis",
+    "voltagent-competitive-analyst",
+    "voltagent-data-researcher",
+    "voltagent-first-principles-thinking",
+    "voltagent-market-researcher",
+    "voltagent-project-idea-validator",
+    "voltagent-research-analyst"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

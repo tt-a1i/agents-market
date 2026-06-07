@@ -1,0 +1,36 @@
+{
+  "id": "agency-support",
+  "name": "Agency Support",
+  "description": "Agency imported Support agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "support"
+  ],
+  "agents": [
+    "agency-analytics-reporter",
+    "agency-executive-summary-generator",
+    "agency-finance-tracker",
+    "agency-infrastructure-maintainer",
+    "agency-legal-compliance-checker",
+    "agency-support-responder"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

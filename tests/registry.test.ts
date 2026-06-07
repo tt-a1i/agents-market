@@ -29,7 +29,8 @@ describe("registry", () => {
     expect(registry.agents.length).toBeGreaterThanOrEqual(10);
     expect(registry.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
     expect(registry.packs.map((pack) => pack.id)).toContain("security-pack");
-    expect(registry.changelog?.[0]?.version).toBe("0.1.1");
+    expect(registry.changelog?.[0]?.summary).toContain("marketplace");
+    expect(registry.changelog?.some((entry) => entry.version === "0.1.1")).toBe(true);
     expect(registry.changelog?.some((entry) => entry.version === "0.1.0")).toBe(true);
   });
 
@@ -248,7 +249,8 @@ describe("registry", () => {
     expect(bundle.metadata?.repository).toBe("https://github.com/example/agents-market");
     expect(bundle.metadata?.commit).toBe("abcdef1234567890");
     expect(bundle.packs.length).toBe(registry.packs.length);
-    expect(bundle.changelog?.[0]?.summary).toContain("Expanded the bundled registry");
+    expect(bundle.changelog?.[0]?.summary).toContain("marketplace");
+    expect(bundle.changelog?.some((entry) => entry.summary.includes("Expanded the bundled registry"))).toBe(true);
     expect(bundle.changelog?.some((entry) => entry.summary.includes("Initial public registry"))).toBe(true);
   });
 
@@ -285,7 +287,7 @@ describe("registry", () => {
     expect(summary.packs.map((pack) => pack.id)).toContain("starter-dev-pack");
     expect(summary.packs.find((pack) => pack.id === "starter-dev-pack")?.requires?.agentsMarket).toBe(">=0.1.0");
     expect(summary.changelog.count).toBeGreaterThan(0);
-    expect(summary.changelog.latest?.version).toBe("0.1.1");
+    expect(summary.changelog.latest?.summary).toContain("marketplace");
     expect(summary.targets.claude).toBeGreaterThan(0);
     expect(summary.targets.codex).toBeGreaterThan(0);
     expect(summary.targets.opencode).toBeGreaterThan(0);

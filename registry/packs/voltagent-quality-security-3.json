@@ -1,0 +1,33 @@
+{
+  "id": "voltagent-quality-security-3",
+  "name": "VoltAgent Quality Security 3",
+  "description": "VoltAgent imported Quality Security agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "quality-security",
+    "quality",
+    "security"
+  ],
+  "agents": [
+    "voltagent-ui-ux-tester"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "voltagent-infrastructure-2",
+  "name": "VoltAgent Infrastructure 2",
+  "description": "VoltAgent imported Infrastructure agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "infrastructure"
+  ],
+  "agents": [
+    "voltagent-kubernetes-specialist",
+    "voltagent-network-engineer",
+    "voltagent-platform-engineer",
+    "voltagent-security-engineer",
+    "voltagent-sre-engineer",
+    "voltagent-terraform-engineer",
+    "voltagent-terragrunt-expert",
+    "voltagent-windows-infra-admin"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}
