@@ -2,6 +2,13 @@
 
 All notable package and release changes are tracked here. Registry content changes are also recorded in `registry/changelog.json` so hosted catalogs and agent-native workflows can expose registry history.
 
+## Unreleased
+
+### Changed
+
+- CLI JSON output now includes `schemaVersion` and `--json` failures return structured `{ ok: false, error }` payloads instead of plain stderr-only messages.
+- `list --agents --json` now omits prompt bodies by default, with `--full`, `--limit`, and `--fields` available for bounded detailed output.
+
 ## 0.1.0 - Preview
 
 Preview release: https://github.com/tt-a1i/agents-market/releases/tag/preview-0.1.0

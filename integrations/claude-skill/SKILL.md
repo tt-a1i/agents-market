@@ -30,6 +30,8 @@ Use the local `agents-market` CLI to recommend and install specialized coding su
 
 Prefer `apply` because it combines recommendation, audit, policy, diff, and guarded install. Use lower-level commands such as `recommend`, `audit`, `policy check`, `diff`, and `install` only when the user needs custom control or troubleshooting.
 
+Use `search --json` for discovery. Do not use `list --agents --json --full` unless the user explicitly asks to inspect full prompt bodies; default `list --agents --json` is a compact index, and `--full` can be large on community registries.
+
 Treat policy failures as blockers unless the user explicitly updates project policy. Treat compatibility failures as blockers and ask the user to upgrade `@agents-market/cli`. Do not install a very large number of agents unless the user explicitly asks for broad coverage. Prefer curated packs.
 
 Do not use `--force` with `update` or `uninstall` unless the user explicitly confirms that modified generated files should be overwritten or removed.
