@@ -2,7 +2,9 @@
 
 All notable package and release changes are tracked here. Registry content changes are also recorded in `registry/changelog.json` so hosted catalogs and agent-native workflows can expose registry history.
 
-## Unreleased
+## 0.1.0
+
+First npm release, published as [@agents-market/cli](https://www.npmjs.com/package/@agents-market/cli). Includes everything from the preview release plus the changes below.
 
 ### Added
 
