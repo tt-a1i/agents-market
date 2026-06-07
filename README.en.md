@@ -47,6 +47,14 @@ curl -fsSL https://github.com/tt-a1i/agents-market/releases/download/preview-0.1
 
 The installer verifies checksums before installation and installs the tarball with `npm install -g --ignore-scripts` so npm lifecycle scripts are not executed.
 
+Install with Homebrew:
+
+```bash
+brew install tt-a1i/tap/agents-market
+```
+
+The formula builds from a commit-pinned source archive of the preview release and will switch to the npm registry tarball once `@agents-market/cli` is published.
+
 For workflow-produced releases, install GitHub CLI and require release asset attestations:
 
 ```bash
