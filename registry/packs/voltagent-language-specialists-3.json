@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-language-specialists-3",
+  "name": "VoltAgent Language Specialists 3",
+  "description": "VoltAgent imported Language Specialists agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "language-specialists",
+    "language",
+    "specialists"
+  ],
+  "agents": [
+    "voltagent-node-specialist",
+    "voltagent-php-pro",
+    "voltagent-powershell-5-1-expert",
+    "voltagent-powershell-7-expert",
+    "voltagent-python-pro",
+    "voltagent-rails-expert",
+    "voltagent-react-specialist",
+    "voltagent-rust-engineer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

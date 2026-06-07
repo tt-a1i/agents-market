@@ -1,0 +1,38 @@
+{
+  "id": "agency-specialized-3",
+  "name": "Agency Specialized 3",
+  "description": "Agency imported Specialized agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "specialized"
+  ],
+  "agents": [
+    "agency-document-generator",
+    "agency-esg-sustainability-officer",
+    "agency-french-consulting-market-navigator",
+    "agency-government-digital-presales-consultant",
+    "agency-grant-writer",
+    "agency-healthcare-customer-service",
+    "agency-healthcare-marketing-compliance-specialist",
+    "agency-hospitality-guest-services"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

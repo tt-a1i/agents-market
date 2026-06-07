@@ -1,0 +1,37 @@
+{
+  "id": "agency-game-development",
+  "name": "Agency Game Development",
+  "description": "Agency imported Game Development agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "game-development",
+    "game",
+    "development"
+  ],
+  "agents": [
+    "agency-game-audio-engineer",
+    "agency-game-designer",
+    "agency-level-designer",
+    "agency-narrative-designer",
+    "agency-technical-artist"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "agency-specialized-1",
+  "name": "Agency Specialized 1",
+  "description": "Agency imported Specialized agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "specialized"
+  ],
+  "agents": [
+    "agency-accounts-payable-agent",
+    "agency-agentic-identity-trust-architect",
+    "agency-agents-orchestrator",
+    "agency-automation-governance-architect",
+    "agency-business-strategist",
+    "agency-change-management-consultant",
+    "agency-chief-financial-officer",
+    "agency-chief-of-staff"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

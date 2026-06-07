@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.1.2",
+    "date": "2026-06-07",
+    "summary": "Imported large community agent collections from Agency Agents and VoltAgent to make the marketplace feel like a real multi-hundred-agent catalog.",
+    "added": [
+      "Two hundred six agents imported from msitarzewski/agency-agents with MIT provenance, source commits, and source checksums",
+      "One hundred fifty-four agents imported from VoltAgent/awesome-claude-code-subagents with MIT provenance, source commits, and source checksums",
+      "Fifty-six imported community packs split by source category with at most eight agents per pack to avoid noisy broad installation choices"
+    ],
+    "changed": [
+      "Imported community agents include Agents Market guardrails for project-context gathering, narrow scope, confirmation boundaries, evidence-backed output, and verification steps",
+      "The bundled registry now covers sixty-seven packs and three hundred eighty-four agents across Claude Code, Codex, and OpenCode targets"
+    ]
+  },
+  {
     "version": "0.1.1",
     "date": "2026-06-07",
     "summary": "Expanded the bundled registry with backend, database, DevOps, Python, TypeScript, maintenance, and AI application packs.",

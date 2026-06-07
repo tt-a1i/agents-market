@@ -151,8 +151,8 @@ describe("catalog", () => {
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
-    expect(catalog.changelog[0]?.version).toBe("0.1.1");
-    expect(catalog.changelog[0]?.summary).toContain("Expanded the bundled registry");
+    expect(catalog.changelog[0]?.summary).toContain("marketplace");
+    expect(catalog.changelog.some((entry) => entry.summary.includes("Expanded the bundled registry"))).toBe(true);
     expect(catalog.changelog.some((entry) => entry.summary.includes("Initial public registry"))).toBe(true);
     expect(catalog.promptQuality.averageScore).toBeGreaterThanOrEqual(90);
     expect(catalog.promptQuality.minScore).toBeGreaterThanOrEqual(80);
@@ -163,7 +163,8 @@ describe("catalog", () => {
     expect(catalog.metadata.releaseUrl).toBe("https://github.com/example/agents-market/releases/tag/v0.1.0");
     expect(catalog.metadata.packageSpec).toBe("github:tt-a1i/agents-market");
     expect(catalog.metadata.commit).toBe("abcdef1234567890");
-    expect(catalog.provenance.withProvenance).toBe(0);
+    expect(catalog.provenance.withProvenance).toBe(360);
+    expect(catalog.provenance.withChecksum).toBe(360);
     expect(catalog.registryWorkflows.map((workflow) => workflow.label)).toEqual([
       "Inspect Hosted Registry",
       "Lock Registry In Project",

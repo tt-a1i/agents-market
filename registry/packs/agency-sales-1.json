@@ -1,0 +1,38 @@
+{
+  "id": "agency-sales-1",
+  "name": "Agency Sales 1",
+  "description": "Agency imported Sales agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "sales"
+  ],
+  "agents": [
+    "agency-account-strategist",
+    "agency-deal-strategist",
+    "agency-discovery-coach",
+    "agency-offer-lead-gen-strategist",
+    "agency-outbound-strategist",
+    "agency-pipeline-analyst",
+    "agency-proposal-strategist",
+    "agency-sales-coach"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

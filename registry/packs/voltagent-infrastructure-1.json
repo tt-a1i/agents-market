@@ -1,0 +1,38 @@
+{
+  "id": "voltagent-infrastructure-1",
+  "name": "VoltAgent Infrastructure 1",
+  "description": "VoltAgent imported Infrastructure agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "infrastructure"
+  ],
+  "agents": [
+    "voltagent-azure-infra-engineer",
+    "voltagent-cloud-architect",
+    "voltagent-database-administrator",
+    "voltagent-deployment-engineer",
+    "voltagent-devops-engineer",
+    "voltagent-devops-incident-responder",
+    "voltagent-docker-expert",
+    "voltagent-incident-responder"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

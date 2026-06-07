@@ -1,0 +1,33 @@
+{
+  "id": "agency-strategy",
+  "name": "Agency Strategy",
+  "description": "Agency imported Strategy agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "strategy"
+  ],
+  "agents": [
+    "agency-executive-brief",
+    "agency-nexus-strategy",
+    "agency-quickstart"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

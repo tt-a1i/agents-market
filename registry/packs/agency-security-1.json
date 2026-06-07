@@ -1,0 +1,38 @@
+{
+  "id": "agency-security-1",
+  "name": "Agency Security 1",
+  "description": "Agency imported Security agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "security"
+  ],
+  "agents": [
+    "agency-application-security-engineer",
+    "agency-blockchain-security-auditor",
+    "agency-cloud-security-architect",
+    "agency-compliance-auditor",
+    "agency-incident-responder",
+    "agency-penetration-tester",
+    "agency-security-architect",
+    "agency-senior-secops-engineer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

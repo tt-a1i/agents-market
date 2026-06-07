@@ -1,0 +1,39 @@
+{
+  "id": "agency-paid-media",
+  "name": "Agency Paid Media",
+  "description": "Agency imported Paid Media agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "paid-media",
+    "paid",
+    "media"
+  ],
+  "agents": [
+    "agency-ad-creative-strategist",
+    "agency-paid-media-auditor",
+    "agency-paid-social-strategist",
+    "agency-ppc-campaign-strategist",
+    "agency-programmatic-display-buyer",
+    "agency-search-query-analyst",
+    "agency-tracking-measurement-specialist"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

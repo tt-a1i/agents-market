@@ -1,0 +1,39 @@
+{
+  "id": "agency-project-management",
+  "name": "Agency Project Management",
+  "description": "Agency imported Project Management agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "project-management",
+    "project",
+    "management"
+  ],
+  "agents": [
+    "agency-experiment-tracker",
+    "agency-jira-workflow-steward",
+    "agency-meeting-notes-specialist",
+    "agency-project-shepherd",
+    "agency-senior-project-manager",
+    "agency-studio-operations",
+    "agency-studio-producer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

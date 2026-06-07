@@ -1,0 +1,35 @@
+{
+  "id": "agency-product",
+  "name": "Agency Product",
+  "description": "Agency imported Product agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "product"
+  ],
+  "agents": [
+    "agency-behavioral-nudge-engine",
+    "agency-feedback-synthesizer",
+    "agency-product-manager",
+    "agency-sprint-prioritizer",
+    "agency-trend-researcher"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

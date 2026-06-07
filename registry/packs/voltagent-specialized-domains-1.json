@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-specialized-domains-1",
+  "name": "VoltAgent Specialized Domains 1",
+  "description": "VoltAgent imported Specialized Domains agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "specialized-domains",
+    "specialized",
+    "domains"
+  ],
+  "agents": [
+    "voltagent-api-documenter",
+    "voltagent-blockchain-developer",
+    "voltagent-embedded-systems",
+    "voltagent-fintech-engineer",
+    "voltagent-game-developer",
+    "voltagent-healthcare-admin",
+    "voltagent-hipaa-compliance",
+    "voltagent-iot-engineer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

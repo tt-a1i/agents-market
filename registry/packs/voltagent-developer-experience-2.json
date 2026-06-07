@@ -1,0 +1,39 @@
+{
+  "id": "voltagent-developer-experience-2",
+  "name": "VoltAgent Developer Experience 2",
+  "description": "VoltAgent imported Developer Experience agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "developer-experience",
+    "developer",
+    "experience"
+  ],
+  "agents": [
+    "voltagent-powershell-module-architect",
+    "voltagent-powershell-ui-architect",
+    "voltagent-readme-generator",
+    "voltagent-refactoring-specialist",
+    "voltagent-slack-expert",
+    "voltagent-tooling-engineer",
+    "voltagent-visual-asset-generator"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "agency-marketing-1",
+  "name": "Agency Marketing 1",
+  "description": "Agency imported Marketing agents from msitarzewski/agency-agents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "agency",
+    "marketing"
+  ],
+  "agents": [
+    "agency-aeo-foundations-architect",
+    "agency-agentic-search-optimizer",
+    "agency-ai-citation-strategist",
+    "agency-app-store-optimizer",
+    "agency-baidu-seo-specialist",
+    "agency-bilibili-content-strategist",
+    "agency-book-co-author",
+    "agency-carousel-growth-engine"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

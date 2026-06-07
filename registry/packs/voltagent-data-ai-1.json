@@ -1,0 +1,40 @@
+{
+  "id": "voltagent-data-ai-1",
+  "name": "VoltAgent Data Ai 1",
+  "description": "VoltAgent imported Data Ai agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "data-ai",
+    "data",
+    "ai"
+  ],
+  "agents": [
+    "voltagent-ai-engineer",
+    "voltagent-data-analyst",
+    "voltagent-data-engineer",
+    "voltagent-data-scientist",
+    "voltagent-database-optimizer",
+    "voltagent-llm-architect",
+    "voltagent-machine-learning-engineer",
+    "voltagent-ml-engineer"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}

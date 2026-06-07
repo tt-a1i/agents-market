@@ -1,0 +1,35 @@
+{
+  "id": "voltagent-meta-orchestration-2",
+  "name": "VoltAgent Meta Orchestration 2",
+  "description": "VoltAgent imported Meta Orchestration agents from VoltAgent/awesome-claude-code-subagents, split into a focused pack for discovery and optional installation.",
+  "version": "0.1.0",
+  "tags": [
+    "imported",
+    "voltagent",
+    "meta-orchestration",
+    "meta",
+    "orchestration"
+  ],
+  "agents": [
+    "voltagent-performance-monitor",
+    "voltagent-task-distributor",
+    "voltagent-workflow-orchestrator"
+  ],
+  "recommendedFor": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "files": [
+      "package.json",
+      "pyproject.toml",
+      "README.md"
+    ]
+  },
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  }
+}
