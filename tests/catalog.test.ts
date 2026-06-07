@@ -34,6 +34,7 @@ describe("catalog", () => {
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
       "agents-market.json",
+      "catalog.html",
       "catalog.json",
       "favicon.svg",
       "index.html",
@@ -43,7 +44,22 @@ describe("catalog", () => {
       "sitemap.xml"
     ]);
 
-    const html = await readFile(join(cleanupPath, "index.html"), "utf8");
+    const landing = await readFile(join(cleanupPath, "index.html"), "utf8");
+    expect(landing).toContain("subagent 市场与安装器");
+    expect(landing).toContain('href="catalog.html"');
+    expect(landing).toContain(`data-count="${registry.agents.length}"`);
+    expect(landing).toContain(`data-count="${registry.packs.length}"`);
+    expect(landing).toContain("starter-dev-pack");
+    expect(landing).toContain("https://example.com/agents-market/registry.bundle.json");
+    expect(landing).toContain("document.execCommand(\"copy\")");
+    expect(landing).toContain("Copy failed");
+    expect(landing).toContain('rel="manifest" href="site.webmanifest"');
+    expect(landing).toContain('rel="icon" href="favicon.svg"');
+    expect(landing).toContain('rel="sitemap" type="application/xml" href="sitemap.xml"');
+    expect(landing).toContain('property="og:url" content="https://example.com/agents-market"');
+    expect(landing).toContain('name="twitter:card" content="summary"');
+
+    const html = await readFile(join(cleanupPath, "catalog.html"), "utf8");
     expect(html).toContain("Agents Market Test");
     expect(html).toContain("starter-dev-pack");
     expect(html).toContain("Changelog");
@@ -298,6 +314,7 @@ describe("catalog", () => {
 
     expect(files.map((file) => file.split("/").pop()).sort()).toEqual([
       "agents-market.json",
+      "catalog.html",
       "catalog.json",
       "favicon.svg",
       "index.html",
@@ -376,7 +393,7 @@ describe("catalog", () => {
       baseUrl: "https://example.com/agents-market"
     });
 
-    const htmlPath = join(cleanupPath, "index.html");
+    const htmlPath = join(cleanupPath, "catalog.html");
     const html = await readFile(htmlPath, "utf8");
     await writeFile(
       htmlPath,
@@ -390,7 +407,7 @@ describe("catalog", () => {
     const report = await verifyCatalog(cleanupPath);
     expect(report.ok).toBe(false);
     expect(report.findings.map((finding) => finding.code)).toEqual(
-      expect.arrayContaining(["html-missing-target-filter-fallback", "html-missing-copy-fallback"])
+      expect.arrayContaining(["html-missing-target-filter-fallback", "browse-html-missing-copy-fallback"])
     );
   });
 

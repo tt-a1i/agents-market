@@ -138,9 +138,10 @@ async function writeSignedReleaseArtifacts(root: string): Promise<{ dir: string;
   await writeFile(join(dir, "catalog", "registry-public.pem"), publicKeyPem, "utf8");
   await writeFile(
     join(dir, "catalog", "index.html"),
-    '<html><head><meta property="og:title" content="Agents Market Test"><meta property="og:description" content="Test catalog"><meta property="og:type" content="website"><meta name="twitter:card" content="summary"><link rel="manifest" href="site.webmanifest"><link rel="sitemap" type="application/xml" href="sitemap.xml"><link rel="icon" href="favicon.svg"></head></html>\n',
+    '<html><head><meta property="og:title" content="Agents Market Test"><meta property="og:description" content="Test catalog"><meta property="og:type" content="website"><meta name="twitter:card" content="summary"><link rel="manifest" href="site.webmanifest"><link rel="sitemap" type="application/xml" href="sitemap.xml"><link rel="icon" href="favicon.svg"></head><body><a href="catalog.html">browse</a></body></html>\n',
     "utf8"
   );
+  await writeFile(join(dir, "catalog", "catalog.html"), "<html><head><title>Browse</title></head><body>browse</body></html>\n", "utf8");
   await writeFile(join(dir, "catalog", "catalog.json"), `${JSON.stringify({
     title: "Agents Market Test",
     packageSpec: "github:tt-a1i/agents-market",
@@ -268,6 +269,7 @@ async function writeManifestAndChecksums(dir: string): Promise<void> {
     "agents-market-codex-0.1.0.tgz",
     "agents-market-opencode-0.1.0.tgz",
     "catalog/agents-market.json",
+    "catalog/catalog.html",
     "catalog/catalog.json",
     "catalog/favicon.svg",
     "catalog/index.html",

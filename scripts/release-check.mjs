@@ -180,14 +180,21 @@ async function main() {
         await rm(catalogProjectDir, { recursive: true, force: true });
       }
     });
-    const catalogHtml = await readFile(join(siteDir, "index.html"), "utf8");
+    const browseHtml = await readFile(join(siteDir, "catalog.html"), "utf8");
     assert(
-      catalogHtml.includes('const itemTargets = item.dataset.targets || "";'),
+      browseHtml.includes('const itemTargets = item.dataset.targets || "";'),
       "Catalog target filter should tolerate searchable entries without target metadata."
     );
     assert(
-      catalogHtml.includes('document.execCommand("copy")') && catalogHtml.includes("Copy failed"),
+      browseHtml.includes('document.execCommand("copy")') && browseHtml.includes("Copy failed"),
       "Catalog copy controls should include a clipboard fallback for non-secure contexts or denied permissions."
+    );
+    const landingHtml = await readFile(join(siteDir, "index.html"), "utf8");
+    assert(landingHtml.includes('href="catalog.html"'), "Landing page should link to the catalog.html browse page.");
+    assert(landingHtml.includes("subagent 市场与安装器"), "Landing page should include the marketing hero copy.");
+    assert(
+      landingHtml.includes('document.execCommand("copy")') && landingHtml.includes("Copy failed"),
+      "Landing copy controls should include a clipboard fallback for non-secure contexts or denied permissions."
     );
   } finally {
     await rm(siteDir, { recursive: true, force: true });
@@ -911,6 +918,7 @@ async function runReleaseArtifactsSmoke() {
       "registry.bundle.json",
       "catalog/agents-market.json",
       "catalog/index.html",
+      "catalog/catalog.html",
       "catalog/catalog.json",
       "catalog/favicon.svg",
       "catalog/registry.bundle.json",
