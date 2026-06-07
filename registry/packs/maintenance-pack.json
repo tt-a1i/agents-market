@@ -1,0 +1,15 @@
+{
+  "id": "maintenance-pack",
+  "name": "Maintenance Workflow Pack",
+  "description": "Maintenance agents for refactor planning, migration planning, pull requests, release notes, and test coverage.",
+  "version": "0.1.0",
+  "tags": ["maintenance", "refactor", "release"],
+  "agents": ["refactor-planner", "migration-planner", "test-coverage-planner", "pr-description-writer", "release-notes-writer"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "languages": ["javascript", "typescript", "python", "go", "rust", "ruby"],
+    "files": ["CHANGELOG.md", "package.json", "pyproject.toml", "go.mod", "Cargo.toml"]
+  }
+}

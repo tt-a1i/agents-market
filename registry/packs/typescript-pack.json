@@ -1,0 +1,16 @@
+{
+  "id": "typescript-pack",
+  "name": "TypeScript Quality Pack",
+  "description": "TypeScript-focused agents for type safety, API contracts, tests, code review, and dependency risk.",
+  "version": "0.1.0",
+  "tags": ["typescript", "quality", "api"],
+  "agents": ["typescript-type-safety-reviewer", "api-contract-reviewer", "test-runner", "code-reviewer", "dependency-risk-auditor"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["node", "nextjs", "react", "nestjs", "hono", "express"],
+    "languages": ["typescript", "javascript"],
+    "files": ["tsconfig.json", "package.json", "src", "types"]
+  }
+}

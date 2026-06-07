@@ -151,8 +151,9 @@ describe("catalog", () => {
     };
     expect(catalog.packCount).toBeGreaterThan(0);
     expect(catalog.agentCount).toBeGreaterThan(0);
-    expect(catalog.changelog[0]?.version).toBe("0.1.0");
-    expect(catalog.changelog[0]?.summary).toContain("Initial public registry");
+    expect(catalog.changelog[0]?.version).toBe("0.1.1");
+    expect(catalog.changelog[0]?.summary).toContain("Expanded the bundled registry");
+    expect(catalog.changelog.some((entry) => entry.summary.includes("Initial public registry"))).toBe(true);
     expect(catalog.promptQuality.averageScore).toBeGreaterThanOrEqual(90);
     expect(catalog.promptQuality.minScore).toBeGreaterThanOrEqual(80);
     expect(catalog.packageSpec).toBe("github:tt-a1i/agents-market");
