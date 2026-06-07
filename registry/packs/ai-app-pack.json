@@ -1,0 +1,16 @@
+{
+  "id": "ai-app-pack",
+  "name": "AI App Pack",
+  "description": "AI application agents for LLM integration review, security, API contracts, documentation research, and test planning.",
+  "version": "0.1.0",
+  "tags": ["ai", "llm", "agents", "prompts"],
+  "agents": ["ai-integration-reviewer", "security-auditor", "api-contract-reviewer", "docs-researcher", "test-coverage-planner"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["openai", "anthropic", "langchain", "llamaindex", "vercel-ai-sdk"],
+    "languages": ["typescript", "javascript", "python"],
+    "files": ["prompts", "evals", "openai.ts", "anthropic.ts", "ai.ts", "llm.py"]
+  }
+}

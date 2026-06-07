@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.1.1",
+    "date": "2026-06-07",
+    "summary": "Expanded the bundled registry with backend, database, DevOps, Python, TypeScript, maintenance, and AI application packs.",
+    "added": [
+      "backend-api-pack for service architecture, API contracts, security, database access, and test planning",
+      "database-pack for query review, migrations, architecture, and coverage planning",
+      "devops-ci-pack for GitHub Actions, containers, observability, dependency risk, and release notes",
+      "python-pack for Python quality, APIs, dependency risk, tests, and documentation research",
+      "typescript-pack for type safety, API contracts, tests, review, and dependency risk",
+      "maintenance-pack for refactor planning, migration planning, PR descriptions, release notes, and coverage planning",
+      "ai-app-pack for LLM integration review, security, API contracts, documentation research, and test planning",
+      "Fourteen new native agents covering backend, database, migration, containers, CI, observability, Python, TypeScript, refactoring, PR writing, release notes, AI integrations, and test coverage planning"
+    ],
+    "changed": [
+      "The bundled registry now covers ten focused packs and twenty-four agents across Claude Code, Codex, and OpenCode targets"
+    ]
+  },
+  {
     "version": "0.1.0",
     "date": "2026-06-06",
     "summary": "Initial public registry with cross-tool starter, frontend, and Next.js agent packs for Claude Code, Codex, and OpenCode.",

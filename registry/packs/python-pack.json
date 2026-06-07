@@ -1,0 +1,16 @@
+{
+  "id": "python-pack",
+  "name": "Python Pack",
+  "description": "Python-focused agents for code quality, backend APIs, dependency risk, testing, and documentation research.",
+  "version": "0.1.0",
+  "tags": ["python", "quality", "backend"],
+  "agents": ["python-quality-reviewer", "api-contract-reviewer", "dependency-risk-auditor", "test-runner", "docs-researcher"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["fastapi", "django", "flask", "pytest", "pydantic"],
+    "languages": ["python"],
+    "files": ["pyproject.toml", "requirements.txt", "setup.py", "tox.ini", "pytest.ini"]
+  }
+}

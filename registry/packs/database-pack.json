@@ -1,0 +1,16 @@
+{
+  "id": "database-pack",
+  "name": "Database Safety Pack",
+  "description": "Database-focused agents for query review, migrations, backend architecture, and test coverage planning.",
+  "version": "0.1.0",
+  "tags": ["database", "sql", "migrations"],
+  "agents": ["database-query-reviewer", "migration-planner", "backend-architect", "test-coverage-planner"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["prisma", "drizzle", "django", "rails", "typeorm", "sequelize"],
+    "languages": ["typescript", "javascript", "python", "ruby", "go"],
+    "files": ["schema.prisma", "drizzle.config.ts", "migrations", "alembic.ini", "db/migrate"]
+  }
+}

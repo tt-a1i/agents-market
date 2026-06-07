@@ -1,0 +1,16 @@
+{
+  "id": "backend-api-pack",
+  "name": "Backend API Pack",
+  "description": "Backend-focused agents for service architecture, API contracts, security, database access, and test planning.",
+  "version": "0.1.0",
+  "tags": ["backend", "api", "services"],
+  "agents": ["backend-architect", "api-contract-reviewer", "security-auditor", "database-query-reviewer", "test-coverage-planner"],
+  "requires": {
+    "agentsMarket": ">=0.1.0"
+  },
+  "recommendedFor": {
+    "frameworks": ["express", "fastapi", "django", "rails", "spring", "hono", "nestjs"],
+    "languages": ["javascript", "typescript", "python", "ruby", "java", "go"],
+    "files": ["openapi.yaml", "openapi.json", "schema.graphql", "routes.ts", "urls.py", "go.mod"]
+  }
+}
