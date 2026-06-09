@@ -86,6 +86,12 @@ export function validateRegistry(registry: Registry): Registry {
   return registry;
 }
 
+export function getAgent(registry: Registry, agentId: string): AgentDefinition {
+  const agent = registry.agents.find((candidate) => candidate.id === agentId);
+  if (!agent) throw new Error(`Unknown agent: ${agentId}`);
+  return agent;
+}
+
 async function loadRegistryBundleFromFile(path: string): Promise<RegistryBundle> {
   const raw = await readFile(path, "utf8");
   const parsed = registryBundleSchema.parse(JSON.parse(raw));

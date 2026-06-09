@@ -1,4 +1,4 @@
-import type { AgentDefinition, GeneratedFile } from "../types.js";
+import type { AgentDefinition, AgentContextReference, AgentRenderOptions, GeneratedFile } from "../types.js";
 
 function claudeTools(agent: AgentDefinition): string {
   const tools = agent.tools;
@@ -12,20 +12,31 @@ function claudeTools(agent: AgentDefinition): string {
   return [...new Set(allowed)].join(", ");
 }
 
-export function generateClaudeAgent(agent: AgentDefinition): GeneratedFile {
+function contextBlock(references: AgentContextReference[] | undefined): string {
+  if (!references || references.length === 0) return "";
+  return [
+    "Before acting, read and follow these project-local references:",
+    ...references.map((reference) => `- ${reference.path}`),
+    ""
+  ].join("\n");
+}
+
+export function generateClaudeAgent(agent: AgentDefinition, options: AgentRenderOptions = {}): GeneratedFile {
   const model = agent.model?.claude ?? "inherit";
+  const localName = options.localName ?? agent.id;
   const content = `---
-name: ${agent.id}
+name: ${localName}
 description: ${agent.description}
 tools: ${claudeTools(agent)}
 model: ${model}
 ---
 
+${contextBlock(options.contextReferences)}
 ${agent.prompt}
 `;
 
   return {
-    path: `.claude/agents/${agent.id}.md`,
+    path: `.claude/agents/${localName}.md`,
     content
   };
 }

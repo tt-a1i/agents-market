@@ -1,4 +1,4 @@
-import type { AgentDefinition, GeneratedFile } from "../types.js";
+import type { AgentDefinition, AgentContextReference, AgentRenderOptions, GeneratedFile } from "../types.js";
 
 function permissionBlock(agent: AgentDefinition): string {
   if (agent.permission === "readonly") {
@@ -19,7 +19,17 @@ function permissionBlock(agent: AgentDefinition): string {
   bash: ask`;
 }
 
-export function generateOpenCodeAgent(agent: AgentDefinition): GeneratedFile {
+function contextBlock(references: AgentContextReference[] | undefined): string {
+  if (!references || references.length === 0) return "";
+  return [
+    "Before acting, read and follow these project-local references:",
+    ...references.map((reference) => `- ${reference.path}`),
+    ""
+  ].join("\n");
+}
+
+export function generateOpenCodeAgent(agent: AgentDefinition, options: AgentRenderOptions = {}): GeneratedFile {
+  const localName = options.localName ?? agent.id;
   const model = agent.model?.opencode ?? "anthropic/claude-sonnet-4-5";
   const content = `---
 description: ${agent.description}
@@ -28,11 +38,12 @@ model: ${model}
 ${permissionBlock(agent)}
 ---
 
+${contextBlock(options.contextReferences)}
 ${agent.prompt}
 `;
 
   return {
-    path: `.opencode/agents/${agent.id}.md`,
+    path: `.opencode/agents/${localName}.md`,
     content
   };
 }

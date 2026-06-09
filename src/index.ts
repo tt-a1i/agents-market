@@ -5,6 +5,7 @@ import { dirname, resolve, sep } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import {
   createRegistryBundle,
+  getAgent,
   getPack,
   loadRegistryWithInfo,
   signRegistryBundle,
@@ -27,6 +28,7 @@ import { searchRegistry, type SearchKind } from "./search.js";
 import { parseTier, resolveTier } from "./tier.js";
 import { checkPackPolicy, createPolicyPreset, loadPolicy, policyPath, savePolicy, type PolicyCheckReport, type PolicyPreset } from "./policy.js";
 import { defaultApplyPolicy, runApplyWorkflow, type ApplyPolicySource } from "./workflow.js";
+import { runRegisterWorkflow, type RegisterWorkflowResult } from "./registration.js";
 import { renderRegistryReviewMarkdown, reviewRegistry } from "./registry-review.js";
 import { readExisting, removeFile, summarizeFileChange, writeGeneratedFiles } from "./files.js";
 import { summarizeTextDrift } from "./drift.js";
@@ -115,8 +117,13 @@ function wantsJsonOutput(argv = process.argv): boolean {
 
 function errorCode(message: string): string {
   if (message.startsWith("Unknown pack:")) return "PACK_NOT_FOUND";
+  if (message.startsWith("Unknown agent:")) return "AGENT_NOT_FOUND";
   if (message.startsWith("Unknown agents:")) return "AGENT_NOT_FOUND";
   if (message.startsWith("Invalid target:")) return "INVALID_TARGET";
+  if (message.startsWith("Target must be")) return "INVALID_TARGET";
+  if (message.startsWith("Invalid local agent name:")) return "INVALID_LOCAL_AGENT_NAME";
+  if (message.startsWith("Context file does not exist:")) return "CONTEXT_FILE_NOT_FOUND";
+  if (message.startsWith("Context file must be inside")) return "CONTEXT_OUTSIDE_PROJECT";
   if (message.startsWith("Invalid search type:")) return "INVALID_SEARCH_TYPE";
   if (message.startsWith("Invalid tier:")) return "INVALID_TIER";
   if (message.startsWith("Invalid policy preset:")) return "INVALID_POLICY_PRESET";
@@ -136,6 +143,9 @@ function errorHint(code: string): string {
   if (code === "INVALID_SEARCH_TYPE") return "Use one of: all, agents, packs.";
   if (code === "INVALID_TIER") return "Use one of: core, community, all.";
   if (code === "INVALID_POLICY_PRESET") return "Use one of: open, balanced, strict.";
+  if (code === "INVALID_LOCAL_AGENT_NAME") return "Use lowercase letters, numbers, and hyphens for project-local agent names.";
+  if (code === "CONTEXT_FILE_NOT_FOUND") return "Pass an existing project-local context file, or omit --context.";
+  if (code === "CONTEXT_OUTSIDE_PROJECT") return "Use context files inside the project root.";
   return "Run the command with `--help` for supported arguments, or use `--json` commands that include nextCommands.";
 }
 
@@ -156,6 +166,26 @@ function printStructuredError(error: unknown): void {
             : ["agents-market --help"]
     }
   });
+}
+
+function registerBlockedError(result: RegisterWorkflowResult): {
+  code: string;
+  message: string;
+  hint: string;
+  nextCommands: string[];
+} {
+  const blocked = result.changes.find((change) => change.state === "blocked");
+  const code = blocked?.reason === "managed-pack-file-conflict" ? "MANAGED_AGENT_FILE_CONFLICT" : "UNMANAGED_AGENT_CONFLICT";
+  const path = blocked?.path ?? "target agent file";
+  return {
+    code,
+    message:
+      code === "MANAGED_AGENT_FILE_CONFLICT"
+        ? `A pack-managed agent file already exists at ${path}.`
+        : `A non-managed agent file already exists at ${path}.`,
+    hint: "Choose a different project-local agent name with --name, or remove/resolve the existing file before registering.",
+    nextCommands: [`agents-market register --agent ${result.agent.id} --target ${result.target} --name ${result.agent.localName}-market --json`]
+  };
 }
 
 function summarizeAgent(agent: AgentDefinition): Record<string, unknown> {
@@ -556,6 +586,125 @@ program
         if (result.reasons.length > 0) {
           console.log(`  ${pc.dim(result.reasons.join(", "))}`);
         }
+      }
+    }
+  );
+
+const agentCommand = program.command("agent").description("Inspect individual registry agents");
+
+agentCommand
+  .command("info")
+  .argument("<agent>", "agent id to inspect")
+  .description("Show lightweight agent metadata; use --full to include the prompt body")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--full", "include the full prompt body")
+  .option("--json", "print machine-readable JSON")
+  .action(async (agentId: string, options: { registry?: string; full?: boolean; json?: boolean }) => {
+    const loaded = await loadRegistryWithInfo(options.registry);
+    const agent = getAgent(loaded.registry, agentId);
+    const result = {
+      source: loaded.source,
+      agent: {
+        ...summarizeAgent(agent),
+        model: agent.model,
+        tools: agent.tools,
+        provenance: agent.provenance,
+        prompt: options.full ? agent.prompt : undefined
+      },
+      agentDetail: options.full ? "full" : "summary"
+    };
+
+    if (options.json) {
+      printJson(result);
+      return;
+    }
+
+    console.log(`${pc.bold(agent.id)}${tierLabel(resolveTier(agent))}`);
+    console.log(`- name: ${agent.name}`);
+    console.log(`- description: ${agent.description}`);
+    console.log(`- version: ${agent.version}`);
+    console.log(`- category: ${agent.category}`);
+    console.log(`- permission: ${agent.permission}`);
+    console.log(`- targets: ${agent.recommendedTargets.join(", ")}`);
+    if (agent.provenance?.repository) console.log(`- repository: ${agent.provenance.repository}`);
+    if (options.full) {
+      console.log(`\n${pc.bold("Prompt")}`);
+      console.log(agent.prompt);
+    } else {
+      console.log(`\n${pc.dim("Use --full to include the prompt body.")}`);
+    }
+  });
+
+program
+  .command("register")
+  .description("Register one selected subagent into a project-local host agent directory")
+  .requiredOption("--agent <agent>", "registry agent id to register")
+  .requiredOption("-t, --target <target>", "claude, codex, or opencode")
+  .option("--name <name>", "project-local host-visible agent name; defaults to the registry agent id")
+  .option("--context <path>", "explicit project-local context file reference; repeat for multiple files", collectOption, [])
+  .option("--cwd <path>", "project root to register into")
+  .option("--registry <source>", "registry source: bundled, directory, bundle file, or URL")
+  .option("--yes", "write files and manifest updates; default is preview only")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (options: {
+      agent: string;
+      target: string;
+      name?: string;
+      context: string[];
+      cwd?: string;
+      registry?: string;
+      yes?: boolean;
+      json?: boolean;
+    }) => {
+      const root = cwd(options.cwd);
+      const target = parseConcreteTarget(options.target);
+      const loaded = await loadProjectRegistry(root, options.registry);
+      const result = await runRegisterWorkflow({
+        root,
+        registry: loaded.registry,
+        registrySource: loaded.source,
+        agentId: options.agent,
+        target,
+        localName: options.name,
+        context: options.context,
+        mode: options.yes ? "install" : "preview"
+      });
+
+      if (options.json) {
+        printJson(result.ready ? { ok: true, ...result } : { ok: false, ...result, error: registerBlockedError(result) });
+        if (!result.ready) process.exitCode = 1;
+        return;
+      }
+
+      const mode = result.installed ? pc.green("registered") : result.ready ? pc.yellow("preview") : pc.red("blocked");
+      console.log(`${pc.bold("Agents Market register")} ${mode}`);
+      console.log(`- root: ${result.root}`);
+      console.log(`- registry: ${loaded.source.value}`);
+      console.log(`- agent: ${pc.green(result.agent.id)}${result.agent.localName === result.agent.id ? "" : ` as ${pc.cyan(result.agent.localName)}`}`);
+      console.log(`- target: ${result.target}`);
+      if (result.contextReferences.length > 0) {
+        console.log(`- context: ${result.contextReferences.map((reference) => reference.path).join(", ")}`);
+      }
+      for (const change of result.changes) {
+        const label =
+          change.state === "create"
+            ? pc.green("create")
+            : change.state === "update"
+              ? pc.yellow("update")
+              : change.state === "blocked"
+                ? pc.red("blocked")
+                : pc.dim("same");
+        console.log(`${label} ${change.path}${change.reason ? ` (${change.reason})` : ""}`);
+      }
+      for (const warning of result.warnings) console.log(`${pc.yellow("warn")} ${warning.code}: ${warning.message}`);
+      if (!result.ready) {
+        process.exitCode = 1;
+        return;
+      }
+      if (!result.installed) {
+        console.log(`\n${pc.bold("Next")}`);
+        for (const command of result.nextCommands) console.log(`- ${command}`);
       }
     }
   );
@@ -1066,6 +1215,7 @@ program
     const root = cwd(options.cwd);
     const manifest = await loadManifest(root);
     const installs = [];
+    const registeredAgents = [];
 
     for (const install of manifest.installs) {
       let expectedByPath = new Map<string, string>();
@@ -1113,17 +1263,56 @@ program
       });
     }
 
+    for (const registration of manifest.registeredAgents ?? []) {
+      const files = [];
+      for (const file of registration.files) {
+        const current = await readExisting(root, { path: file.path, content: "" });
+        const state = current === undefined ? "missing" : sha256(current) === file.sha256 ? "clean" : "modified";
+        files.push({
+          path: file.path,
+          target: file.target,
+          agentId: file.agentId,
+          localName: registration.localName,
+          state,
+          ...(options.diff
+            ? {
+                expectedSha256: file.sha256,
+                currentSha256: current ? sha256(current) : undefined,
+                drift:
+                  current !== undefined && state !== "clean"
+                    ? summarizeTextDrift("", current)
+                    : current === undefined
+                      ? summarizeTextDrift("", "")
+                      : undefined
+              }
+            : {})
+        });
+      }
+      registeredAgents.push({
+        agentId: registration.agentId,
+        agentVersion: registration.agentVersion,
+        localName: registration.localName,
+        target: registration.target,
+        registeredAt: registration.registeredAt,
+        registry: registration.registry,
+        contextReferences: registration.contextReferences,
+        files
+      });
+    }
+
     if (options.json) {
       printJson({
         root,
         installCount: installs.length,
-        installs
+        registrationCount: registeredAgents.length,
+        installs,
+        registeredAgents
       });
       return;
     }
 
-    if (manifest.installs.length === 0) {
-      console.log("No packs installed by Agents Market.");
+    if (manifest.installs.length === 0 && (manifest.registeredAgents ?? []).length === 0) {
+      console.log("No packs or agents managed by Agents Market.");
       return;
     }
 
@@ -1138,6 +1327,17 @@ program
           for (const line of file.drift.preview) console.log(`    ${line}`);
         } else if (options.diff && file.driftError) {
           console.log(`    ${pc.red(file.driftError)}`);
+        }
+      }
+    }
+    for (const registration of registeredAgents) {
+      console.log(`${pc.bold(registration.localName)} (${registration.target}) registered ${registration.registeredAt}`);
+      for (const file of registration.files) {
+        const state = file.state === "missing" ? pc.red("missing") : file.state === "clean" ? pc.green("clean") : pc.yellow("modified");
+        console.log(`  ${state} ${file.path}`);
+        if (options.diff && file.drift) {
+          console.log(`    +${file.drift.addedLines} -${file.drift.removedLines}`);
+          for (const line of file.drift.preview) console.log(`    ${line}`);
         }
       }
     }
