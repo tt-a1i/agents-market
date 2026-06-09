@@ -19,6 +19,7 @@ export interface DoctorReport {
   root: string;
   health: "ok" | "warning" | "error";
   installCount: number;
+  registrationCount: number;
   fileCounts: {
     total: number;
     clean: number;
@@ -67,14 +68,35 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     checks.push({ id: "registry-lock", severity: "warn", message: "Project is not locked to a registry source.", detail: REGISTRY_LOCK_PATH });
   }
 
-  if (manifest.installs.length === 0) {
-    checks.push({ id: "installs", severity: "warn", message: "No packs are installed by Agents Market." });
+  const registeredAgents = manifest.registeredAgents ?? [];
+
+  if (manifest.installs.length === 0 && registeredAgents.length === 0) {
+    checks.push({ id: "managed-entries", severity: "warn", message: "No packs or agents are managed by Agents Market." });
   } else {
-    checks.push({ id: "installs", severity: "pass", message: `${manifest.installs.length} pack install entries found.` });
+    if (manifest.installs.length > 0) {
+      checks.push({ id: "installs", severity: "pass", message: `${manifest.installs.length} pack install entries found.` });
+    }
+    if (registeredAgents.length > 0) {
+      checks.push({ id: "registered-agents", severity: "pass", message: `${registeredAgents.length} registered agent entries found.` });
+      checks.push({
+        id: "host-runtime",
+        severity: "warn",
+        message: "Project-local agent files are registered, but direct host invocation cannot be verified by this CLI session."
+      });
+    }
   }
 
   for (const install of manifest.installs) {
     for (const file of install.files) {
+      fileCounts.total += 1;
+      targets[file.target] += 1;
+      const state = await fileState(root, file);
+      fileCounts[state] += 1;
+    }
+  }
+
+  for (const registration of registeredAgents) {
+    for (const file of registration.files) {
       fileCounts.total += 1;
       targets[file.target] += 1;
       const state = await fileState(root, file);
@@ -149,6 +171,7 @@ export async function runDoctor(root: string): Promise<DoctorReport> {
     root,
     health: healthFromChecks(checks),
     installCount: manifest.installs.length,
+    registrationCount: registeredAgents.length,
     fileCounts,
     targets,
     manifest,

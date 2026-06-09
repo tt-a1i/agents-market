@@ -112,6 +112,16 @@ export interface GeneratedFile {
   content: string;
 }
 
+export interface AgentContextReference {
+  path: string;
+  sha256: string;
+}
+
+export interface AgentRenderOptions {
+  localName?: string;
+  contextReferences?: AgentContextReference[];
+}
+
 export interface ManifestFileEntry {
   path: string;
   target: Target;
@@ -147,9 +157,26 @@ export interface ManifestInstallEntry {
   history?: ManifestHistoryEntry[];
 }
 
+export interface ManifestRegisteredAgentEntry {
+  agentId: string;
+  agentVersion?: string;
+  localName: string;
+  target: Target;
+  registeredAt: string;
+  registry?: {
+    source: string;
+    version?: string;
+    sha256?: string;
+  };
+  contextReferences?: AgentContextReference[];
+  files: ManifestFileEntry[];
+  history?: ManifestHistoryEntry[];
+}
+
 export interface InstallManifest {
   schemaVersion: 1;
   installs: ManifestInstallEntry[];
+  registeredAgents?: ManifestRegisteredAgentEntry[];
 }
 
 export interface RegistryLock {

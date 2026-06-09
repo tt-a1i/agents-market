@@ -2,7 +2,15 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { sha256 } from "./hash.js";
 import type { GeneratedPackFile } from "./install.js";
-import type { InstallManifest, ManifestHistoryEntry, ManifestInstallEntry, ManifestRollbackFileEntry, RegistryLock, Target } from "./types.js";
+import type {
+  InstallManifest,
+  ManifestHistoryEntry,
+  ManifestInstallEntry,
+  ManifestRegisteredAgentEntry,
+  ManifestRollbackFileEntry,
+  RegistryLock,
+  Target
+} from "./types.js";
 
 export const MANIFEST_PATH = ".agents-market/manifest.json";
 export const REGISTRY_LOCK_PATH = ".agents-market/registry-lock.json";
@@ -11,9 +19,10 @@ const MAX_HISTORY_ENTRIES = 5;
 export async function loadManifest(root: string): Promise<InstallManifest> {
   try {
     const raw = await readFile(join(root, MANIFEST_PATH), "utf8");
-    return JSON.parse(raw) as InstallManifest;
+    const manifest = JSON.parse(raw) as InstallManifest;
+    return normalizeManifest(manifest);
   } catch {
-    return { schemaVersion: 1, installs: [] };
+    return { schemaVersion: 1, installs: [], registeredAgents: [] };
   }
 }
 
@@ -63,6 +72,7 @@ export function upsertInstall(
 
   return {
     schemaVersion: 1,
+    registeredAgents: manifest.registeredAgents ?? [],
     installs: [
       ...manifest.installs.filter((entry) => !(entry.packId === packId && entry.target === target)),
       nextEntry
@@ -73,6 +83,7 @@ export function upsertInstall(
 export function upsertInstallEntry(manifest: InstallManifest, entry: ManifestInstallEntry): InstallManifest {
   return {
     schemaVersion: 1,
+    registeredAgents: manifest.registeredAgents ?? [],
     installs: [
       ...manifest.installs.filter((candidate) => !(candidate.packId === entry.packId && candidate.target === entry.target)),
       entry
@@ -110,10 +121,50 @@ export function popInstallHistory(install: ManifestInstallEntry): { entry?: Mani
 export function removeInstall(manifest: InstallManifest, packId: string, target?: Target | "all"): InstallManifest {
   return {
     schemaVersion: 1,
+    registeredAgents: manifest.registeredAgents ?? [],
     installs: manifest.installs.filter((entry) => {
       if (entry.packId !== packId) return true;
       if (!target) return false;
       return entry.target !== target;
     })
+  };
+}
+
+export function upsertRegisteredAgent(manifest: InstallManifest, entry: ManifestRegisteredAgentEntry): InstallManifest {
+  return {
+    schemaVersion: 1,
+    installs: manifest.installs,
+    registeredAgents: [
+      ...(manifest.registeredAgents ?? []).filter(
+        (candidate) => !(candidate.target === entry.target && candidate.localName === entry.localName)
+      ),
+      entry
+    ]
+  };
+}
+
+export function removeRegisteredAgent(manifest: InstallManifest, localName: string, target?: Target): InstallManifest {
+  return {
+    schemaVersion: 1,
+    installs: manifest.installs,
+    registeredAgents: (manifest.registeredAgents ?? []).filter((entry) => {
+      if (entry.localName !== localName && entry.agentId !== localName) return true;
+      if (!target) return false;
+      return entry.target !== target;
+    })
+  };
+}
+
+export function findRegisteredFile(manifest: InstallManifest, path: string, target?: Target): ManifestRegisteredAgentEntry | undefined {
+  return (manifest.registeredAgents ?? []).find((entry) =>
+    entry.files.some((file) => file.path === path && (!target || file.target === target))
+  );
+}
+
+function normalizeManifest(manifest: InstallManifest): InstallManifest {
+  return {
+    schemaVersion: 1,
+    installs: manifest.installs ?? [],
+    registeredAgents: manifest.registeredAgents ?? []
   };
 }
