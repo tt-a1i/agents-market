@@ -58,13 +58,13 @@
   "dependencies": {
     "commander": "^14.0.2",
     "picocolors": "^1.1.1",
-    "zod": "^4.2.0"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20"
